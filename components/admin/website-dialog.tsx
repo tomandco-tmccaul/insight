@@ -1,0 +1,184 @@
+'use client';
+
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Website } from '@/types/firestore';
+import { auth } from '@/lib/firebase/config';
+
+interface WebsiteDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  clientId: string;
+  website?: Website | null;
+  onSuccess: () => void;
+}
+
+export function WebsiteDialog({
+  open,
+  onOpenChange,
+  clientId,
+  website,
+  onSuccess,
+}: WebsiteDialogProps) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [formData, setFormData] = useState({
+    id: website?.id || '',
+    websiteName: website?.websiteName || '',
+    bigQueryWebsiteId: website?.bigQueryWebsiteId || '',
+  });
+
+  const isEdit = !!website;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const url = isEdit
+        ? `/api/admin/clients/${clientId}/websites/${website.id}`
+        : `/api/admin/clients/${clientId}/websites`;
+
+      const method = isEdit ? 'PATCH' : 'POST';
+
+      const body = isEdit
+        ? {
+            websiteName: formData.websiteName,
+            bigQueryWebsiteId: formData.bigQueryWebsiteId,
+          }
+        : formData;
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to save website');
+      }
+
+      onSuccess();
+      onOpenChange(false);
+
+      // Reset form
+      setFormData({ id: '', websiteName: '', bigQueryWebsiteId: '' });
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{isEdit ? 'Edit Website' : 'New Website'}</DialogTitle>
+          <DialogDescription>
+            {isEdit
+              ? 'Update the website information.'
+              : 'Add a new website to this client.'}
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit}>
+          <div className="space-y-4 py-4">
+            {!isEdit && (
+              <div className="space-y-2">
+                <Label htmlFor="id">Website ID</Label>
+                <Input
+                  id="id"
+                  placeholder="harlequin"
+                  value={formData.id}
+                  onChange={(e) =>
+                    setFormData({ ...formData, id: e.target.value })
+                  }
+                  required
+                  disabled={loading}
+                  pattern="[a-z0-9_-]+"
+                  title="Only lowercase letters, numbers, underscores, and hyphens"
+                />
+                <p className="text-xs text-gray-500">
+                  Use lowercase letters, numbers, underscores, and hyphens only
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="websiteName">Website Name</Label>
+              <Input
+                id="websiteName"
+                placeholder="Harlequin"
+                value={formData.websiteName}
+                onChange={(e) =>
+                  setFormData({ ...formData, websiteName: e.target.value })
+                }
+                required
+                disabled={loading}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="bigQueryWebsiteId">BigQuery Website ID</Label>
+              <Input
+                id="bigQueryWebsiteId"
+                placeholder="harlequin"
+                value={formData.bigQueryWebsiteId}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    bigQueryWebsiteId: e.target.value,
+                  })
+                }
+                required
+                disabled={loading}
+              />
+              <p className="text-xs text-gray-500">
+                The website_id value used in BigQuery tables
+              </p>
+            </div>
+
+            {error && (
+              <div className="rounded-md bg-red-50 p-3 text-sm text-red-800">
+                {error}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? 'Saving...' : isEdit ? 'Update' : 'Create'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
