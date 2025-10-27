@@ -39,12 +39,12 @@ export function WebsiteDialog({
     bigQueryWebsiteId: '',
     adobeCommerceWebsiteId: '',
     bigQueryTablePrefixes: {
-      googleAds: '',
-      facebookAds: '',
-      pinterestAds: '',
-      googleSearchConsole: '',
-      ga4: '',
-      adobeCommerce: '',
+      googleAds: 'google_ads_',
+      facebookAds: 'facebook_ads_',
+      pinterestAds: 'pinterest_ads_',
+      googleSearchConsole: 'gsc_',
+      ga4: 'ga4_',
+      adobeCommerce: 'adobe_commerce_',
     },
   });
 
@@ -59,28 +59,28 @@ export function WebsiteDialog({
         bigQueryWebsiteId: website.bigQueryWebsiteId || '',
         adobeCommerceWebsiteId: website.adobeCommerceWebsiteId || '',
         bigQueryTablePrefixes: {
-          googleAds: website.bigQueryTablePrefixes?.googleAds || '',
-          facebookAds: website.bigQueryTablePrefixes?.facebookAds || '',
-          pinterestAds: website.bigQueryTablePrefixes?.pinterestAds || '',
-          googleSearchConsole: website.bigQueryTablePrefixes?.googleSearchConsole || '',
-          ga4: website.bigQueryTablePrefixes?.ga4 || '',
-          adobeCommerce: website.bigQueryTablePrefixes?.adobeCommerce || '',
+          googleAds: website.bigQueryTablePrefixes?.googleAds || 'google_ads_',
+          facebookAds: website.bigQueryTablePrefixes?.facebookAds || 'facebook_ads_',
+          pinterestAds: website.bigQueryTablePrefixes?.pinterestAds || 'pinterest_ads_',
+          googleSearchConsole: website.bigQueryTablePrefixes?.googleSearchConsole || 'gsc_',
+          ga4: website.bigQueryTablePrefixes?.ga4 || 'ga4_',
+          adobeCommerce: website.bigQueryTablePrefixes?.adobeCommerce || 'adobe_commerce_',
         },
       });
     } else if (open && !website) {
-      // Reset form for new website
+      // Reset form for new website with default prefixes
       setFormData({
         id: '',
         websiteName: '',
         bigQueryWebsiteId: '',
         adobeCommerceWebsiteId: '',
         bigQueryTablePrefixes: {
-          googleAds: '',
-          facebookAds: '',
-          pinterestAds: '',
-          googleSearchConsole: '',
-          ga4: '',
-          adobeCommerce: '',
+          googleAds: 'google_ads_',
+          facebookAds: 'facebook_ads_',
+          pinterestAds: 'pinterest_ads_',
+          googleSearchConsole: 'gsc_',
+          ga4: 'ga4_',
+          adobeCommerce: 'adobe_commerce_',
         },
       });
     }
@@ -244,7 +244,7 @@ export function WebsiteDialog({
                 BigQuery Table Prefixes
               </Label>
               <p className="text-xs text-gray-500">
-                Table prefixes for each data source. Final table name = prefix + table name (e.g., "adobe_commerce_" + "orders" = "adobe_commerce_orders")
+                Table prefixes for each data source. Defaults are provided but can be customized. Final table name = prefix + table name (e.g., "adobe_commerce_" + "orders" = "adobe_commerce_orders")
               </p>
 
               <div className="space-y-2">
