@@ -15,6 +15,8 @@ import {
   ExternalLink,
   Database,
   UserCircle,
+  ShoppingCart,
+  Megaphone,
 } from 'lucide-react';
 
 interface NavItem {
@@ -25,9 +27,14 @@ interface NavItem {
 
 const dashboardNavItems: NavItem[] = [
   {
-    title: 'Sales / Performance Overview',
+    title: 'Overview',
     href: '/',
     icon: LayoutDashboard,
+  },
+  {
+    title: 'Sales Performance',
+    href: '/sales',
+    icon: ShoppingCart,
   },
   {
     title: 'Customer Insights',
@@ -42,7 +49,7 @@ const dashboardNavItems: NavItem[] = [
   {
     title: 'Digital Marketing Breakdown',
     href: '/marketing',
-    icon: TrendingUp,
+    icon: Megaphone,
   },
   {
     title: 'Website Behaviour',
