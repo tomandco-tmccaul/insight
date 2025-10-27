@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
       }
 
       // Fetch all clients
-      const clientsRef = adminDb.collection('clients').orderBy('name', 'asc');
+      const clientsRef = adminDb.collection('clients');
       const snapshot = await clientsRef.get();
       const clients: Client[] = [];
 
@@ -31,11 +31,15 @@ export async function GET(request: NextRequest) {
         const data = doc.data();
         clients.push({
           id: doc.id,
-          clientName: data.name || data.clientName || doc.id,
+          clientName: data.clientName || doc.id,
+          bigQueryDatasetId: data.bigQueryDatasetId,
           createdAt: data.createdAt,
           updatedAt: data.updatedAt,
         });
       });
+
+      // Sort clients by name
+      clients.sort((a, b) => a.clientName.localeCompare(b.clientName));
 
       return NextResponse.json({
         success: true,
