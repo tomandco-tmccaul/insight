@@ -5,13 +5,33 @@
 export interface SalesOverviewRow {
   date: string; // YYYY-MM-DD format
   website_id: string;
-  total_sales: number;
+
+  // Order Metrics
   total_orders: number;
-  total_sessions: number;
-  total_media_spend: number;
+  unique_customers: number;
+
+  // Revenue Metrics
   total_revenue: number;
-  total_returns?: number;
-  total_return_value?: number;
+  subtotal: number;
+  total_tax: number;
+  total_shipping: number;
+  total_discounts: number;
+
+  // Item Metrics
+  total_items: number;
+
+  // Order Status Breakdown
+  orders_complete: number;
+  orders_pending: number;
+  orders_processing: number;
+  orders_canceled: number;
+
+  // Revenue by Status
+  revenue_complete: number;
+  revenue_pending: number;
+
+  // Metadata
+  _aggregated_at: string;
 }
 
 // Product performance data
@@ -95,11 +115,12 @@ export interface CartBehaviorRow {
 
 // Aggregated metrics (calculated in-app)
 export interface CalculatedMetrics {
-  aov: number; // Average Order Value = total_sales / total_orders
-  cvr: number; // Conversion Rate = (total_orders / total_sessions) * 100
-  returnRate: number; // Return Rate = (total_returns / total_orders) * 100
-  blendedROAS: number; // Return on Ad Spend = total_revenue / total_media_spend
-  cpa: number; // Cost Per Acquisition = total_media_spend / total_orders
+  aov: number; // Average Order Value = total_revenue / total_orders
+  items_per_order: number; // total_items / total_orders
+  cvr?: number; // Conversion Rate = (total_orders / total_sessions) * 100 (requires session data)
+  returnRate?: number; // Return Rate = (total_returns / total_orders) * 100 (requires return data)
+  blendedROAS?: number; // Return on Ad Spend = total_revenue / total_media_spend (requires ad spend data)
+  cpa?: number; // Cost Per Acquisition = total_media_spend / total_orders (requires ad spend data)
 }
 
 // Date range filter
