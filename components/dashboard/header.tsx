@@ -21,9 +21,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Calendar, ChevronDown } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { apiRequest } from '@/lib/utils/api';
 import { Client, Website } from '@/types/firestore';
+import { DateRangePicker } from '@/components/dashboard/date-range-picker';
 
 export function DashboardHeader() {
   const { appUser, signOut } = useAuth();
@@ -163,13 +164,10 @@ export function DashboardHeader() {
         </Select>
 
         {/* Date Range Picker */}
-        <Button variant="outline" className="gap-2">
-          <Calendar className="h-4 w-4" />
-          <span className="text-sm">
-            {dateRange.startDate} - {dateRange.endDate}
-          </span>
-          <ChevronDown className="h-4 w-4" />
-        </Button>
+        <DateRangePicker
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+        />
 
         {/* Comparison Period */}
         <Select value={comparisonPeriod} onValueChange={(value) => setComparisonPeriod(value as any)}>
