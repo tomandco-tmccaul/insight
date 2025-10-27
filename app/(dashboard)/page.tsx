@@ -11,38 +11,70 @@ import { formatCurrency, formatNumber, formatPercentage, calculatePercentageChan
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
 interface SalesData {
-  rows: Array<{
+  daily: Array<{
     date: string;
-    total_sales: number;
+    website_id: string;
     total_orders: number;
-    total_sessions: number;
-  }>;
-  totals: {
-    total_sales: number;
-    total_orders: number;
-    total_sessions: number;
-    total_media_spend: number;
     total_revenue: number;
-  };
-  metrics: {
+    unique_customers: number;
+    total_items: number;
+    subtotal: number;
+    total_tax: number;
+    total_shipping: number;
+    total_discounts: number;
+  }>;
+  summary: {
+    total_orders: number;
+    total_revenue: number;
+    total_items: number;
+    unique_customers: number;
     aov: number;
-    cvr: number;
-    blendedROAS: number;
-    cpa: number;
+    items_per_order: number;
   };
 }
 
 export default function OverviewPage() {
-  const { selectedWebsiteId, dateRange, comparisonPeriod } = useDashboard();
+  const { selectedClientId, selectedWebsiteId, dateRange, comparisonPeriod } = useDashboard();
   const getIdToken = useIdToken();
   const [data, setData] = useState<SalesData | null>(null);
   const [comparisonData, setComparisonData] = useState<SalesData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [datasetId, setDatasetId] = useState<string | null>(null);
 
+  // Fetch client's BigQuery dataset ID
+  useEffect(() => {
+    async function fetchClientData() {
+      if (!selectedClientId) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const idToken = await getIdToken();
+        const response = await apiRequest<{ id: string; clientName: string; bigQueryDatasetId: string }>(
+          `/api/admin/clients/${selectedClientId}`,
+          {},
+          idToken || undefined
+        );
+
+        if (response.success && response.data) {
+          setDatasetId(response.data.bigQueryDatasetId);
+        } else {
+          setError('Failed to fetch client data');
+        }
+      } catch (err: any) {
+        setError(err.message || 'An error occurred');
+      }
+    }
+
+    fetchClientData();
+  }, [selectedClientId, getIdToken]);
+
+  // Fetch sales data
   useEffect(() => {
     async function fetchData() {
-      if (!selectedWebsiteId) {
+      if (!selectedClientId || !datasetId) {
         setLoading(false);
         return;
       }
@@ -52,15 +84,17 @@ export default function OverviewPage() {
 
       try {
         const idToken = await getIdToken();
-        // Fetch current period data
+
+        // Build query parameters
         const queryString = buildQueryString({
-          websiteId: selectedWebsiteId,
-          startDate: dateRange.startDate,
-          endDate: dateRange.endDate,
+          dataset_id: datasetId,
+          website_id: selectedWebsiteId || 'all_combined',
+          start_date: dateRange.startDate,
+          end_date: dateRange.endDate,
         });
 
         const response = await apiRequest<SalesData>(
-          `/api/sales/overview${queryString}`,
+          `/api/reports/sales-overview${queryString}`,
           {},
           idToken || undefined
         );
@@ -78,14 +112,14 @@ export default function OverviewPage() {
     }
 
     fetchData();
-  }, [selectedWebsiteId, dateRange, getIdToken]);
+  }, [selectedClientId, selectedWebsiteId, dateRange, datasetId, getIdToken]);
 
-  if (!selectedWebsiteId) {
+  if (!selectedClientId) {
     return (
       <div className="flex h-96 items-center justify-center">
         <div className="text-center">
-          <h3 className="text-lg font-semibold text-gray-900">No Website Selected</h3>
-          <p className="mt-2 text-gray-600">Please select a website from the header to view data</p>
+          <h3 className="text-lg font-semibold text-gray-900">No Client Selected</h3>
+          <p className="mt-2 text-gray-600">Please select a client from the header to view data</p>
         </div>
       </div>
     );
@@ -118,9 +152,9 @@ export default function OverviewPage() {
   }
 
   // Prepare chart data
-  const chartData = data.rows.map((row) => ({
+  const chartData = data.daily.map((row) => ({
     date: row.date,
-    Sales: row.total_sales,
+    Revenue: row.total_revenue,
     Orders: row.total_orders,
   }));
 
@@ -136,23 +170,23 @@ export default function OverviewPage() {
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <KPICard
-          label="Total Sales"
-          value={formatCurrency(data.totals.total_sales)}
+          label="Total Revenue"
+          value={formatCurrency(data.summary.total_revenue)}
           change={null}
         />
         <KPICard
           label="Orders"
-          value={formatNumber(data.totals.total_orders)}
+          value={formatNumber(data.summary.total_orders)}
           change={null}
         />
         <KPICard
           label="AOV"
-          value={formatCurrency(data.metrics.aov)}
+          value={formatCurrency(data.summary.aov)}
           change={null}
         />
         <KPICard
-          label="Conversion Rate"
-          value={`${data.metrics.cvr.toFixed(2)}%`}
+          label="Customers"
+          value={formatNumber(data.summary.unique_customers)}
           change={null}
         />
       </div>
@@ -160,13 +194,13 @@ export default function OverviewPage() {
       {/* Charts */}
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900">Sales Trend</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Revenue Trend</h3>
           <div className="mt-4">
             <AreaChart
               className="h-64"
               data={chartData}
               index="date"
-              categories={['Sales']}
+              categories={['Revenue']}
               colors={['blue']}
               valueFormatter={(value) => formatCurrency(value)}
               showLegend={false}
