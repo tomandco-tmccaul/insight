@@ -9,6 +9,42 @@ import { useIdToken } from '@/lib/auth/hooks';
 import { apiRequest, buildQueryString } from '@/lib/utils/api';
 import { formatCurrency, formatNumber, formatPercentage, calculatePercentageChange } from '@/lib/utils/date';
 import { TrendingUp, TrendingDown } from 'lucide-react';
+import { Target } from '@/types/firestore';
+
+// Helper function to calculate comparison date range
+function calculateComparisonDates(
+  startDate: string,
+  endDate: string,
+  comparisonPeriod: 'previous_period' | 'previous_year'
+): { startDate: string; endDate: string } {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const daysDiff = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (comparisonPeriod === 'previous_period') {
+    // Go back by the same number of days
+    const comparisonEnd = new Date(start);
+    comparisonEnd.setDate(comparisonEnd.getDate() - 1);
+    const comparisonStart = new Date(comparisonEnd);
+    comparisonStart.setDate(comparisonStart.getDate() - daysDiff);
+
+    return {
+      startDate: comparisonStart.toISOString().split('T')[0],
+      endDate: comparisonEnd.toISOString().split('T')[0],
+    };
+  } else {
+    // Previous year - same dates, one year back
+    const comparisonStart = new Date(start);
+    comparisonStart.setFullYear(comparisonStart.getFullYear() - 1);
+    const comparisonEnd = new Date(end);
+    comparisonEnd.setFullYear(comparisonEnd.getFullYear() - 1);
+
+    return {
+      startDate: comparisonStart.toISOString().split('T')[0],
+      endDate: comparisonEnd.toISOString().split('T')[0],
+    };
+  }
+}
 
 interface SalesData {
   daily: Array<{
@@ -42,6 +78,7 @@ export default function OverviewPage() {
   const [error, setError] = useState<string | null>(null);
   const [datasetId, setDatasetId] = useState<string | null>(null);
   const [storeId, setStoreId] = useState<string | null>(null);
+  const [targets, setTargets] = useState<Target[]>([]);
 
   // Fetch client's BigQuery dataset ID
   useEffect(() => {
@@ -101,6 +138,33 @@ export default function OverviewPage() {
     fetchWebsiteData();
   }, [selectedClientId, selectedWebsiteId, getIdToken]);
 
+  // Fetch targets
+  useEffect(() => {
+    async function fetchTargets() {
+      if (!selectedClientId) {
+        setTargets([]);
+        return;
+      }
+
+      try {
+        const idToken = await getIdToken();
+        const response = await apiRequest<Target[]>(
+          `/api/admin/clients/${selectedClientId}/targets`,
+          {},
+          idToken || undefined
+        );
+
+        if (response.success && response.data) {
+          setTargets(response.data);
+        }
+      } catch (err: any) {
+        console.error('Error fetching targets:', err);
+      }
+    }
+
+    fetchTargets();
+  }, [selectedClientId, getIdToken]);
+
   // Fetch sales data
   useEffect(() => {
     async function fetchData() {
@@ -120,7 +184,7 @@ export default function OverviewPage() {
           ? 'all_combined'
           : storeId;
 
-        // Build query parameters
+        // Build query parameters for current period
         const queryString = buildQueryString({
           dataset_id: datasetId,
           website_id: websiteFilter,
@@ -139,6 +203,34 @@ export default function OverviewPage() {
         } else {
           setError(response.error || 'Failed to fetch data');
         }
+
+        // Fetch comparison data if comparison period is selected
+        if (comparisonPeriod !== 'none') {
+          const comparisonDates = calculateComparisonDates(
+            dateRange.startDate,
+            dateRange.endDate,
+            comparisonPeriod
+          );
+
+          const comparisonQueryString = buildQueryString({
+            dataset_id: datasetId,
+            website_id: websiteFilter,
+            start_date: comparisonDates.startDate,
+            end_date: comparisonDates.endDate,
+          });
+
+          const comparisonResponse = await apiRequest<SalesData>(
+            `/api/reports/sales-overview${comparisonQueryString}`,
+            {},
+            idToken || undefined
+          );
+
+          if (comparisonResponse.success && comparisonResponse.data) {
+            setComparisonData(comparisonResponse.data);
+          }
+        } else {
+          setComparisonData(null);
+        }
       } catch (err: any) {
         setError(err.message || 'An error occurred');
       } finally {
@@ -147,7 +239,7 @@ export default function OverviewPage() {
     }
 
     fetchData();
-  }, [selectedClientId, selectedWebsiteId, dateRange, datasetId, storeId, getIdToken]);
+  }, [selectedClientId, selectedWebsiteId, dateRange, comparisonPeriod, datasetId, storeId, getIdToken]);
 
   if (!selectedClientId) {
     return (
@@ -186,6 +278,20 @@ export default function OverviewPage() {
     );
   }
 
+  // Calculate percentage changes
+  const revenueChange = comparisonData
+    ? calculatePercentageChange(comparisonData.summary.total_revenue, data.summary.total_revenue)
+    : null;
+  const ordersChange = comparisonData
+    ? calculatePercentageChange(comparisonData.summary.total_orders, data.summary.total_orders)
+    : null;
+  const aovChange = comparisonData
+    ? calculatePercentageChange(comparisonData.summary.aov, data.summary.aov)
+    : null;
+  const customersChange = comparisonData
+    ? calculatePercentageChange(comparisonData.summary.unique_customers, data.summary.unique_customers)
+    : null;
+
   // Prepare chart data
   const chartData = data.daily.map((row) => ({
     date: row.date,
@@ -207,22 +313,22 @@ export default function OverviewPage() {
         <KPICard
           label="Total Revenue"
           value={formatCurrency(data.summary.total_revenue)}
-          change={null}
+          change={revenueChange}
         />
         <KPICard
           label="Orders"
           value={formatNumber(data.summary.total_orders)}
-          change={null}
+          change={ordersChange}
         />
         <KPICard
           label="AOV"
           value={formatCurrency(data.summary.aov)}
-          change={null}
+          change={aovChange}
         />
         <KPICard
           label="Customers"
           value={formatNumber(data.summary.unique_customers)}
-          change={null}
+          change={customersChange}
         />
       </div>
 
@@ -258,6 +364,21 @@ export default function OverviewPage() {
           </div>
         </Card>
       </div>
+
+      {/* Revenue vs. Target Chart */}
+      {targets.length > 0 && (
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold text-gray-900">Revenue vs. Target</h3>
+          <div className="mt-4">
+            <RevenueVsTargetChart
+              data={data}
+              targets={targets}
+              selectedWebsiteId={selectedWebsiteId}
+              dateRange={dateRange}
+            />
+          </div>
+        </Card>
+      )}
     </div>
   );
 }
@@ -292,6 +413,84 @@ function KPICard({
         )}
       </div>
     </Card>
+  );
+}
+
+function RevenueVsTargetChart({
+  data,
+  targets,
+  selectedWebsiteId,
+  dateRange,
+}: {
+  data: SalesData;
+  targets: Target[];
+  selectedWebsiteId: string | null;
+  dateRange: { startDate: string; endDate: string };
+}) {
+  // Find relevant revenue target
+  const revenueTarget = targets.find(
+    (t) =>
+      t.metric === 'revenue' &&
+      (t.websiteId === selectedWebsiteId || t.websiteId === 'all_combined') &&
+      new Date(t.startDate) <= new Date(dateRange.endDate)
+  );
+
+  if (!revenueTarget) {
+    return (
+      <div className="flex h-64 items-center justify-center text-gray-500">
+        No revenue target set for this period
+      </div>
+    );
+  }
+
+  // Calculate actual vs target
+  const actualRevenue = data.summary.total_revenue;
+  const targetRevenue = revenueTarget.value;
+  const percentageOfTarget = (actualRevenue / targetRevenue) * 100;
+
+  const chartData = [
+    {
+      name: 'Target',
+      value: targetRevenue,
+    },
+    {
+      name: 'Actual',
+      value: actualRevenue,
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm text-gray-600">Target Revenue</p>
+          <p className="text-2xl font-bold text-gray-900">{formatCurrency(targetRevenue)}</p>
+        </div>
+        <div>
+          <p className="text-sm text-gray-600">Actual Revenue</p>
+          <p className="text-2xl font-bold text-gray-900">{formatCurrency(actualRevenue)}</p>
+        </div>
+        <div>
+          <p className="text-sm text-gray-600">Achievement</p>
+          <p
+            className={`text-2xl font-bold ${
+              percentageOfTarget >= 100 ? 'text-green-600' : 'text-orange-600'
+            }`}
+          >
+            {formatPercentage(percentageOfTarget)}
+          </p>
+        </div>
+      </div>
+      <BarChart
+        className="h-64"
+        data={chartData}
+        index="name"
+        categories={['value']}
+        colors={['blue']}
+        valueFormatter={(value) => formatCurrency(value)}
+        showLegend={false}
+      />
+    </div>
   );
 }
 
