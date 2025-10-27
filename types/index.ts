@@ -1,6 +1,8 @@
 // Shared types and re-exports
 export * from './firestore';
 export * from './bigquery';
+export * from './adobe-commerce';
+export * from './ai-chat';
 
 // Navigation and UI types
 export type UserRole = 'admin' | 'client';
