@@ -12,12 +12,18 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   return requireAdmin(request, async () => {
     try {
+      if (!db) {
+        return NextResponse.json(
+          { success: false, error: 'Database not initialized' },
+          { status: 500 }
+        );
+      }
       const clientsSnapshot = await db.collection('clients').get();
 
       // Fetch website counts for each client
       const clientsWithCounts = await Promise.all(
         clientsSnapshot.docs.map(async (doc) => {
-          const websitesSnapshot = await db
+          const websitesSnapshot = await db!
             .collection('clients')
             .doc(doc.id)
             .collection('websites')
@@ -65,6 +71,13 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           { success: false, error: 'Missing required fields: id, clientName, bigQueryDatasetId' },
           { status: 400 }
+        );
+      }
+
+      if (!db) {
+        return NextResponse.json(
+          { success: false, error: 'Database not initialized' },
+          { status: 500 }
         );
       }
 

@@ -3,12 +3,12 @@
 import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AreaChart, BarChart } from '@tremor/react';
+import { AreaChart, BarChart, DonutChart, LineChart } from '@tremor/react';
 import { useDashboard } from '@/lib/context/dashboard-context';
 import { useIdToken } from '@/lib/auth/hooks';
 import { apiRequest, buildQueryString } from '@/lib/utils/api';
 import { formatCurrency, formatNumber, formatPercentage, calculatePercentageChange } from '@/lib/utils/date';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, Users, ShoppingBag, Clock, Percent, Package } from 'lucide-react';
 import { Target, Website } from '@/types/firestore';
 import {
   Select,
@@ -17,6 +17,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 
 // Helper function to calculate comparison date range
 function calculateComparisonDates(
@@ -65,6 +74,12 @@ interface SalesData {
     total_tax: number;
     total_shipping: number;
     total_discounts: number;
+    orders_complete?: number;
+    orders_pending?: number;
+    orders_processing?: number;
+    orders_canceled?: number;
+    revenue_complete?: number;
+    revenue_pending?: number;
   }>;
   summary: {
     total_orders: number;
@@ -73,14 +88,60 @@ interface SalesData {
     unique_customers: number;
     aov: number;
     items_per_order: number;
+    subtotal?: number;
+    total_tax?: number;
+    total_shipping?: number;
+    total_discounts?: number;
+    orders_complete?: number;
+    orders_pending?: number;
+    orders_processing?: number;
+    orders_canceled?: number;
   };
 }
 
-export default function OverviewPage() {
+interface CustomerMetrics {
+  daily: Array<{
+    date: string;
+    unique_customers: number;
+    registered_customers: number;
+    guest_customers: number;
+    revenue_per_customer: number;
+  }>;
+  summary: {
+    total_unique_customers: number;
+    total_registered_customers: number;
+    total_guest_customers: number;
+    avg_revenue_per_customer: number;
+  };
+}
+
+interface HourlySales {
+  hourly: Array<{
+    hour: number;
+    total_orders: number;
+    total_revenue: number;
+    avg_orders_per_day: number;
+    avg_revenue_per_day: number;
+  }>;
+  peaks: {
+    orders: {
+      hour: number;
+      total_orders: number;
+    };
+    revenue: {
+      hour: number;
+      total_revenue: number;
+    };
+  };
+}
+
+export default function SalesPerformancePage() {
   const { selectedClientId, dateRange, comparisonPeriod } = useDashboard();
   const getIdToken = useIdToken();
   const [data, setData] = useState<SalesData | null>(null);
   const [comparisonData, setComparisonData] = useState<SalesData | null>(null);
+  const [customerMetrics, setCustomerMetrics] = useState<CustomerMetrics | null>(null);
+  const [hourlySales, setHourlySales] = useState<HourlySales | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [datasetId, setDatasetId] = useState<string | null>(null);
@@ -306,6 +367,76 @@ export default function OverviewPage() {
     fetchData();
   }, [selectedClientId, localSelectedWebsiteId, dateRange, comparisonPeriod, datasetId, storeId, getIdToken]);
 
+  // Fetch customer metrics
+  useEffect(() => {
+    async function fetchCustomerMetrics() {
+      if (!selectedClientId || !datasetId) return;
+
+      try {
+        const idToken = await getIdToken();
+        const websiteFilter = localSelectedWebsiteId === 'all_combined' || !storeId
+          ? 'all_combined'
+          : storeId;
+
+        const queryString = buildQueryString({
+          dataset_id: datasetId,
+          website_id: websiteFilter,
+          start_date: dateRange.startDate,
+          end_date: dateRange.endDate,
+        });
+
+        const response = await apiRequest<CustomerMetrics>(
+          `/api/reports/customer-metrics${queryString}`,
+          {},
+          idToken || undefined
+        );
+
+        if (response.success && response.data) {
+          setCustomerMetrics(response.data);
+        }
+      } catch (err: any) {
+        console.error('Error fetching customer metrics:', err);
+      }
+    }
+
+    fetchCustomerMetrics();
+  }, [selectedClientId, datasetId, localSelectedWebsiteId, storeId, dateRange, getIdToken]);
+
+  // Fetch hourly sales
+  useEffect(() => {
+    async function fetchHourlySales() {
+      if (!selectedClientId || !datasetId) return;
+
+      try {
+        const idToken = await getIdToken();
+        const websiteFilter = localSelectedWebsiteId === 'all_combined' || !storeId
+          ? 'all_combined'
+          : storeId;
+
+        const queryString = buildQueryString({
+          dataset_id: datasetId,
+          website_id: websiteFilter,
+          start_date: dateRange.startDate,
+          end_date: dateRange.endDate,
+        });
+
+        const response = await apiRequest<HourlySales>(
+          `/api/reports/hourly-sales${queryString}`,
+          {},
+          idToken || undefined
+        );
+
+        if (response.success && response.data) {
+          setHourlySales(response.data);
+        }
+      } catch (err: any) {
+        console.error('Error fetching hourly sales:', err);
+      }
+    }
+
+    fetchHourlySales();
+  }, [selectedClientId, datasetId, localSelectedWebsiteId, storeId, dateRange, getIdToken]);
+
   if (!selectedClientId) {
     return (
       <div className="flex h-96 items-center justify-center">
@@ -393,28 +524,102 @@ export default function OverviewPage() {
         </div>
       </div>
 
-      {/* KPI Cards */}
+      {/* Primary KPI Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <KPICard
           label="Total Revenue"
           value={formatCurrency(data.summary.total_revenue)}
           change={revenueChange}
+          icon={<ShoppingBag className="h-5 w-5" />}
         />
         <KPICard
           label="Orders"
           value={formatNumber(data.summary.total_orders)}
           change={ordersChange}
+          icon={<Package className="h-5 w-5" />}
         />
         <KPICard
           label="AOV"
           value={formatCurrency(data.summary.aov)}
           change={aovChange}
+          icon={<TrendingUp className="h-5 w-5" />}
         />
         <KPICard
           label="Customers"
           value={formatNumber(data.summary.unique_customers)}
           change={customersChange}
+          icon={<Users className="h-5 w-5" />}
         />
+      </div>
+
+      {/* Secondary Metrics */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Items per Order</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {data.summary.items_per_order.toFixed(2)}
+              </p>
+            </div>
+            <div className="rounded-lg bg-blue-100 p-2">
+              <Package className="h-5 w-5 text-blue-600" />
+            </div>
+          </div>
+        </Card>
+
+        {data.summary.total_discounts !== undefined && (
+          <Card className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Total Discounts</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {formatCurrency(data.summary.total_discounts)}
+                </p>
+                {data.summary.total_revenue > 0 && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formatPercentage((data.summary.total_discounts / data.summary.total_revenue) * 100)} of revenue
+                  </p>
+                )}
+              </div>
+              <div className="rounded-lg bg-orange-100 p-2">
+                <Percent className="h-5 w-5 text-orange-600" />
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {data.summary.total_shipping !== undefined && (
+          <Card className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Shipping Revenue</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {formatCurrency(data.summary.total_shipping)}
+                </p>
+              </div>
+              <div className="rounded-lg bg-purple-100 p-2">
+                <TrendingUp className="h-5 w-5 text-purple-600" />
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {data.summary.total_tax !== undefined && (
+          <Card className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Tax Collected</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {formatCurrency(data.summary.total_tax)}
+                </p>
+              </div>
+              <div className="rounded-lg bg-green-100 p-2">
+                <TrendingUp className="h-5 w-5 text-green-600" />
+              </div>
+            </div>
+          </Card>
+        )}
       </div>
 
       {/* Charts */}
@@ -449,6 +654,216 @@ export default function OverviewPage() {
           </div>
         </Card>
       </div>
+
+      {/* Order Status & Revenue Breakdown */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Order Status Breakdown */}
+        {data.summary.orders_complete !== undefined && (
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Order Status Breakdown</h3>
+            <DonutChart
+              className="h-64"
+              data={[
+                { name: 'Complete', value: data.summary.orders_complete || 0 },
+                { name: 'Processing', value: data.summary.orders_processing || 0 },
+                { name: 'Pending', value: data.summary.orders_pending || 0 },
+                { name: 'Canceled', value: data.summary.orders_canceled || 0 },
+              ].filter(item => item.value > 0)}
+              category="value"
+              index="name"
+              colors={['emerald', 'blue', 'amber', 'red']}
+              valueFormatter={(value) => formatNumber(value)}
+            />
+            <div className="mt-4 grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-gray-600">Complete</p>
+                <p className="text-lg font-semibold text-emerald-600">
+                  {formatNumber(data.summary.orders_complete || 0)}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Processing</p>
+                <p className="text-lg font-semibold text-blue-600">
+                  {formatNumber(data.summary.orders_processing || 0)}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Pending</p>
+                <p className="text-lg font-semibold text-amber-600">
+                  {formatNumber(data.summary.orders_pending || 0)}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Canceled</p>
+                <p className="text-lg font-semibold text-red-600">
+                  {formatNumber(data.summary.orders_canceled || 0)}
+                </p>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* Revenue Breakdown */}
+        {data.summary.subtotal !== undefined && (
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Revenue Breakdown</h3>
+            <DonutChart
+              className="h-64"
+              data={[
+                { name: 'Subtotal', value: data.summary.subtotal || 0 },
+                { name: 'Shipping', value: data.summary.total_shipping || 0 },
+                { name: 'Tax', value: data.summary.total_tax || 0 },
+                { name: 'Discounts', value: -(data.summary.total_discounts || 0) },
+              ].filter(item => Math.abs(item.value) > 0)}
+              category="value"
+              index="name"
+              colors={['blue', 'purple', 'green', 'orange']}
+              valueFormatter={(value) => formatCurrency(Math.abs(value))}
+            />
+            <div className="mt-4 space-y-2">
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-600">Subtotal</span>
+                <span className="text-sm font-semibold text-gray-900">
+                  {formatCurrency(data.summary.subtotal || 0)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-600">+ Shipping</span>
+                <span className="text-sm font-semibold text-gray-900">
+                  {formatCurrency(data.summary.total_shipping || 0)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-600">+ Tax</span>
+                <span className="text-sm font-semibold text-gray-900">
+                  {formatCurrency(data.summary.total_tax || 0)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-600">- Discounts</span>
+                <span className="text-sm font-semibold text-orange-600">
+                  {formatCurrency(data.summary.total_discounts || 0)}
+                </span>
+              </div>
+              <div className="flex justify-between pt-2 border-t border-gray-200">
+                <span className="text-sm font-semibold text-gray-900">Total Revenue</span>
+                <span className="text-sm font-bold text-gray-900">
+                  {formatCurrency(data.summary.total_revenue)}
+                </span>
+              </div>
+            </div>
+          </Card>
+        )}
+      </div>
+
+      {/* Customer Metrics */}
+      {customerMetrics && (
+        <div className="grid gap-6 lg:grid-cols-3">
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Customer Types</h3>
+              <Users className="h-5 w-5 text-gray-400" />
+            </div>
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-sm text-gray-600">Registered</span>
+                  <span className="text-sm font-semibold text-gray-900">
+                    {formatNumber(customerMetrics.summary.total_registered_customers)}
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-blue-600 h-2 rounded-full"
+                    style={{
+                      width: `${(customerMetrics.summary.total_registered_customers / customerMetrics.summary.total_unique_customers) * 100}%`
+                    }}
+                  />
+                </div>
+              </div>
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-sm text-gray-600">Guest</span>
+                  <span className="text-sm font-semibold text-gray-900">
+                    {formatNumber(customerMetrics.summary.total_guest_customers)}
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-purple-600 h-2 rounded-full"
+                    style={{
+                      width: `${(customerMetrics.summary.total_guest_customers / customerMetrics.summary.total_unique_customers) * 100}%`
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Revenue per Customer</h3>
+              <TrendingUp className="h-5 w-5 text-gray-400" />
+            </div>
+            <p className="text-3xl font-bold text-gray-900">
+              {formatCurrency(customerMetrics.summary.avg_revenue_per_customer)}
+            </p>
+            <p className="text-sm text-gray-600 mt-2">
+              Average across {formatNumber(customerMetrics.summary.total_unique_customers)} customers
+            </p>
+          </Card>
+
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Customer Ratio</h3>
+              <Percent className="h-5 w-5 text-gray-400" />
+            </div>
+            <div className="space-y-2">
+              <div>
+                <p className="text-sm text-gray-600">Registered</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {formatPercentage((customerMetrics.summary.total_registered_customers / customerMetrics.summary.total_unique_customers) * 100)}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Guest</p>
+                <p className="text-2xl font-bold text-purple-600">
+                  {formatPercentage((customerMetrics.summary.total_guest_customers / customerMetrics.summary.total_unique_customers) * 100)}
+                </p>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Hourly Performance */}
+      {hourlySales && (
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Hourly Performance</h3>
+              <p className="text-sm text-gray-600 mt-1">
+                Peak orders: {hourlySales.peaks.orders.hour}:00 ({formatNumber(hourlySales.peaks.orders.total_orders)} orders) •
+                Peak revenue: {hourlySales.peaks.revenue.hour}:00 ({formatCurrency(hourlySales.peaks.revenue.total_revenue)})
+              </p>
+            </div>
+            <Clock className="h-5 w-5 text-gray-400" />
+          </div>
+          <LineChart
+            className="h-64"
+            data={hourlySales.hourly.map(h => ({
+              hour: `${h.hour}:00`,
+              Orders: h.total_orders,
+              Revenue: h.total_revenue,
+            }))}
+            index="hour"
+            categories={['Orders', 'Revenue']}
+            colors={['blue', 'emerald']}
+            valueFormatter={(value) => formatNumber(value)}
+            yAxisWidth={60}
+          />
+        </Card>
+      )}
 
       {/* Revenue vs. Target Chart */}
       {targets.length > 0 && (
@@ -520,15 +935,20 @@ function KPICard({
   label,
   value,
   change,
+  icon,
 }: {
   label: string;
   value: string;
   change: number | null;
+  icon?: React.ReactNode;
 }) {
   return (
     <Card className="p-6">
-      <div className="text-sm font-medium text-gray-600">{label}</div>
-      <div className="mt-2 flex items-baseline gap-2">
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-sm font-medium text-gray-600">{label}</div>
+        {icon && <div className="text-gray-400">{icon}</div>}
+      </div>
+      <div className="flex items-baseline gap-2">
         <div className="text-2xl font-bold text-gray-900">{value}</div>
         {change !== null && (
           <div

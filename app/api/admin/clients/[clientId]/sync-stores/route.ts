@@ -18,6 +18,13 @@ export async function POST(
     try {
       const { clientId } = await params;
 
+      if (!db) {
+        return NextResponse.json(
+          { success: false, error: 'Database not initialized' },
+          { status: 500 }
+        );
+      }
+
       // Get client document to retrieve Adobe Commerce credentials
       const clientDoc = await db.collection('clients').doc(clientId).get();
 

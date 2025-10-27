@@ -104,8 +104,6 @@ export function WebsiteDialog({
             websiteName: formData.websiteName,
             bigQueryWebsiteId: formData.bigQueryWebsiteId,
             storeId: formData.storeId,
-            adobeCommerceEndpoint: formData.adobeCommerceEndpoint,
-            adobeCommerceAccessToken: formData.adobeCommerceAccessToken,
             bigQueryTablePrefixes: formData.bigQueryTablePrefixes,
           }
         : formData;
@@ -134,8 +132,6 @@ export function WebsiteDialog({
         websiteName: '',
         bigQueryWebsiteId: '',
         storeId: '',
-        adobeCommerceEndpoint: '',
-        adobeCommerceAccessToken: '',
         bigQueryTablePrefixes: {
           googleAds: 'google_ads_',
           facebookAds: 'facebook_ads_',

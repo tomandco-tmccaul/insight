@@ -82,16 +82,37 @@ export async function GET(request: NextRequest) {
           acc.total_revenue += row.total_revenue || 0;
           acc.total_items += row.total_items || 0;
           acc.unique_customers = Math.max(acc.unique_customers, row.unique_customers || 0);
+          acc.subtotal += row.subtotal || 0;
+          acc.total_tax += row.total_tax || 0;
+          acc.total_shipping += row.total_shipping || 0;
+          acc.total_discounts += row.total_discounts || 0;
+          acc.orders_complete += row.orders_complete || 0;
+          acc.orders_pending += row.orders_pending || 0;
+          acc.orders_processing += row.orders_processing || 0;
+          acc.orders_canceled += row.orders_canceled || 0;
           return acc;
         },
-        { total_orders: 0, total_revenue: 0, total_items: 0, unique_customers: 0 }
+        {
+          total_orders: 0,
+          total_revenue: 0,
+          total_items: 0,
+          unique_customers: 0,
+          subtotal: 0,
+          total_tax: 0,
+          total_shipping: 0,
+          total_discounts: 0,
+          orders_complete: 0,
+          orders_pending: 0,
+          orders_processing: 0,
+          orders_canceled: 0,
+        }
       );
-      
+
       // Calculate AOV
-      summary.aov = summary.total_orders > 0 
-        ? summary.total_revenue / summary.total_orders 
+      summary.aov = summary.total_orders > 0
+        ? summary.total_revenue / summary.total_orders
         : 0;
-      
+
       // Calculate items per order
       summary.items_per_order = summary.total_orders > 0
         ? summary.total_items / summary.total_orders

@@ -16,6 +16,12 @@ export async function GET(
   return requireAdmin(request, async () => {
     try {
       const { clientId } = await params;
+      if (!db) {
+        return NextResponse.json(
+          { success: false, error: 'Database not initialized' },
+          { status: 500 }
+        );
+      }
       const clientDoc = await db.collection('clients').doc(clientId).get();
 
       if (!clientDoc.exists) {
@@ -57,6 +63,13 @@ export async function PATCH(
       const { clientId } = await params;
       const body = await request.json();
       const updates = body as UpdateClient;
+
+      if (!db) {
+        return NextResponse.json(
+          { success: false, error: 'Database not initialized' },
+          { status: 500 }
+        );
+      }
 
       const clientDoc = await db.collection('clients').doc(clientId).get();
       if (!clientDoc.exists) {
@@ -105,16 +118,23 @@ export async function DELETE(
     try {
       const { clientId } = await params;
 
+      if (!db) {
+        return NextResponse.json(
+          { success: false, error: 'Database not initialized' },
+          { status: 500 }
+        );
+      }
+
       // Delete all subcollections first
       const subcollections = ['websites', 'targets', 'annotations', 'customLinks'];
-      
+
       for (const subcollection of subcollections) {
         const snapshot = await db
           .collection('clients')
           .doc(clientId)
           .collection(subcollection)
           .get();
-        
+
         const batch = db.batch();
         snapshot.docs.forEach((doc) => {
           batch.delete(doc.ref);

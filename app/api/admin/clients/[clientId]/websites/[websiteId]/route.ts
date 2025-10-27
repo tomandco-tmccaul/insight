@@ -17,6 +17,13 @@ export async function GET(
     try {
       const { clientId, websiteId } = await params;
 
+      if (!db) {
+        return NextResponse.json(
+          { success: false, error: 'Database not initialized' },
+          { status: 500 }
+        );
+      }
+
       const websiteDoc = await db
         .collection('clients')
         .doc(clientId)
@@ -63,6 +70,13 @@ export async function PATCH(
       const { clientId, websiteId } = await params;
       const body = await request.json();
       const updates = body as UpdateWebsite;
+
+      if (!db) {
+        return NextResponse.json(
+          { success: false, error: 'Database not initialized' },
+          { status: 500 }
+        );
+      }
 
       const websiteDoc = await db
         .collection('clients')
@@ -121,6 +135,13 @@ export async function DELETE(
   return requireAdmin(request, async () => {
     try {
       const { clientId, websiteId } = await params;
+
+      if (!db) {
+        return NextResponse.json(
+          { success: false, error: 'Database not initialized' },
+          { status: 500 }
+        );
+      }
 
       await db
         .collection('clients')

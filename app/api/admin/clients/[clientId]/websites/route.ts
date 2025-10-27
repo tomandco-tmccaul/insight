@@ -16,7 +16,14 @@ export async function GET(
   return requireAdmin(request, async () => {
     try {
       const { clientId } = await params;
-      
+
+      if (!db) {
+        return NextResponse.json(
+          { success: false, error: 'Database not initialized' },
+          { status: 500 }
+        );
+      }
+
       const websitesSnapshot = await db
         .collection('clients')
         .doc(clientId)
@@ -60,6 +67,13 @@ export async function POST(
         return NextResponse.json(
           { success: false, error: 'Missing required fields: id, websiteName, bigQueryWebsiteId, storeId' },
           { status: 400 }
+        );
+      }
+
+      if (!db) {
+        return NextResponse.json(
+          { success: false, error: 'Database not initialized' },
+          { status: 500 }
         );
       }
 

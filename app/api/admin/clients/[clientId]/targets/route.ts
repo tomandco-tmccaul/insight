@@ -25,6 +25,13 @@ export async function GET(
         );
       }
 
+      if (!db) {
+        return NextResponse.json(
+          { success: false, error: 'Database not initialized' },
+          { status: 500 }
+        );
+      }
+
       const targetsSnapshot = await db
         .collection('clients')
         .doc(clientId)
@@ -77,6 +84,13 @@ export async function POST(
         return NextResponse.json(
           { success: false, error: 'Missing required fields' },
           { status: 400 }
+        );
+      }
+
+      if (!db) {
+        return NextResponse.json(
+          { success: false, error: 'Database not initialized' },
+          { status: 500 }
         );
       }
 

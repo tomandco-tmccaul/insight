@@ -26,17 +26,15 @@ export async function GET(request: NextRequest) {
         SELECT
           product_id,
           product_name,
-          product_sku,
-          SUM(quantity_sold) as quantity_sold,
+          sku,
+          SUM(total_qty_ordered) as total_qty_ordered,
           SUM(total_revenue) as total_revenue,
-          SUM(total_orders) as total_orders,
           AVG(avg_price) as avg_price,
-          SUM(quantity_returned) as quantity_returned,
-          SUM(stock_level) as stock_level
+          SUM(total_qty_refunded) as total_qty_refunded
         FROM \`${process.env.GOOGLE_CLOUD_PROJECT}.${process.env.BIGQUERY_DATASET_ID}.agg_product_performance_daily\`
         WHERE date BETWEEN @startDate AND @endDate
           AND website_id = @websiteId
-        GROUP BY product_id, product_name, product_sku
+        GROUP BY product_id, product_name, sku
         ORDER BY total_revenue DESC
         LIMIT ${parseInt(limit)}
       `;
@@ -53,9 +51,7 @@ export async function GET(request: NextRequest) {
       // Calculate return rates
       const productsWithMetrics = rows.map((row) => ({
         ...row,
-        return_rate: row.return_rate !== undefined
-          ? row.return_rate
-          : row.quantity_sold > 0 ? ((row.return_count || 0) / row.quantity_sold) * 100 : 0,
+        return_rate: row.total_qty_ordered > 0 ? ((row.total_qty_refunded || 0) / row.total_qty_ordered) * 100 : 0,
       }));
 
       return NextResponse.json({

@@ -40,6 +40,13 @@ export async function PATCH(
         updates.clientId = null;
       }
 
+      if (!db) {
+        return NextResponse.json(
+          { success: false, error: 'Database not initialized' },
+          { status: 500 }
+        );
+      }
+
       const userDoc = await db.collection('users').doc(userId).get();
       if (!userDoc.exists) {
         return NextResponse.json(
@@ -86,6 +93,13 @@ export async function DELETE(
   return requireAdmin(request, async () => {
     try {
       const { userId } = await params;
+
+      if (!db || !auth) {
+        return NextResponse.json(
+          { success: false, error: 'Database not initialized' },
+          { status: 500 }
+        );
+      }
 
       // Delete from Firebase Auth
       await auth.deleteUser(userId);

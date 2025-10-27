@@ -12,6 +12,12 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   return requireAdmin(request, async () => {
     try {
+      if (!db) {
+        return NextResponse.json(
+          { success: false, error: 'Database not initialized' },
+          { status: 500 }
+        );
+      }
       const usersSnapshot = await db.collection('users').get();
       
       const users: AppUser[] = usersSnapshot.docs.map((doc) => ({
@@ -61,6 +67,13 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           { success: false, error: 'clientId is required for client users' },
           { status: 400 }
+        );
+      }
+
+      if (!db || !auth) {
+        return NextResponse.json(
+          { success: false, error: 'Database not initialized' },
+          { status: 500 }
         );
       }
 
