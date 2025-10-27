@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -31,12 +31,30 @@ export function ClientDialog({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    id: client?.id || '',
-    clientName: client?.clientName || '',
-    bigQueryDatasetId: client?.bigQueryDatasetId || '',
+    id: '',
+    clientName: '',
+    bigQueryDatasetId: '',
   });
 
   const isEdit = !!client;
+
+  // Update form data when client prop changes or dialog opens
+  useEffect(() => {
+    if (open && client) {
+      setFormData({
+        id: client.id,
+        clientName: client.clientName,
+        bigQueryDatasetId: client.bigQueryDatasetId,
+      });
+    } else if (open && !client) {
+      // Reset form for new client
+      setFormData({
+        id: '',
+        clientName: '',
+        bigQueryDatasetId: '',
+      });
+    }
+  }, [open, client]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

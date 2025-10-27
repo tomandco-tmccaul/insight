@@ -39,10 +39,10 @@ export function UserDialog({
   const [error, setError] = useState<string | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
   const [formData, setFormData] = useState({
-    email: user?.email || '',
+    email: '',
     password: '',
-    role: user?.role || 'client',
-    clientId: user?.clientId || '',
+    role: 'client' as 'admin' | 'client',
+    clientId: '',
   });
 
   const isEdit = !!user;
@@ -53,6 +53,26 @@ export function UserDialog({
       fetchClients();
     }
   }, [open]);
+
+  // Update form data when user prop changes or dialog opens
+  useEffect(() => {
+    if (open && user) {
+      setFormData({
+        email: user.email,
+        password: '',
+        role: user.role,
+        clientId: user.clientId || '',
+      });
+    } else if (open && !user) {
+      // Reset form for new user
+      setFormData({
+        email: '',
+        password: '',
+        role: 'client',
+        clientId: '',
+      });
+    }
+  }, [open, user]);
 
   const fetchClients = async () => {
     try {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -34,21 +34,57 @@ export function WebsiteDialog({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    id: website?.id || '',
-    websiteName: website?.websiteName || '',
-    bigQueryWebsiteId: website?.bigQueryWebsiteId || '',
-    adobeCommerceWebsiteId: website?.adobeCommerceWebsiteId || '',
+    id: '',
+    websiteName: '',
+    bigQueryWebsiteId: '',
+    adobeCommerceWebsiteId: '',
     bigQueryTables: {
-      googleAds: website?.bigQueryTables?.googleAds || '',
-      facebookAds: website?.bigQueryTables?.facebookAds || '',
-      pinterestAds: website?.bigQueryTables?.pinterestAds || '',
-      googleSearchConsole: website?.bigQueryTables?.googleSearchConsole || '',
-      ga4: website?.bigQueryTables?.ga4 || '',
-      adobeCommerce: website?.bigQueryTables?.adobeCommerce || '',
+      googleAds: '',
+      facebookAds: '',
+      pinterestAds: '',
+      googleSearchConsole: '',
+      ga4: '',
+      adobeCommerce: '',
     },
   });
 
   const isEdit = !!website;
+
+  // Update form data when website prop changes or dialog opens
+  useEffect(() => {
+    if (open && website) {
+      setFormData({
+        id: website.id,
+        websiteName: website.websiteName,
+        bigQueryWebsiteId: website.bigQueryWebsiteId,
+        adobeCommerceWebsiteId: website.adobeCommerceWebsiteId,
+        bigQueryTables: {
+          googleAds: website.bigQueryTables?.googleAds || '',
+          facebookAds: website.bigQueryTables?.facebookAds || '',
+          pinterestAds: website.bigQueryTables?.pinterestAds || '',
+          googleSearchConsole: website.bigQueryTables?.googleSearchConsole || '',
+          ga4: website.bigQueryTables?.ga4 || '',
+          adobeCommerce: website.bigQueryTables?.adobeCommerce || '',
+        },
+      });
+    } else if (open && !website) {
+      // Reset form for new website
+      setFormData({
+        id: '',
+        websiteName: '',
+        bigQueryWebsiteId: '',
+        adobeCommerceWebsiteId: '',
+        bigQueryTables: {
+          googleAds: '',
+          facebookAds: '',
+          pinterestAds: '',
+          googleSearchConsole: '',
+          ga4: '',
+          adobeCommerce: '',
+        },
+      });
+    }
+  }, [open, website]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
