@@ -248,6 +248,58 @@ firebase deploy --only firestore  # Deploy rules
 - **Issue:** HeadersInit type conflicts
 - **Solution:** Use `Record<string, string>` for headers
 
+## Adobe Commerce Integration
+
+### API Client
+- **Location:** `lib/adobe-commerce/client.ts`
+- **Endpoints:**
+  - `GET /rest/V1/store/storeViews` - List all store views
+  - `GET /rest/V1/store/websites` - List all websites
+  - `GET /rest/V1/store/storeGroups` - List all store groups
+- **Authentication:** Bearer token in Authorization header
+- **Configuration:** Stored per-website in Firestore
+  - `adobeCommerceEndpoint` - Base URL (e.g., https://example.com)
+  - `adobeCommerceAccessToken` - Bearer token
+
+### Sync Stores Feature
+- **Endpoint:** `POST /api/admin/clients/[clientId]/sync-stores`
+- **Purpose:** Auto-import all active stores from Adobe Commerce as websites
+- **Process:**
+  1. Connect to Adobe Commerce API
+  2. Fetch all active store views
+  3. Create website documents in Firestore
+  4. Skip existing websites (no duplicates)
+  5. Set default BigQuery table prefixes
+- **UI:** SyncStoresDialog component in Admin Clients page
+
+## BigQuery Table Management
+
+### Admin BigQuery Page
+- **Location:** `app/(dashboard)/admin/bigquery/page.tsx`
+- **Features:**
+  - View all tables in a client's BigQuery dataset
+  - Create aggregation tables with one click
+  - Monitor table metadata (rows, size, last modified)
+  - Refresh table list
+
+### Aggregation Tables API
+- **Endpoint:** `POST /api/admin/bigquery/aggregations`
+- **Supported Types:**
+  - `sales_overview` - Daily orders, revenue, customer metrics
+  - `product_performance` - Daily product sales, quantities, pricing
+- **Process:**
+  1. Generate SQL based on aggregation type
+  2. Execute CREATE OR REPLACE TABLE query
+  3. Wait for job completion
+  4. Return success/error
+
+### Tables List API
+- **Endpoint:** `GET /api/admin/bigquery/tables?dataset_id={id}`
+- **Returns:** Array of table metadata
+  - Table name, type (TABLE/VIEW)
+  - Row count, size in bytes
+  - Creation time, last modified time
+
 ## Future Development Guidelines
 
 ### Adding New Pages
@@ -273,4 +325,11 @@ firebase deploy --only firestore  # Deploy rules
 2. Research solutions with web search
 3. Test thoroughly before committing
 4. Update augment rules to reflect working code
+
+### Adding New Data Sources
+1. Add table prefix field to Website model
+2. Create aggregation SQL in `scripts/bigquery/`
+3. Add aggregation type to `/api/admin/bigquery/aggregations`
+4. Add card to Admin BigQuery page
+5. Update dashboard pages to query new tables
 
