@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { format } from 'date-fns';
+import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
 
@@ -42,7 +42,7 @@ export function DateRangePicker({
 
   const handleSelect = (range: DateRange | undefined) => {
     setDate(range);
-    
+
     // Only update parent if we have both dates
     if (range?.from && range?.to) {
       onDateRangeChange({
@@ -50,6 +50,57 @@ export function DateRangePicker({
         endDate: format(range.to, 'yyyy-MM-dd'),
       });
     }
+  };
+
+  const handlePreset = (preset: string) => {
+    let from: Date;
+    let to: Date;
+    const now = new Date();
+
+    switch (preset) {
+      case 'today':
+        from = startOfDay(now);
+        to = endOfDay(now);
+        break;
+      case 'yesterday':
+        from = startOfDay(subDays(now, 1));
+        to = endOfDay(subDays(now, 1));
+        break;
+      case 'last7days':
+        from = startOfDay(subDays(now, 6));
+        to = endOfDay(now);
+        break;
+      case 'last14days':
+        from = startOfDay(subDays(now, 13));
+        to = endOfDay(now);
+        break;
+      case 'last30days':
+        from = startOfDay(subDays(now, 29));
+        to = endOfDay(now);
+        break;
+      case 'last90days':
+        from = startOfDay(subDays(now, 89));
+        to = endOfDay(now);
+        break;
+      case 'thisMonth':
+        from = startOfMonth(now);
+        to = endOfDay(now);
+        break;
+      case 'lastMonth':
+        const lastMonth = subMonths(now, 1);
+        from = startOfMonth(lastMonth);
+        to = endOfMonth(lastMonth);
+        break;
+      default:
+        return;
+    }
+
+    const newRange = { from, to };
+    setDate(newRange);
+    onDateRangeChange({
+      startDate: format(from, 'yyyy-MM-dd'),
+      endDate: format(to, 'yyyy-MM-dd'),
+    });
   };
 
   return (
@@ -80,14 +131,89 @@ export function DateRangePicker({
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
-          <Calendar
-            initialFocus
-            mode="range"
-            defaultMonth={date?.from}
-            selected={date}
-            onSelect={handleSelect}
-            numberOfMonths={2}
-          />
+          <div className="flex">
+            {/* Preset buttons sidebar */}
+            <div className="flex flex-col gap-1 border-r p-3">
+              <div className="text-xs font-semibold text-gray-500 mb-2">Quick Select</div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="justify-start text-xs h-8"
+                onClick={() => handlePreset('today')}
+              >
+                Today
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="justify-start text-xs h-8"
+                onClick={() => handlePreset('yesterday')}
+              >
+                Yesterday
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="justify-start text-xs h-8"
+                onClick={() => handlePreset('last7days')}
+              >
+                Last 7 days
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="justify-start text-xs h-8"
+                onClick={() => handlePreset('last14days')}
+              >
+                Last 14 days
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="justify-start text-xs h-8"
+                onClick={() => handlePreset('last30days')}
+              >
+                Last 30 days
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="justify-start text-xs h-8"
+                onClick={() => handlePreset('last90days')}
+              >
+                Last 90 days
+              </Button>
+              <div className="border-t my-1"></div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="justify-start text-xs h-8"
+                onClick={() => handlePreset('thisMonth')}
+              >
+                This month
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="justify-start text-xs h-8"
+                onClick={() => handlePreset('lastMonth')}
+              >
+                Last month
+              </Button>
+            </div>
+
+            {/* Calendar */}
+            <div>
+              <Calendar
+                initialFocus
+                mode="range"
+                defaultMonth={date?.from}
+                selected={date}
+                onSelect={handleSelect}
+                numberOfMonths={2}
+              />
+            </div>
+          </div>
         </PopoverContent>
       </Popover>
     </div>
