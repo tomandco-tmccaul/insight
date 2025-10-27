@@ -23,7 +23,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Calendar, ChevronDown } from 'lucide-react';
 import { apiRequest } from '@/lib/utils/api';
-import { Client } from '@/types/firestore';
+import { Client, Website } from '@/types/firestore';
 
 export function DashboardHeader() {
   const { appUser, signOut } = useAuth();
@@ -41,6 +41,8 @@ export function DashboardHeader() {
 
   const [clients, setClients] = useState<Client[]>([]);
   const [loadingClients, setLoadingClients] = useState(false);
+  const [websites, setWebsites] = useState<Website[]>([]);
+  const [loadingWebsites, setLoadingWebsites] = useState(false);
 
   // Fetch clients for admin users
   useEffect(() => {
@@ -68,6 +70,44 @@ export function DashboardHeader() {
 
     fetchClients();
   }, [appUser, getIdToken]);
+
+  // Fetch websites when client is selected
+  useEffect(() => {
+    async function fetchWebsites() {
+      // For client users, use their clientId
+      const clientId = appUser?.role === 'admin' ? selectedClientId : appUser?.clientId;
+
+      if (!clientId) {
+        setWebsites([]);
+        return;
+      }
+
+      setLoadingWebsites(true);
+      try {
+        const idToken = await getIdToken();
+        const response = await apiRequest<Website[]>(
+          `/api/admin/clients/${clientId}/websites`,
+          {},
+          idToken || undefined
+        );
+
+        if (response.success && response.data) {
+          setWebsites(response.data);
+
+          // Auto-select first website if none selected
+          if (!selectedWebsiteId && response.data.length > 0) {
+            setSelectedWebsiteId(response.data[0].id);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching websites:', error);
+      } finally {
+        setLoadingWebsites(false);
+      }
+    }
+
+    fetchWebsites();
+  }, [selectedClientId, appUser, getIdToken]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -105,9 +145,20 @@ export function DashboardHeader() {
             <SelectValue placeholder="Select website" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all_combined">All Websites</SelectItem>
-            <SelectItem value="harlequin">Harlequin</SelectItem>
-            <SelectItem value="sanderson">Sanderson Brand</SelectItem>
+            {loadingWebsites ? (
+              <div className="px-2 py-1.5 text-sm text-gray-500">Loading websites...</div>
+            ) : websites.length === 0 ? (
+              <div className="px-2 py-1.5 text-sm text-gray-500">No websites found</div>
+            ) : (
+              <>
+                <SelectItem value="all_combined">All Websites</SelectItem>
+                {websites.map((website) => (
+                  <SelectItem key={website.id} value={website.id}>
+                    {website.websiteName}
+                  </SelectItem>
+                ))}
+              </>
+            )}
           </SelectContent>
         </Select>
 

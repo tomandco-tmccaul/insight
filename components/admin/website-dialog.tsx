@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Website } from '@/types/firestore';
 import { auth } from '@/lib/firebase/config';
 
@@ -36,6 +37,15 @@ export function WebsiteDialog({
     id: website?.id || '',
     websiteName: website?.websiteName || '',
     bigQueryWebsiteId: website?.bigQueryWebsiteId || '',
+    adobeCommerceWebsiteId: website?.adobeCommerceWebsiteId || '',
+    bigQueryTables: {
+      googleAds: website?.bigQueryTables?.googleAds || '',
+      facebookAds: website?.bigQueryTables?.facebookAds || '',
+      pinterestAds: website?.bigQueryTables?.pinterestAds || '',
+      googleSearchConsole: website?.bigQueryTables?.googleSearchConsole || '',
+      ga4: website?.bigQueryTables?.ga4 || '',
+      adobeCommerce: website?.bigQueryTables?.adobeCommerce || '',
+    },
   });
 
   const isEdit = !!website;
@@ -57,6 +67,8 @@ export function WebsiteDialog({
         ? {
             websiteName: formData.websiteName,
             bigQueryWebsiteId: formData.bigQueryWebsiteId,
+            adobeCommerceWebsiteId: formData.adobeCommerceWebsiteId,
+            bigQueryTables: formData.bigQueryTables,
           }
         : formData;
 
@@ -79,7 +91,20 @@ export function WebsiteDialog({
       onOpenChange(false);
 
       // Reset form
-      setFormData({ id: '', websiteName: '', bigQueryWebsiteId: '' });
+      setFormData({
+        id: '',
+        websiteName: '',
+        bigQueryWebsiteId: '',
+        adobeCommerceWebsiteId: '',
+        bigQueryTables: {
+          googleAds: '',
+          facebookAds: '',
+          pinterestAds: '',
+          googleSearchConsole: '',
+          ga4: '',
+          adobeCommerce: '',
+        },
+      });
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -152,8 +177,168 @@ export function WebsiteDialog({
                 disabled={loading}
               />
               <p className="text-xs text-gray-500">
-                The website_id value used in BigQuery tables
+                The website_id value used in aggregated BigQuery tables
               </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="adobeCommerceWebsiteId">
+                Adobe Commerce Website ID
+              </Label>
+              <Input
+                id="adobeCommerceWebsiteId"
+                placeholder="1"
+                value={formData.adobeCommerceWebsiteId}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    adobeCommerceWebsiteId: e.target.value,
+                  })
+                }
+                required
+                disabled={loading}
+              />
+              <p className="text-xs text-gray-500">
+                The website ID in Adobe Commerce/Magento
+              </p>
+            </div>
+
+            <div className="space-y-3 border-t pt-4">
+              <Label className="text-base font-semibold">
+                BigQuery Source Tables
+              </Label>
+              <p className="text-xs text-gray-500">
+                Raw data table names loaded by Airbyte (optional)
+              </p>
+
+              <div className="space-y-2">
+                <Label htmlFor="googleAds" className="text-sm font-normal">
+                  Google Ads
+                </Label>
+                <Input
+                  id="googleAds"
+                  placeholder="raw_google_ads_harlequin"
+                  value={formData.bigQueryTables.googleAds}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      bigQueryTables: {
+                        ...formData.bigQueryTables,
+                        googleAds: e.target.value,
+                      },
+                    })
+                  }
+                  disabled={loading}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="facebookAds" className="text-sm font-normal">
+                  Facebook Ads
+                </Label>
+                <Input
+                  id="facebookAds"
+                  placeholder="raw_facebook_ads_harlequin"
+                  value={formData.bigQueryTables.facebookAds}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      bigQueryTables: {
+                        ...formData.bigQueryTables,
+                        facebookAds: e.target.value,
+                      },
+                    })
+                  }
+                  disabled={loading}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="pinterestAds" className="text-sm font-normal">
+                  Pinterest Ads
+                </Label>
+                <Input
+                  id="pinterestAds"
+                  placeholder="raw_pinterest_ads_harlequin"
+                  value={formData.bigQueryTables.pinterestAds}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      bigQueryTables: {
+                        ...formData.bigQueryTables,
+                        pinterestAds: e.target.value,
+                      },
+                    })
+                  }
+                  disabled={loading}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label
+                  htmlFor="googleSearchConsole"
+                  className="text-sm font-normal"
+                >
+                  Google Search Console
+                </Label>
+                <Input
+                  id="googleSearchConsole"
+                  placeholder="raw_gsc_harlequin"
+                  value={formData.bigQueryTables.googleSearchConsole}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      bigQueryTables: {
+                        ...formData.bigQueryTables,
+                        googleSearchConsole: e.target.value,
+                      },
+                    })
+                  }
+                  disabled={loading}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="ga4" className="text-sm font-normal">
+                  Google Analytics 4
+                </Label>
+                <Input
+                  id="ga4"
+                  placeholder="raw_ga4_harlequin"
+                  value={formData.bigQueryTables.ga4}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      bigQueryTables: {
+                        ...formData.bigQueryTables,
+                        ga4: e.target.value,
+                      },
+                    })
+                  }
+                  disabled={loading}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="adobeCommerce" className="text-sm font-normal">
+                  Adobe Commerce (Magento)
+                </Label>
+                <Input
+                  id="adobeCommerce"
+                  placeholder="raw_magento_harlequin"
+                  value={formData.bigQueryTables.adobeCommerce}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      bigQueryTables: {
+                        ...formData.bigQueryTables,
+                        adobeCommerce: e.target.value,
+                      },
+                    })
+                  }
+                  disabled={loading}
+                />
+              </div>
             </div>
 
             {error && (

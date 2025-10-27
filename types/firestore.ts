@@ -24,7 +24,21 @@ export interface Client {
 export interface Website {
   id: string; // "harlequin"
   websiteName: string; // "Harlequin"
-  bigQueryWebsiteId: string; // "harlequin_prod" (The ID used in BQ tables)
+  bigQueryWebsiteId: string; // "harlequin_prod" (The website_id value used in aggregated BQ tables)
+
+  // Adobe Commerce Configuration
+  adobeCommerceWebsiteId: string; // "1" or "2" (The website ID in Adobe Commerce/Magento)
+
+  // BigQuery Source Table Names (raw data tables loaded by Airbyte)
+  bigQueryTables: {
+    googleAds?: string; // e.g., "raw_google_ads_harlequin"
+    facebookAds?: string; // e.g., "raw_facebook_ads_harlequin"
+    pinterestAds?: string; // e.g., "raw_pinterest_ads_harlequin"
+    googleSearchConsole?: string; // e.g., "raw_gsc_harlequin"
+    ga4?: string; // e.g., "raw_ga4_harlequin"
+    adobeCommerce?: string; // e.g., "raw_magento_harlequin"
+  };
+
   createdAt?: string;
   updatedAt?: string;
 }

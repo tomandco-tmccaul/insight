@@ -80,7 +80,15 @@ Stores website/brand data for each client.
 **Fields**:
 - `id` (string): Website ID (same as document ID)
 - `websiteName` (string): Display name of the website/brand
-- `bigQueryWebsiteId` (string): The website_id value used in this client's BigQuery tables (e.g., "harlequin", "sanderson_uk")
+- `bigQueryWebsiteId` (string): The website_id value used in this client's aggregated BigQuery tables (e.g., "harlequin", "sanderson_uk")
+- `adobeCommerceWebsiteId` (string): The website ID in Adobe Commerce/Magento (e.g., "1", "2")
+- `bigQueryTables` (object): Raw data table names loaded by Airbyte
+  - `googleAds` (string, optional): Google Ads raw table name
+  - `facebookAds` (string, optional): Facebook Ads raw table name
+  - `pinterestAds` (string, optional): Pinterest Ads raw table name
+  - `googleSearchConsole` (string, optional): Google Search Console raw table name
+  - `ga4` (string, optional): Google Analytics 4 raw table name
+  - `adobeCommerce` (string, optional): Adobe Commerce/Magento raw table name
 - `createdAt` (timestamp): Document creation timestamp
 - `updatedAt` (timestamp): Last update timestamp
 
@@ -90,12 +98,21 @@ Stores website/brand data for each client.
   "id": "harlequin",
   "websiteName": "Harlequin",
   "bigQueryWebsiteId": "harlequin",
+  "adobeCommerceWebsiteId": "2",
+  "bigQueryTables": {
+    "googleAds": "raw_google_ads_harlequin",
+    "facebookAds": "raw_facebook_ads_harlequin",
+    "pinterestAds": "raw_pinterest_ads_harlequin",
+    "googleSearchConsole": "raw_gsc_harlequin",
+    "ga4": "raw_ga4_harlequin",
+    "adobeCommerce": "raw_magento_harlequin"
+  },
   "createdAt": "2024-01-01T00:00:00Z",
   "updatedAt": "2024-01-01T00:00:00Z"
 }
 ```
 
-**Note**: Each client has their own BigQuery dataset (stored in `Client.bigQueryDatasetId`). The `bigQueryWebsiteId` is the `website_id` column value used within that client's dataset tables.
+**Note**: Each client has their own BigQuery dataset (stored in `Client.bigQueryDatasetId`). The `bigQueryWebsiteId` is the `website_id` column value used within that client's aggregated dataset tables. The `bigQueryTables` object stores the raw data table names that Airbyte loads from various sources.
 
 ---
 
