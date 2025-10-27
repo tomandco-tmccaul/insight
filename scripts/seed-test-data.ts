@@ -50,7 +50,7 @@ async function seedTestData() {
         id: 'sanderson_uk',
         websiteName: 'Sanderson UK',
         bigQueryWebsiteId: 'sanderson_uk',
-        adobeCommerceWebsiteId: '1',
+        storeId: '1',
         bigQueryTablePrefixes: {
           googleAds: 'google_ads_sanderson_uk_',
           facebookAds: 'facebook_ads_sanderson_uk_',
@@ -64,7 +64,7 @@ async function seedTestData() {
         id: 'harlequin',
         websiteName: 'Harlequin',
         bigQueryWebsiteId: 'harlequin',
-        adobeCommerceWebsiteId: '2',
+        storeId: '2',
         bigQueryTablePrefixes: {
           googleAds: 'google_ads_harlequin_',
           facebookAds: 'facebook_ads_harlequin_',

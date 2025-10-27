@@ -81,7 +81,7 @@ Stores website/brand data for each client.
 - `id` (string): Website ID (same as document ID)
 - `websiteName` (string): Display name of the website/brand
 - `bigQueryWebsiteId` (string): The website_id value used in this client's aggregated BigQuery tables (e.g., "harlequin", "sanderson_uk")
-- `adobeCommerceWebsiteId` (string): The website ID in Adobe Commerce/Magento (e.g., "1", "2")
+- `storeId` (string): The store_id in Adobe Commerce (maps to website, e.g., "1", "9", "10")
 - `bigQueryTablePrefixes` (object): Table prefixes for each data source
   - Final table name = `{prefix}{table_name}`
   - Example: `adobe_commerce_harlequin_` + `orders` = `adobe_commerce_harlequin_orders`
@@ -100,7 +100,7 @@ Stores website/brand data for each client.
   "id": "harlequin",
   "websiteName": "Harlequin",
   "bigQueryWebsiteId": "harlequin",
-  "adobeCommerceWebsiteId": "2",
+  "storeId": "9",
   "bigQueryTablePrefixes": {
     "googleAds": "google_ads_harlequin_",
     "facebookAds": "facebook_ads_harlequin_",

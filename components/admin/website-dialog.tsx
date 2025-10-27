@@ -37,7 +37,7 @@ export function WebsiteDialog({
     id: '',
     websiteName: '',
     bigQueryWebsiteId: '',
-    adobeCommerceWebsiteId: '',
+    storeId: '',
     bigQueryTablePrefixes: {
       googleAds: 'google_ads_',
       facebookAds: 'facebook_ads_',
@@ -57,7 +57,7 @@ export function WebsiteDialog({
         id: website.id || '',
         websiteName: website.websiteName || '',
         bigQueryWebsiteId: website.bigQueryWebsiteId || '',
-        adobeCommerceWebsiteId: website.adobeCommerceWebsiteId || '',
+        storeId: website.storeId || '',
         bigQueryTablePrefixes: {
           googleAds: website.bigQueryTablePrefixes?.googleAds || 'google_ads_',
           facebookAds: website.bigQueryTablePrefixes?.facebookAds || 'facebook_ads_',
@@ -73,7 +73,7 @@ export function WebsiteDialog({
         id: '',
         websiteName: '',
         bigQueryWebsiteId: '',
-        adobeCommerceWebsiteId: '',
+        storeId: '',
         bigQueryTablePrefixes: {
           googleAds: 'google_ads_',
           facebookAds: 'facebook_ads_',
@@ -103,7 +103,7 @@ export function WebsiteDialog({
         ? {
             websiteName: formData.websiteName,
             bigQueryWebsiteId: formData.bigQueryWebsiteId,
-            adobeCommerceWebsiteId: formData.adobeCommerceWebsiteId,
+            storeId: formData.storeId,
             bigQueryTablePrefixes: formData.bigQueryTablePrefixes,
           }
         : formData;
@@ -131,14 +131,14 @@ export function WebsiteDialog({
         id: '',
         websiteName: '',
         bigQueryWebsiteId: '',
-        adobeCommerceWebsiteId: '',
-        bigQueryTables: {
-          googleAds: '',
-          facebookAds: '',
-          pinterestAds: '',
-          googleSearchConsole: '',
-          ga4: '',
-          adobeCommerce: '',
+        storeId: '',
+        bigQueryTablePrefixes: {
+          googleAds: 'google_ads_',
+          facebookAds: 'facebook_ads_',
+          pinterestAds: 'pinterest_ads_',
+          googleSearchConsole: 'gsc_',
+          ga4: 'ga4_',
+          adobeCommerce: 'adobe_commerce_',
         },
       });
     } catch (err: any) {
@@ -218,24 +218,24 @@ export function WebsiteDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="adobeCommerceWebsiteId">
-                Adobe Commerce Website ID
+              <Label htmlFor="storeId">
+                Adobe Commerce Store ID
               </Label>
               <Input
-                id="adobeCommerceWebsiteId"
+                id="storeId"
                 placeholder="1"
-                value={formData.adobeCommerceWebsiteId}
+                value={formData.storeId}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    adobeCommerceWebsiteId: e.target.value,
+                    storeId: e.target.value,
                   })
                 }
                 required
                 disabled={loading}
               />
               <p className="text-xs text-gray-500">
-                The website ID in Adobe Commerce/Magento
+                The store_id in Adobe Commerce (maps to website)
               </p>
             </div>
 

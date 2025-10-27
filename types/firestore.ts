@@ -27,7 +27,7 @@ export interface Website {
   bigQueryWebsiteId: string; // "harlequin_prod" (The website_id value used in aggregated BQ tables)
 
   // Adobe Commerce Configuration
-  adobeCommerceWebsiteId: string; // "1" or "2" (The website ID in Adobe Commerce/Magento)
+  storeId: string; // "1" or "9" or "10" (The store_id in Adobe Commerce - maps to website)
 
   // BigQuery Table Prefixes (used to construct full table names)
   // Final table name = {prefix}{table_name}

@@ -54,11 +54,11 @@ export async function POST(
     try {
       const { clientId } = await params;
       const body = await request.json();
-      const { id, websiteName, bigQueryWebsiteId } = body as CreateWebsite & { id: string };
+      const { id, websiteName, bigQueryWebsiteId, storeId, bigQueryTablePrefixes } = body as CreateWebsite & { id: string };
 
-      if (!id || !websiteName || !bigQueryWebsiteId) {
+      if (!id || !websiteName || !bigQueryWebsiteId || !storeId) {
         return NextResponse.json(
-          { success: false, error: 'Missing required fields: id, websiteName, bigQueryWebsiteId' },
+          { success: false, error: 'Missing required fields: id, websiteName, bigQueryWebsiteId, storeId' },
           { status: 400 }
         );
       }
@@ -83,6 +83,8 @@ export async function POST(
         id,
         websiteName,
         bigQueryWebsiteId,
+        storeId,
+        bigQueryTablePrefixes: bigQueryTablePrefixes || {},
         createdAt: now,
         updatedAt: now,
       };

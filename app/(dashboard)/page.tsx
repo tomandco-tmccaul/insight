@@ -41,6 +41,7 @@ export default function OverviewPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [datasetId, setDatasetId] = useState<string | null>(null);
+  const [storeId, setStoreId] = useState<string | null>(null);
 
   // Fetch client's BigQuery dataset ID
   useEffect(() => {
@@ -71,6 +72,35 @@ export default function OverviewPage() {
     fetchClientData();
   }, [selectedClientId, getIdToken]);
 
+  // Fetch website's store ID
+  useEffect(() => {
+    async function fetchWebsiteData() {
+      if (!selectedClientId || !selectedWebsiteId || selectedWebsiteId === 'all_combined') {
+        setStoreId(null);
+        return;
+      }
+
+      try {
+        const idToken = await getIdToken();
+        const response = await apiRequest<{ id: string; websiteName: string; storeId: string }>(
+          `/api/admin/clients/${selectedClientId}/websites/${selectedWebsiteId}`,
+          {},
+          idToken || undefined
+        );
+
+        if (response.success && response.data) {
+          setStoreId(response.data.storeId);
+        } else {
+          setError('Failed to fetch website data');
+        }
+      } catch (err: any) {
+        setError(err.message || 'An error occurred');
+      }
+    }
+
+    fetchWebsiteData();
+  }, [selectedClientId, selectedWebsiteId, getIdToken]);
+
   // Fetch sales data
   useEffect(() => {
     async function fetchData() {
@@ -85,10 +115,15 @@ export default function OverviewPage() {
       try {
         const idToken = await getIdToken();
 
+        // Use storeId if a specific website is selected, otherwise 'all_combined'
+        const websiteFilter = selectedWebsiteId === 'all_combined' || !storeId
+          ? 'all_combined'
+          : storeId;
+
         // Build query parameters
         const queryString = buildQueryString({
           dataset_id: datasetId,
-          website_id: selectedWebsiteId || 'all_combined',
+          website_id: websiteFilter,
           start_date: dateRange.startDate,
           end_date: dateRange.endDate,
         });
@@ -112,7 +147,7 @@ export default function OverviewPage() {
     }
 
     fetchData();
-  }, [selectedClientId, selectedWebsiteId, dateRange, datasetId, getIdToken]);
+  }, [selectedClientId, selectedWebsiteId, dateRange, datasetId, storeId, getIdToken]);
 
   if (!selectedClientId) {
     return (

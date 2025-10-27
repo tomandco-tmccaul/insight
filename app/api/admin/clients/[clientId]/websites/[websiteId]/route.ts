@@ -6,6 +6,51 @@ import { Website, UpdateWebsite } from '@/types/firestore';
 export const dynamic = 'force-dynamic';
 
 /**
+ * GET /api/admin/clients/[clientId]/websites/[websiteId]
+ * Get a single website (admin only)
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ clientId: string; websiteId: string }> }
+) {
+  return requireAdmin(request, async () => {
+    try {
+      const { clientId, websiteId } = await params;
+
+      const websiteDoc = await db
+        .collection('clients')
+        .doc(clientId)
+        .collection('websites')
+        .doc(websiteId)
+        .get();
+
+      if (!websiteDoc.exists) {
+        return NextResponse.json(
+          { success: false, error: 'Website not found' },
+          { status: 404 }
+        );
+      }
+
+      const website: Website = {
+        id: websiteDoc.id,
+        ...websiteDoc.data(),
+      } as Website;
+
+      return NextResponse.json({
+        success: true,
+        data: website,
+      });
+    } catch (error: any) {
+      console.error('Error fetching website:', error);
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 500 }
+      );
+    }
+  });
+}
+
+/**
  * PATCH /api/admin/clients/[clientId]/websites/[websiteId]
  * Update a website (admin only)
  */
