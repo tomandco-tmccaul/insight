@@ -13,15 +13,27 @@ export async function GET(request: NextRequest) {
   return requireAdmin(request, async () => {
     try {
       const clientsSnapshot = await db.collection('clients').get();
-      
-      const clients: Client[] = clientsSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      } as Client));
+
+      // Fetch website counts for each client
+      const clientsWithCounts = await Promise.all(
+        clientsSnapshot.docs.map(async (doc) => {
+          const websitesSnapshot = await db
+            .collection('clients')
+            .doc(doc.id)
+            .collection('websites')
+            .get();
+
+          return {
+            id: doc.id,
+            ...doc.data(),
+            websiteCount: websitesSnapshot.size,
+          } as Client & { websiteCount: number };
+        })
+      );
 
       return NextResponse.json({
         success: true,
-        data: clients,
+        data: clientsWithCounts,
       });
     } catch (error: any) {
       console.error('Error fetching clients:', error);

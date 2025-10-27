@@ -20,8 +20,11 @@ import { Client, Website } from '@/types/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { auth } from '@/lib/firebase/config';
 
+// Extended Client type with website count
+type ClientWithCount = Client & { websiteCount: number };
+
 export default function AdminClientsPage() {
-  const [clients, setClients] = useState<Client[]>([]);
+  const [clients, setClients] = useState<ClientWithCount[]>([]);
   const [loading, setLoading] = useState(true);
   const [clientDialogOpen, setClientDialogOpen] = useState(false);
   const [websiteDialogOpen, setWebsiteDialogOpen] = useState(false);
@@ -196,7 +199,7 @@ export default function AdminClientsPage() {
                       </TableCell>
                       <TableCell>
                         <span className="text-sm text-gray-600">
-                          {websites[client.id]?.length || 0} websites
+                          {client.websiteCount || 0} websites
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
