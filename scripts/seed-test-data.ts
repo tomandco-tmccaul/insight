@@ -51,13 +51,13 @@ async function seedTestData() {
         websiteName: 'Sanderson UK',
         bigQueryWebsiteId: 'sanderson_uk',
         adobeCommerceWebsiteId: '1',
-        bigQueryTables: {
-          googleAds: 'raw_google_ads_sanderson_uk',
-          facebookAds: 'raw_facebook_ads_sanderson_uk',
-          pinterestAds: 'raw_pinterest_ads_sanderson_uk',
-          googleSearchConsole: 'raw_gsc_sanderson_uk',
-          ga4: 'raw_ga4_sanderson_uk',
-          adobeCommerce: 'raw_magento_sanderson_uk',
+        bigQueryTablePrefixes: {
+          googleAds: 'google_ads_sanderson_uk_',
+          facebookAds: 'facebook_ads_sanderson_uk_',
+          pinterestAds: 'pinterest_ads_sanderson_uk_',
+          googleSearchConsole: 'gsc_sanderson_uk_',
+          ga4: 'ga4_sanderson_uk_',
+          adobeCommerce: 'adobe_commerce_sanderson_uk_',
         },
       },
       {
@@ -65,13 +65,13 @@ async function seedTestData() {
         websiteName: 'Harlequin',
         bigQueryWebsiteId: 'harlequin',
         adobeCommerceWebsiteId: '2',
-        bigQueryTables: {
-          googleAds: 'raw_google_ads_harlequin',
-          facebookAds: 'raw_facebook_ads_harlequin',
-          pinterestAds: 'raw_pinterest_ads_harlequin',
-          googleSearchConsole: 'raw_gsc_harlequin',
-          ga4: 'raw_ga4_harlequin',
-          adobeCommerce: 'raw_magento_harlequin',
+        bigQueryTablePrefixes: {
+          googleAds: 'google_ads_harlequin_',
+          facebookAds: 'facebook_ads_harlequin_',
+          pinterestAds: 'pinterest_ads_harlequin_',
+          googleSearchConsole: 'gsc_harlequin_',
+          ga4: 'ga4_harlequin_',
+          adobeCommerce: 'adobe_commerce_harlequin_',
         },
       },
     ];

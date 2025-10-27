@@ -82,13 +82,15 @@ Stores website/brand data for each client.
 - `websiteName` (string): Display name of the website/brand
 - `bigQueryWebsiteId` (string): The website_id value used in this client's aggregated BigQuery tables (e.g., "harlequin", "sanderson_uk")
 - `adobeCommerceWebsiteId` (string): The website ID in Adobe Commerce/Magento (e.g., "1", "2")
-- `bigQueryTables` (object): Raw data table names loaded by Airbyte
-  - `googleAds` (string, optional): Google Ads raw table name
-  - `facebookAds` (string, optional): Facebook Ads raw table name
-  - `pinterestAds` (string, optional): Pinterest Ads raw table name
-  - `googleSearchConsole` (string, optional): Google Search Console raw table name
-  - `ga4` (string, optional): Google Analytics 4 raw table name
-  - `adobeCommerce` (string, optional): Adobe Commerce/Magento raw table name
+- `bigQueryTablePrefixes` (object): Table prefixes for each data source
+  - Final table name = `{prefix}{table_name}`
+  - Example: `adobe_commerce_harlequin_` + `orders` = `adobe_commerce_harlequin_orders`
+  - `googleAds` (string, optional): Google Ads table prefix (e.g., "google_ads_harlequin_")
+  - `facebookAds` (string, optional): Facebook Ads table prefix (e.g., "facebook_ads_harlequin_")
+  - `pinterestAds` (string, optional): Pinterest Ads table prefix (e.g., "pinterest_ads_harlequin_")
+  - `googleSearchConsole` (string, optional): Google Search Console table prefix (e.g., "gsc_harlequin_")
+  - `ga4` (string, optional): Google Analytics 4 table prefix (e.g., "ga4_harlequin_")
+  - `adobeCommerce` (string, optional): Adobe Commerce table prefix (e.g., "adobe_commerce_harlequin_")
 - `createdAt` (timestamp): Document creation timestamp
 - `updatedAt` (timestamp): Last update timestamp
 
@@ -99,20 +101,27 @@ Stores website/brand data for each client.
   "websiteName": "Harlequin",
   "bigQueryWebsiteId": "harlequin",
   "adobeCommerceWebsiteId": "2",
-  "bigQueryTables": {
-    "googleAds": "raw_google_ads_harlequin",
-    "facebookAds": "raw_facebook_ads_harlequin",
-    "pinterestAds": "raw_pinterest_ads_harlequin",
-    "googleSearchConsole": "raw_gsc_harlequin",
-    "ga4": "raw_ga4_harlequin",
-    "adobeCommerce": "raw_magento_harlequin"
+  "bigQueryTablePrefixes": {
+    "googleAds": "google_ads_harlequin_",
+    "facebookAds": "facebook_ads_harlequin_",
+    "pinterestAds": "pinterest_ads_harlequin_",
+    "googleSearchConsole": "gsc_harlequin_",
+    "ga4": "ga4_harlequin_",
+    "adobeCommerce": "adobe_commerce_harlequin_"
   },
   "createdAt": "2024-01-01T00:00:00Z",
   "updatedAt": "2024-01-01T00:00:00Z"
 }
 ```
 
-**Note**: Each client has their own BigQuery dataset (stored in `Client.bigQueryDatasetId`). The `bigQueryWebsiteId` is the `website_id` column value used within that client's aggregated dataset tables. The `bigQueryTables` object stores the raw data table names that Airbyte loads from various sources.
+**Table Naming Convention**:
+- Each client has their own BigQuery dataset (stored in `Client.bigQueryDatasetId`)
+- The `bigQueryWebsiteId` is the `website_id` column value used within that client's aggregated dataset tables
+- The `bigQueryTablePrefixes` object stores table prefixes for each data source
+- Standard table names are hardcoded in the application (e.g., `orders`, `products`, `campaigns`)
+- Full table name is constructed as: `{prefix}{table_name}`
+- Example: To query Adobe Commerce orders → `{client.bigQueryDatasetId}.{website.bigQueryTablePrefixes.adobeCommerce}orders`
+- Full example: `sanderson_design_group.adobe_commerce_harlequin_orders`
 
 ---
 

@@ -29,14 +29,16 @@ export interface Website {
   // Adobe Commerce Configuration
   adobeCommerceWebsiteId: string; // "1" or "2" (The website ID in Adobe Commerce/Magento)
 
-  // BigQuery Source Table Names (raw data tables loaded by Airbyte)
-  bigQueryTables: {
-    googleAds?: string; // e.g., "raw_google_ads_harlequin"
-    facebookAds?: string; // e.g., "raw_facebook_ads_harlequin"
-    pinterestAds?: string; // e.g., "raw_pinterest_ads_harlequin"
-    googleSearchConsole?: string; // e.g., "raw_gsc_harlequin"
-    ga4?: string; // e.g., "raw_ga4_harlequin"
-    adobeCommerce?: string; // e.g., "raw_magento_harlequin"
+  // BigQuery Table Prefixes (used to construct full table names)
+  // Final table name = {prefix}{table_name}
+  // e.g., "adobe_commerce_" + "orders" = "adobe_commerce_orders"
+  bigQueryTablePrefixes: {
+    googleAds?: string; // e.g., "google_ads_" or "google_ads_harlequin_"
+    facebookAds?: string; // e.g., "facebook_ads_" or "facebook_ads_harlequin_"
+    pinterestAds?: string; // e.g., "pinterest_ads_" or "pinterest_ads_harlequin_"
+    googleSearchConsole?: string; // e.g., "gsc_" or "gsc_harlequin_"
+    ga4?: string; // e.g., "ga4_" or "ga4_harlequin_"
+    adobeCommerce?: string; // e.g., "adobe_commerce_" or "adobe_commerce_harlequin_"
   };
 
   createdAt?: string;

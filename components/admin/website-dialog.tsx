@@ -38,7 +38,7 @@ export function WebsiteDialog({
     websiteName: '',
     bigQueryWebsiteId: '',
     adobeCommerceWebsiteId: '',
-    bigQueryTables: {
+    bigQueryTablePrefixes: {
       googleAds: '',
       facebookAds: '',
       pinterestAds: '',
@@ -54,17 +54,17 @@ export function WebsiteDialog({
   useEffect(() => {
     if (open && website) {
       setFormData({
-        id: website.id,
-        websiteName: website.websiteName,
-        bigQueryWebsiteId: website.bigQueryWebsiteId,
-        adobeCommerceWebsiteId: website.adobeCommerceWebsiteId,
-        bigQueryTables: {
-          googleAds: website.bigQueryTables?.googleAds || '',
-          facebookAds: website.bigQueryTables?.facebookAds || '',
-          pinterestAds: website.bigQueryTables?.pinterestAds || '',
-          googleSearchConsole: website.bigQueryTables?.googleSearchConsole || '',
-          ga4: website.bigQueryTables?.ga4 || '',
-          adobeCommerce: website.bigQueryTables?.adobeCommerce || '',
+        id: website.id || '',
+        websiteName: website.websiteName || '',
+        bigQueryWebsiteId: website.bigQueryWebsiteId || '',
+        adobeCommerceWebsiteId: website.adobeCommerceWebsiteId || '',
+        bigQueryTablePrefixes: {
+          googleAds: website.bigQueryTablePrefixes?.googleAds || '',
+          facebookAds: website.bigQueryTablePrefixes?.facebookAds || '',
+          pinterestAds: website.bigQueryTablePrefixes?.pinterestAds || '',
+          googleSearchConsole: website.bigQueryTablePrefixes?.googleSearchConsole || '',
+          ga4: website.bigQueryTablePrefixes?.ga4 || '',
+          adobeCommerce: website.bigQueryTablePrefixes?.adobeCommerce || '',
         },
       });
     } else if (open && !website) {
@@ -74,7 +74,7 @@ export function WebsiteDialog({
         websiteName: '',
         bigQueryWebsiteId: '',
         adobeCommerceWebsiteId: '',
-        bigQueryTables: {
+        bigQueryTablePrefixes: {
           googleAds: '',
           facebookAds: '',
           pinterestAds: '',
@@ -104,7 +104,7 @@ export function WebsiteDialog({
             websiteName: formData.websiteName,
             bigQueryWebsiteId: formData.bigQueryWebsiteId,
             adobeCommerceWebsiteId: formData.adobeCommerceWebsiteId,
-            bigQueryTables: formData.bigQueryTables,
+            bigQueryTablePrefixes: formData.bigQueryTablePrefixes,
           }
         : formData;
 
@@ -241,25 +241,25 @@ export function WebsiteDialog({
 
             <div className="space-y-3 border-t pt-4">
               <Label className="text-base font-semibold">
-                BigQuery Source Tables
+                BigQuery Table Prefixes
               </Label>
               <p className="text-xs text-gray-500">
-                Raw data table names loaded by Airbyte (optional)
+                Table prefixes for each data source. Final table name = prefix + table name (e.g., "adobe_commerce_" + "orders" = "adobe_commerce_orders")
               </p>
 
               <div className="space-y-2">
                 <Label htmlFor="googleAds" className="text-sm font-normal">
-                  Google Ads
+                  Google Ads Prefix
                 </Label>
                 <Input
                   id="googleAds"
-                  placeholder="raw_google_ads_harlequin"
-                  value={formData.bigQueryTables.googleAds}
+                  placeholder="google_ads_"
+                  value={formData.bigQueryTablePrefixes.googleAds}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      bigQueryTables: {
-                        ...formData.bigQueryTables,
+                      bigQueryTablePrefixes: {
+                        ...formData.bigQueryTablePrefixes,
                         googleAds: e.target.value,
                       },
                     })
@@ -270,17 +270,17 @@ export function WebsiteDialog({
 
               <div className="space-y-2">
                 <Label htmlFor="facebookAds" className="text-sm font-normal">
-                  Facebook Ads
+                  Facebook Ads Prefix
                 </Label>
                 <Input
                   id="facebookAds"
-                  placeholder="raw_facebook_ads_harlequin"
-                  value={formData.bigQueryTables.facebookAds}
+                  placeholder="facebook_ads_"
+                  value={formData.bigQueryTablePrefixes.facebookAds}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      bigQueryTables: {
-                        ...formData.bigQueryTables,
+                      bigQueryTablePrefixes: {
+                        ...formData.bigQueryTablePrefixes,
                         facebookAds: e.target.value,
                       },
                     })
@@ -291,17 +291,17 @@ export function WebsiteDialog({
 
               <div className="space-y-2">
                 <Label htmlFor="pinterestAds" className="text-sm font-normal">
-                  Pinterest Ads
+                  Pinterest Ads Prefix
                 </Label>
                 <Input
                   id="pinterestAds"
-                  placeholder="raw_pinterest_ads_harlequin"
-                  value={formData.bigQueryTables.pinterestAds}
+                  placeholder="pinterest_ads_"
+                  value={formData.bigQueryTablePrefixes.pinterestAds}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      bigQueryTables: {
-                        ...formData.bigQueryTables,
+                      bigQueryTablePrefixes: {
+                        ...formData.bigQueryTablePrefixes,
                         pinterestAds: e.target.value,
                       },
                     })
@@ -315,17 +315,17 @@ export function WebsiteDialog({
                   htmlFor="googleSearchConsole"
                   className="text-sm font-normal"
                 >
-                  Google Search Console
+                  Google Search Console Prefix
                 </Label>
                 <Input
                   id="googleSearchConsole"
-                  placeholder="raw_gsc_harlequin"
-                  value={formData.bigQueryTables.googleSearchConsole}
+                  placeholder="gsc_"
+                  value={formData.bigQueryTablePrefixes.googleSearchConsole}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      bigQueryTables: {
-                        ...formData.bigQueryTables,
+                      bigQueryTablePrefixes: {
+                        ...formData.bigQueryTablePrefixes,
                         googleSearchConsole: e.target.value,
                       },
                     })
@@ -336,17 +336,17 @@ export function WebsiteDialog({
 
               <div className="space-y-2">
                 <Label htmlFor="ga4" className="text-sm font-normal">
-                  Google Analytics 4
+                  Google Analytics 4 Prefix
                 </Label>
                 <Input
                   id="ga4"
-                  placeholder="raw_ga4_harlequin"
-                  value={formData.bigQueryTables.ga4}
+                  placeholder="ga4_"
+                  value={formData.bigQueryTablePrefixes.ga4}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      bigQueryTables: {
-                        ...formData.bigQueryTables,
+                      bigQueryTablePrefixes: {
+                        ...formData.bigQueryTablePrefixes,
                         ga4: e.target.value,
                       },
                     })
@@ -357,17 +357,17 @@ export function WebsiteDialog({
 
               <div className="space-y-2">
                 <Label htmlFor="adobeCommerce" className="text-sm font-normal">
-                  Adobe Commerce (Magento)
+                  Adobe Commerce Prefix
                 </Label>
                 <Input
                   id="adobeCommerce"
-                  placeholder="raw_magento_harlequin"
-                  value={formData.bigQueryTables.adobeCommerce}
+                  placeholder="adobe_commerce_"
+                  value={formData.bigQueryTablePrefixes.adobeCommerce}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      bigQueryTables: {
-                        ...formData.bigQueryTables,
+                      bigQueryTablePrefixes: {
+                        ...formData.bigQueryTablePrefixes,
                         adobeCommerce: e.target.value,
                       },
                     })
