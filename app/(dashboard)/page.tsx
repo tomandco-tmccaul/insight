@@ -79,6 +79,7 @@ export default function OverviewPage() {
   const [datasetId, setDatasetId] = useState<string | null>(null);
   const [storeId, setStoreId] = useState<string | null>(null);
   const [targets, setTargets] = useState<Target[]>([]);
+  const [topProducts, setTopProducts] = useState<any[]>([]);
 
   // Fetch client's BigQuery dataset ID
   useEffect(() => {
@@ -164,6 +165,46 @@ export default function OverviewPage() {
 
     fetchTargets();
   }, [selectedClientId, getIdToken]);
+
+  // Fetch top products
+  useEffect(() => {
+    async function fetchTopProducts() {
+      if (!selectedClientId || !datasetId) return;
+
+      try {
+        const idToken = await getIdToken();
+
+        // Use storeId if a specific website is selected, otherwise 'all_combined'
+        const websiteFilter = selectedWebsiteId === 'all_combined' || !storeId
+          ? 'all_combined'
+          : storeId;
+
+        const params = new URLSearchParams({
+          dataset_id: datasetId,
+          website_id: websiteFilter,
+          start_date: dateRange.startDate,
+          end_date: dateRange.endDate,
+          limit: '10',
+          sort_by: 'revenue',
+        });
+
+        const response = await fetch(`/api/reports/top-products?${params}`, {
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+          },
+        });
+
+        const result = await response.json();
+        if (result.success && result.data) {
+          setTopProducts(result.data);
+        }
+      } catch (err: unknown) {
+        console.error('Error fetching top products:', err);
+      }
+    }
+
+    fetchTopProducts();
+  }, [selectedClientId, datasetId, selectedWebsiteId, storeId, dateRange, getIdToken]);
 
   // Fetch sales data
   useEffect(() => {
@@ -376,6 +417,54 @@ export default function OverviewPage() {
               selectedWebsiteId={selectedWebsiteId}
               dateRange={dateRange}
             />
+          </div>
+        </Card>
+      )}
+
+      {/* Top Products Table */}
+      {topProducts.length > 0 && (
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold text-gray-900">Top Products by Revenue</h3>
+          <div className="mt-4">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="pb-3 text-left font-medium text-gray-600">Product</th>
+                    <th className="pb-3 text-left font-medium text-gray-600">SKU</th>
+                    <th className="pb-3 text-right font-medium text-gray-600">Units Sold</th>
+                    <th className="pb-3 text-right font-medium text-gray-600">Revenue</th>
+                    <th className="pb-3 text-right font-medium text-gray-600">Avg Price</th>
+                    <th className="pb-3 text-right font-medium text-gray-600">Orders</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topProducts.map((product, index) => (
+                    <tr key={product.sku} className="border-b border-gray-100">
+                      <td className="py-3 text-gray-900">
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-400">#{index + 1}</span>
+                          <span className="font-medium">{product.product_name}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 text-gray-600">{product.sku}</td>
+                      <td className="py-3 text-right text-gray-900">
+                        {formatNumber(product.total_qty_ordered)}
+                      </td>
+                      <td className="py-3 text-right font-medium text-gray-900">
+                        {formatCurrency(product.total_revenue)}
+                      </td>
+                      <td className="py-3 text-right text-gray-600">
+                        {formatCurrency(product.avg_price)}
+                      </td>
+                      <td className="py-3 text-right text-gray-600">
+                        {formatNumber(product.order_count)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </Card>
       )}

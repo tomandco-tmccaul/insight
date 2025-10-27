@@ -34,19 +34,37 @@ export interface SalesOverviewRow {
   _aggregated_at: string;
 }
 
-// Product performance data
+// Product performance data (from agg_product_performance_daily)
 export interface ProductPerformanceRow {
-  date: string;
-  website_id: string;
-  product_id: string;
+  date: string; // YYYY-MM-DD format
+  website_id: string; // store_id from Adobe Commerce
+  sku: string;
   product_name: string;
-  product_sku: string;
-  category?: string;
-  quantity_sold: number;
-  revenue: number;
-  stock_level?: number;
-  return_count?: number;
-  return_rate?: number;
+  product_id: string;
+
+  // Quantity metrics
+  total_qty_ordered: number;
+  total_qty_invoiced: number;
+  total_qty_shipped: number;
+  total_qty_canceled: number;
+  total_qty_refunded: number;
+
+  // Revenue metrics
+  total_revenue: number;
+  total_base_revenue: number;
+  total_discount: number;
+  total_tax: number;
+
+  // Price metrics
+  avg_price: number;
+  min_price: number;
+  max_price: number;
+
+  // Order count
+  order_count: number;
+
+  // Metadata
+  _aggregated_at: string;
 }
 
 // Marketing channel data
