@@ -38,8 +38,6 @@ export function WebsiteDialog({
     websiteName: '',
     bigQueryWebsiteId: '',
     storeId: '',
-    adobeCommerceEndpoint: '',
-    adobeCommerceAccessToken: '',
     bigQueryTablePrefixes: {
       googleAds: 'google_ads_',
       facebookAds: 'facebook_ads_',
@@ -60,8 +58,6 @@ export function WebsiteDialog({
         websiteName: website.websiteName || '',
         bigQueryWebsiteId: website.bigQueryWebsiteId || '',
         storeId: website.storeId || '',
-        adobeCommerceEndpoint: website.adobeCommerceEndpoint || '',
-        adobeCommerceAccessToken: website.adobeCommerceAccessToken || '',
         bigQueryTablePrefixes: {
           googleAds: website.bigQueryTablePrefixes?.googleAds || 'google_ads_',
           facebookAds: website.bigQueryTablePrefixes?.facebookAds || 'facebook_ads_',
@@ -78,8 +74,6 @@ export function WebsiteDialog({
         websiteName: '',
         bigQueryWebsiteId: '',
         storeId: '',
-        adobeCommerceEndpoint: '',
-        adobeCommerceAccessToken: '',
         bigQueryTablePrefixes: {
           googleAds: 'google_ads_',
           facebookAds: 'facebook_ads_',
@@ -247,54 +241,6 @@ export function WebsiteDialog({
               <p className="text-xs text-gray-500">
                 The store_id in Adobe Commerce (maps to website)
               </p>
-            </div>
-
-            <div className="space-y-3 border-t pt-4">
-              <Label className="text-base font-semibold">
-                Adobe Commerce API Configuration
-              </Label>
-              <p className="text-xs text-gray-500">
-                Optional: Configure Adobe Commerce API access for this website
-              </p>
-
-              <div className="space-y-2">
-                <Label htmlFor="adobeCommerceEndpoint">API Endpoint</Label>
-                <Input
-                  id="adobeCommerceEndpoint"
-                  placeholder="https://example.com"
-                  value={formData.adobeCommerceEndpoint}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      adobeCommerceEndpoint: e.target.value,
-                    })
-                  }
-                  disabled={loading}
-                />
-                <p className="text-xs text-gray-500">
-                  Base URL without /rest/V1 (e.g., https://example.com)
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="adobeCommerceAccessToken">Access Token</Label>
-                <Input
-                  id="adobeCommerceAccessToken"
-                  type="password"
-                  placeholder="Bearer token"
-                  value={formData.adobeCommerceAccessToken}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      adobeCommerceAccessToken: e.target.value,
-                    })
-                  }
-                  disabled={loading}
-                />
-                <p className="text-xs text-gray-500">
-                  Bearer token for API authentication
-                </p>
-              </div>
             </div>
 
             <div className="space-y-3 border-t pt-4">

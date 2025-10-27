@@ -240,6 +240,12 @@ export default function AdminClientsPage() {
                                     setSelectedClient(client);
                                     setSyncStoresDialogOpen(true);
                                   }}
+                                  disabled={!client.adobeCommerceEndpoint || !client.adobeCommerceAccessToken}
+                                  title={
+                                    !client.adobeCommerceEndpoint || !client.adobeCommerceAccessToken
+                                      ? 'Configure Adobe Commerce API credentials in client settings first'
+                                      : 'Sync stores from Adobe Commerce'
+                                  }
                                 >
                                   <RefreshCw className="mr-2 h-3 w-3" />
                                   Sync Stores

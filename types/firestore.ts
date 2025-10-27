@@ -16,6 +16,11 @@ export interface Client {
   id: string; // "sanderson_design_group"
   clientName: string; // "Sanderson Design Group"
   bigQueryDatasetId: string; // "sanderson_design_group" (The BigQuery dataset ID for this client)
+
+  // Adobe Commerce API Configuration (shared across all websites)
+  adobeCommerceEndpoint?: string; // "https://example.com" (base URL without /rest/V1)
+  adobeCommerceAccessToken?: string; // Bearer token for API authentication
+
   createdAt?: string;
   updatedAt?: string;
 }
@@ -28,8 +33,6 @@ export interface Website {
 
   // Adobe Commerce Configuration
   storeId: string; // "1" or "9" or "10" (The store_id in Adobe Commerce - maps to website)
-  adobeCommerceEndpoint?: string; // "https://example.com" (base URL without /rest/V1)
-  adobeCommerceAccessToken?: string; // Bearer token for API authentication
 
   // BigQuery Table Prefixes (used to construct full table names)
   // Final table name = {prefix}{table_name}

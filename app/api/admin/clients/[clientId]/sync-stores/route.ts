@@ -17,14 +17,29 @@ export async function POST(
   return requireAdmin(request, async (req) => {
     try {
       const { clientId } = await params;
-      const body = await req.json();
-      const { endpoint, accessToken } = body;
+
+      // Get client document to retrieve Adobe Commerce credentials
+      const clientDoc = await db.collection('clients').doc(clientId).get();
+
+      if (!clientDoc.exists) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Client not found',
+          },
+          { status: 404 }
+        );
+      }
+
+      const clientData = clientDoc.data();
+      const endpoint = clientData?.adobeCommerceEndpoint;
+      const accessToken = clientData?.adobeCommerceAccessToken;
 
       if (!endpoint || !accessToken) {
         return NextResponse.json(
           {
             success: false,
-            error: 'Missing required fields: endpoint, accessToken',
+            error: 'Adobe Commerce API credentials not configured for this client. Please edit the client and add endpoint and access token.',
           },
           { status: 400 }
         );
@@ -85,8 +100,6 @@ export async function POST(
           websiteName: store.name,
           bigQueryWebsiteId: websiteId, // Can be updated later
           storeId: store.id.toString(),
-          adobeCommerceEndpoint: endpoint,
-          adobeCommerceAccessToken: accessToken,
           bigQueryTablePrefixes: {
             adobeCommerce: 'adobe_commerce_',
             googleAds: 'google_ads_',

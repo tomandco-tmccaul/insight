@@ -41,7 +41,13 @@ export async function POST(request: NextRequest) {
   return requireAdmin(request, async () => {
     try {
       const body = await request.json();
-      const { id, clientName, bigQueryDatasetId } = body as CreateClient & { id: string };
+      const {
+        id,
+        clientName,
+        bigQueryDatasetId,
+        adobeCommerceEndpoint,
+        adobeCommerceAccessToken,
+      } = body as CreateClient & { id: string };
 
       if (!id || !clientName || !bigQueryDatasetId) {
         return NextResponse.json(
@@ -64,6 +70,8 @@ export async function POST(request: NextRequest) {
         id,
         clientName,
         bigQueryDatasetId,
+        ...(adobeCommerceEndpoint && { adobeCommerceEndpoint }),
+        ...(adobeCommerceAccessToken && { adobeCommerceAccessToken }),
         createdAt: now,
         updatedAt: now,
       };

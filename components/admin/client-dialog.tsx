@@ -34,6 +34,8 @@ export function ClientDialog({
     id: '',
     clientName: '',
     bigQueryDatasetId: '',
+    adobeCommerceEndpoint: '',
+    adobeCommerceAccessToken: '',
   });
 
   const isEdit = !!client;
@@ -45,6 +47,8 @@ export function ClientDialog({
         id: client.id || '',
         clientName: client.clientName || '',
         bigQueryDatasetId: client.bigQueryDatasetId || '',
+        adobeCommerceEndpoint: client.adobeCommerceEndpoint || '',
+        adobeCommerceAccessToken: client.adobeCommerceAccessToken || '',
       });
     } else if (open && !client) {
       // Reset form for new client
@@ -52,6 +56,8 @@ export function ClientDialog({
         id: '',
         clientName: '',
         bigQueryDatasetId: '',
+        adobeCommerceEndpoint: '',
+        adobeCommerceAccessToken: '',
       });
     }
   }, [open, client]);
@@ -84,6 +90,8 @@ export function ClientDialog({
         ? {
             clientName: formData.clientName,
             bigQueryDatasetId: formData.bigQueryDatasetId,
+            adobeCommerceEndpoint: formData.adobeCommerceEndpoint,
+            adobeCommerceAccessToken: formData.adobeCommerceAccessToken,
           }
         : formData;
 
@@ -106,7 +114,13 @@ export function ClientDialog({
       onOpenChange(false);
 
       // Reset form
-      setFormData({ id: '', clientName: '', bigQueryDatasetId: '' });
+      setFormData({
+        id: '',
+        clientName: '',
+        bigQueryDatasetId: '',
+        adobeCommerceEndpoint: '',
+        adobeCommerceAccessToken: '',
+      });
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -178,6 +192,54 @@ export function ClientDialog({
               <p className="text-xs text-gray-500">
                 The BigQuery dataset ID where this client's data is stored
               </p>
+            </div>
+
+            <div className="space-y-3 border-t pt-4">
+              <Label className="text-base font-semibold">
+                Adobe Commerce API Configuration
+              </Label>
+              <p className="text-xs text-gray-500">
+                Optional: Configure Adobe Commerce API to enable automatic store syncing
+              </p>
+
+              <div className="space-y-2">
+                <Label htmlFor="adobeCommerceEndpoint">API Endpoint</Label>
+                <Input
+                  id="adobeCommerceEndpoint"
+                  placeholder="https://example.com"
+                  value={formData.adobeCommerceEndpoint}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      adobeCommerceEndpoint: e.target.value,
+                    })
+                  }
+                  disabled={loading}
+                />
+                <p className="text-xs text-gray-500">
+                  Base URL without /rest/V1 (e.g., https://example.com)
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="adobeCommerceAccessToken">Access Token</Label>
+                <Input
+                  id="adobeCommerceAccessToken"
+                  type="password"
+                  placeholder="Bearer token"
+                  value={formData.adobeCommerceAccessToken}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      adobeCommerceAccessToken: e.target.value,
+                    })
+                  }
+                  disabled={loading}
+                />
+                <p className="text-xs text-gray-500">
+                  Bearer token for API authentication
+                </p>
+              </div>
             </div>
 
             {error && (
