@@ -94,7 +94,7 @@ export function WebsiteDialog({
     try {
       const token = await auth.currentUser?.getIdToken();
       const url = isEdit
-        ? `/api/admin/clients/${clientId}/websites/${website.id}`
+        ? `/api/admin/clients/${clientId}/websites/${formData.id}`
         : `/api/admin/clients/${clientId}/websites`;
 
       const method = isEdit ? 'PATCH' : 'POST';

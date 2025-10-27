@@ -64,7 +64,7 @@ export function ClientDialog({
     try {
       const token = await auth.currentUser?.getIdToken();
       const url = isEdit
-        ? `/api/admin/clients/${client.id}`
+        ? `/api/admin/clients/${formData.id}`
         : '/api/admin/clients';
 
       const method = isEdit ? 'PATCH' : 'POST';

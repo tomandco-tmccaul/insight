@@ -39,6 +39,7 @@ export function UserDialog({
   const [error, setError] = useState<string | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
   const [formData, setFormData] = useState({
+    uid: '',
     email: '',
     password: '',
     role: 'client' as 'admin' | 'client',
@@ -58,6 +59,7 @@ export function UserDialog({
   useEffect(() => {
     if (open && user) {
       setFormData({
+        uid: user.uid,
         email: user.email,
         password: '',
         role: user.role,
@@ -66,6 +68,7 @@ export function UserDialog({
     } else if (open && !user) {
       // Reset form for new user
       setFormData({
+        uid: '',
         email: '',
         password: '',
         role: 'client',
@@ -99,7 +102,7 @@ export function UserDialog({
     try {
       const token = await auth.currentUser?.getIdToken();
       const url = isEdit
-        ? `/api/admin/users/${user.uid}`
+        ? `/api/admin/users/${formData.uid}`
         : '/api/admin/users';
 
       const method = isEdit ? 'PATCH' : 'POST';
@@ -131,7 +134,7 @@ export function UserDialog({
       onOpenChange(false);
 
       // Reset form
-      setFormData({ email: '', password: '', role: 'client', clientId: '' });
+      setFormData({ uid: '', email: '', password: '', role: 'client', clientId: '' });
     } catch (err: any) {
       setError(err.message);
     } finally {
