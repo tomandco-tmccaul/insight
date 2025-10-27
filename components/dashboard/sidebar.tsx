@@ -13,6 +13,7 @@ import {
   Users,
   Settings,
   ExternalLink,
+  Database,
 } from 'lucide-react';
 
 interface NavItem {
@@ -59,6 +60,11 @@ const adminNavItems: NavItem[] = [
     title: 'Users',
     href: '/admin/users',
     icon: Settings,
+  },
+  {
+    title: 'BigQuery',
+    href: '/admin/bigquery',
+    icon: Database,
   },
 ];
 
