@@ -11,11 +11,11 @@ export const dynamic = 'force-dynamic';
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   return requireAdmin(request, async () => {
     try {
-      const { userId } = params;
+      const { userId } = await params;
       const body = await request.json();
       const updates = body as UpdateAppUser;
 
@@ -81,11 +81,11 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   return requireAdmin(request, async () => {
     try {
-      const { userId } = params;
+      const { userId } = await params;
 
       // Delete from Firebase Auth
       await auth.deleteUser(userId);

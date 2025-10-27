@@ -11,11 +11,11 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { clientId: string } }
+  { params }: { params: Promise<{ clientId: string }> }
 ) {
   return requireAdmin(request, async () => {
     try {
-      const { clientId } = params;
+      const { clientId } = await params;
       const clientDoc = await db.collection('clients').doc(clientId).get();
 
       if (!clientDoc.exists) {
@@ -50,11 +50,11 @@ export async function GET(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { clientId: string } }
+  { params }: { params: Promise<{ clientId: string }> }
 ) {
   return requireAdmin(request, async () => {
     try {
-      const { clientId } = params;
+      const { clientId } = await params;
       const body = await request.json();
       const updates = body as UpdateClient;
 
@@ -99,11 +99,11 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { clientId: string } }
+  { params }: { params: Promise<{ clientId: string }> }
 ) {
   return requireAdmin(request, async () => {
     try {
-      const { clientId } = params;
+      const { clientId } = await params;
 
       // Delete all subcollections first
       const subcollections = ['websites', 'targets', 'annotations', 'customLinks'];

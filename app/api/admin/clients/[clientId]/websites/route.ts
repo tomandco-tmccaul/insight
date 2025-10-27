@@ -11,11 +11,11 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { clientId: string } }
+  { params }: { params: Promise<{ clientId: string }> }
 ) {
   return requireAdmin(request, async () => {
     try {
-      const { clientId } = params;
+      const { clientId } = await params;
       
       const websitesSnapshot = await db
         .collection('clients')
@@ -48,11 +48,11 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { clientId: string } }
+  { params }: { params: Promise<{ clientId: string }> }
 ) {
   return requireAdmin(request, async () => {
     try {
-      const { clientId } = params;
+      const { clientId } = await params;
       const body = await request.json();
       const { id, websiteName, bigQueryWebsiteId } = body as CreateWebsite & { id: string };
 

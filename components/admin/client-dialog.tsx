@@ -42,9 +42,9 @@ export function ClientDialog({
   useEffect(() => {
     if (open && client) {
       setFormData({
-        id: client.id,
-        clientName: client.clientName,
-        bigQueryDatasetId: client.bigQueryDatasetId,
+        id: client.id || '',
+        clientName: client.clientName || '',
+        bigQueryDatasetId: client.bigQueryDatasetId || '',
       });
     } else if (open && !client) {
       // Reset form for new client
@@ -62,10 +62,21 @@ export function ClientDialog({
     setError(null);
 
     try {
+      console.log('Form submission:', { isEdit, formData, client });
+
+      // Validation: ensure we have an ID when editing
+      if (isEdit && !formData.id) {
+        setError('Client ID is missing. Please close and reopen the dialog.');
+        setLoading(false);
+        return;
+      }
+
       const token = await auth.currentUser?.getIdToken();
       const url = isEdit
         ? `/api/admin/clients/${formData.id}`
         : '/api/admin/clients';
+
+      console.log('API URL:', url);
 
       const method = isEdit ? 'PATCH' : 'POST';
 

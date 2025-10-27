@@ -11,11 +11,11 @@ export const dynamic = 'force-dynamic';
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { clientId: string; websiteId: string } }
+  { params }: { params: Promise<{ clientId: string; websiteId: string }> }
 ) {
   return requireAdmin(request, async () => {
     try {
-      const { clientId, websiteId } = params;
+      const { clientId, websiteId } = await params;
       const body = await request.json();
       const updates = body as UpdateWebsite;
 
@@ -71,11 +71,11 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { clientId: string; websiteId: string } }
+  { params }: { params: Promise<{ clientId: string; websiteId: string }> }
 ) {
   return requireAdmin(request, async () => {
     try {
-      const { clientId, websiteId } = params;
+      const { clientId, websiteId } = await params;
 
       await db
         .collection('clients')
