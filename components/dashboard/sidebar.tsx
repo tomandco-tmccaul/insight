@@ -14,6 +14,7 @@ import {
   Settings,
   ExternalLink,
   Database,
+  UserCircle,
 } from 'lucide-react';
 
 interface NavItem {
@@ -24,22 +25,27 @@ interface NavItem {
 
 const dashboardNavItems: NavItem[] = [
   {
-    title: 'Overview',
+    title: 'Sales / Performance Overview',
     href: '/',
     icon: LayoutDashboard,
   },
   {
-    title: 'Product',
+    title: 'Customer Insights',
+    href: '/customers',
+    icon: UserCircle,
+  },
+  {
+    title: 'Product Performance',
     href: '/product',
     icon: Package,
   },
   {
-    title: 'Marketing',
+    title: 'Digital Marketing Breakdown',
     href: '/marketing',
     icon: TrendingUp,
   },
   {
-    title: 'Website',
+    title: 'Website Behaviour',
     href: '/website',
     icon: Globe,
   },

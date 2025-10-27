@@ -155,9 +155,9 @@ export default function MarketingPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Digital Marketing</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Digital Marketing Breakdown</h1>
         <p className="mt-2 text-gray-600">
-          Track marketing performance across all channels
+          Compare all channels and analyze performance by platform
         </p>
       </div>
 
