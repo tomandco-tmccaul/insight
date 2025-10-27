@@ -9,7 +9,14 @@ import { useIdToken } from '@/lib/auth/hooks';
 import { apiRequest, buildQueryString } from '@/lib/utils/api';
 import { formatCurrency, formatNumber, formatPercentage, calculatePercentageChange } from '@/lib/utils/date';
 import { TrendingUp, TrendingDown } from 'lucide-react';
-import { Target } from '@/types/firestore';
+import { Target, Website } from '@/types/firestore';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 // Helper function to calculate comparison date range
 function calculateComparisonDates(
@@ -70,18 +77,22 @@ interface SalesData {
 }
 
 export default function OverviewPage() {
-  const { selectedClientId, selectedWebsiteId, dateRange, comparisonPeriod } = useDashboard();
+  const { selectedClientId, dateRange, comparisonPeriod } = useDashboard();
   const getIdToken = useIdToken();
   const [data, setData] = useState<SalesData | null>(null);
   const [comparisonData, setComparisonData] = useState<SalesData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [datasetId, setDatasetId] = useState<string | null>(null);
-  const [storeId, setStoreId] = useState<string | null>(null);
   const [targets, setTargets] = useState<Target[]>([]);
   const [topProducts, setTopProducts] = useState<any[]>([]);
 
-  // Fetch client's BigQuery dataset ID
+  // Local state for this page only - independent of global context
+  const [websites, setWebsites] = useState<Website[]>([]);
+  const [localSelectedWebsiteId, setLocalSelectedWebsiteId] = useState<string>('all_combined');
+  const [storeId, setStoreId] = useState<string | null>(null);
+
+  // Fetch client's BigQuery dataset ID and websites
   useEffect(() => {
     async function fetchClientData() {
       if (!selectedClientId) {
@@ -91,16 +102,29 @@ export default function OverviewPage() {
 
       try {
         const idToken = await getIdToken();
-        const response = await apiRequest<{ id: string; clientName: string; bigQueryDatasetId: string }>(
+
+        // Fetch client data
+        const clientResponse = await apiRequest<{ id: string; clientName: string; bigQueryDatasetId: string }>(
           `/api/admin/clients/${selectedClientId}`,
           {},
           idToken || undefined
         );
 
-        if (response.success && response.data) {
-          setDatasetId(response.data.bigQueryDatasetId);
+        if (clientResponse.success && clientResponse.data) {
+          setDatasetId(clientResponse.data.bigQueryDatasetId);
         } else {
           setError('Failed to fetch client data');
+        }
+
+        // Fetch websites for this client
+        const websitesResponse = await apiRequest<Website[]>(
+          `/api/admin/clients/${selectedClientId}/websites`,
+          {},
+          idToken || undefined
+        );
+
+        if (websitesResponse.success && websitesResponse.data) {
+          setWebsites(websitesResponse.data);
         }
       } catch (err: any) {
         setError(err.message || 'An error occurred');
@@ -110,10 +134,10 @@ export default function OverviewPage() {
     fetchClientData();
   }, [selectedClientId, getIdToken]);
 
-  // Fetch website's store ID
+  // Fetch website's store ID when local selection changes
   useEffect(() => {
     async function fetchWebsiteData() {
-      if (!selectedClientId || !selectedWebsiteId || selectedWebsiteId === 'all_combined') {
+      if (!selectedClientId || !localSelectedWebsiteId || localSelectedWebsiteId === 'all_combined') {
         setStoreId(null);
         return;
       }
@@ -121,7 +145,7 @@ export default function OverviewPage() {
       try {
         const idToken = await getIdToken();
         const response = await apiRequest<{ id: string; websiteName: string; storeId: string }>(
-          `/api/admin/clients/${selectedClientId}/websites/${selectedWebsiteId}`,
+          `/api/admin/clients/${selectedClientId}/websites/${localSelectedWebsiteId}`,
           {},
           idToken || undefined
         );
@@ -137,7 +161,7 @@ export default function OverviewPage() {
     }
 
     fetchWebsiteData();
-  }, [selectedClientId, selectedWebsiteId, getIdToken]);
+  }, [selectedClientId, localSelectedWebsiteId, getIdToken]);
 
   // Fetch targets
   useEffect(() => {
@@ -175,7 +199,7 @@ export default function OverviewPage() {
         const idToken = await getIdToken();
 
         // Use storeId if a specific website is selected, otherwise 'all_combined'
-        const websiteFilter = selectedWebsiteId === 'all_combined' || !storeId
+        const websiteFilter = localSelectedWebsiteId === 'all_combined' || !storeId
           ? 'all_combined'
           : storeId;
 
@@ -204,7 +228,7 @@ export default function OverviewPage() {
     }
 
     fetchTopProducts();
-  }, [selectedClientId, datasetId, selectedWebsiteId, storeId, dateRange, getIdToken]);
+  }, [selectedClientId, datasetId, localSelectedWebsiteId, storeId, dateRange, getIdToken]);
 
   // Fetch sales data
   useEffect(() => {
@@ -221,7 +245,7 @@ export default function OverviewPage() {
         const idToken = await getIdToken();
 
         // Use storeId if a specific website is selected, otherwise 'all_combined'
-        const websiteFilter = selectedWebsiteId === 'all_combined' || !storeId
+        const websiteFilter = localSelectedWebsiteId === 'all_combined' || !storeId
           ? 'all_combined'
           : storeId;
 
@@ -280,7 +304,7 @@ export default function OverviewPage() {
     }
 
     fetchData();
-  }, [selectedClientId, selectedWebsiteId, dateRange, comparisonPeriod, datasetId, storeId, getIdToken]);
+  }, [selectedClientId, localSelectedWebsiteId, dateRange, comparisonPeriod, datasetId, storeId, getIdToken]);
 
   if (!selectedClientId) {
     return (
@@ -342,11 +366,31 @@ export default function OverviewPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Sales / Performance Overview</h1>
-        <p className="mt-2 text-gray-600">
-          Your one-stop-shop for a quick overview of performance
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Sales / Performance Overview</h1>
+          <p className="mt-2 text-gray-600">
+            Your one-stop-shop for a quick overview of performance
+          </p>
+        </div>
+
+        {/* Website Filter - Local to this page */}
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-medium text-gray-700">Filter by Store:</label>
+          <Select value={localSelectedWebsiteId} onValueChange={setLocalSelectedWebsiteId}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Select store" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all_combined">All Stores Combined</SelectItem>
+              {websites.map((website) => (
+                <SelectItem key={website.id} value={website.id}>
+                  {website.websiteName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -414,7 +458,7 @@ export default function OverviewPage() {
             <RevenueVsTargetChart
               data={data}
               targets={targets}
-              selectedWebsiteId={selectedWebsiteId}
+              selectedWebsiteId={localSelectedWebsiteId}
               dateRange={dateRange}
             />
           </div>
