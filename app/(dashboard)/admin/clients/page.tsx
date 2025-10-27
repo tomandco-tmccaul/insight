@@ -11,10 +11,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus, Pencil, Trash2, Globe, ChevronRight } from 'lucide-react';
+import { Plus, Pencil, Trash2, Globe, ChevronRight, RefreshCw } from 'lucide-react';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { ClientDialog } from '@/components/admin/client-dialog';
 import { WebsiteDialog } from '@/components/admin/website-dialog';
+import { SyncStoresDialog } from '@/components/admin/sync-stores-dialog';
 import { Client, Website } from '@/types/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { auth } from '@/lib/firebase/config';
@@ -24,6 +25,7 @@ export default function AdminClientsPage() {
   const [loading, setLoading] = useState(true);
   const [clientDialogOpen, setClientDialogOpen] = useState(false);
   const [websiteDialogOpen, setWebsiteDialogOpen] = useState(false);
+  const [syncStoresDialogOpen, setSyncStoresDialogOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [selectedWebsite, setSelectedWebsite] = useState<Website | null>(null);
   const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
@@ -230,18 +232,31 @@ export default function AdminClientsPage() {
                                 <Globe className="h-4 w-4" />
                                 Websites
                               </h3>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  setSelectedClient(client);
-                                  setSelectedWebsite(null);
-                                  setWebsiteDialogOpen(true);
-                                }}
-                              >
-                                <Plus className="mr-2 h-3 w-3" />
-                                Add Website
-                              </Button>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setSelectedClient(client);
+                                    setSyncStoresDialogOpen(true);
+                                  }}
+                                >
+                                  <RefreshCw className="mr-2 h-3 w-3" />
+                                  Sync Stores
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setSelectedClient(client);
+                                    setSelectedWebsite(null);
+                                    setWebsiteDialogOpen(true);
+                                  }}
+                                >
+                                  <Plus className="mr-2 h-3 w-3" />
+                                  Add Website
+                                </Button>
+                              </div>
                             </div>
 
                             {!websites[client.id] ? (
@@ -312,16 +327,27 @@ export default function AdminClientsPage() {
       />
 
       {selectedClient && (
-        <WebsiteDialog
-          open={websiteDialogOpen}
-          onOpenChange={(open) => {
-            setWebsiteDialogOpen(open);
-            if (!open) setSelectedWebsite(null);
-          }}
-          clientId={selectedClient.id}
-          website={selectedWebsite}
-          onSuccess={() => fetchWebsites(selectedClient.id)}
-        />
+        <>
+          <WebsiteDialog
+            open={websiteDialogOpen}
+            onOpenChange={(open) => {
+              setWebsiteDialogOpen(open);
+              if (!open) setSelectedWebsite(null);
+            }}
+            clientId={selectedClient.id}
+            website={selectedWebsite}
+            onSuccess={() => fetchWebsites(selectedClient.id)}
+          />
+
+          <SyncStoresDialog
+            open={syncStoresDialogOpen}
+            onOpenChange={(open) => {
+              setSyncStoresDialogOpen(open);
+            }}
+            clientId={selectedClient.id}
+            onSuccess={() => fetchWebsites(selectedClient.id)}
+          />
+        </>
       )}
     </ProtectedRoute>
   );

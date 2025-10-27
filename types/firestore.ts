@@ -28,6 +28,8 @@ export interface Website {
 
   // Adobe Commerce Configuration
   storeId: string; // "1" or "9" or "10" (The store_id in Adobe Commerce - maps to website)
+  adobeCommerceEndpoint?: string; // "https://example.com" (base URL without /rest/V1)
+  adobeCommerceAccessToken?: string; // Bearer token for API authentication
 
   // BigQuery Table Prefixes (used to construct full table names)
   // Final table name = {prefix}{table_name}
