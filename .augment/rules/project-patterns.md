@@ -257,20 +257,26 @@ firebase deploy --only firestore  # Deploy rules
   - `GET /rest/V1/store/websites` - List all websites
   - `GET /rest/V1/store/storeGroups` - List all store groups
 - **Authentication:** Bearer token in Authorization header
-- **Configuration:** Stored per-website in Firestore
+- **Configuration:** Stored at **client level** in Firestore
   - `adobeCommerceEndpoint` - Base URL (e.g., https://example.com)
   - `adobeCommerceAccessToken` - Bearer token
+  - Shared across all websites for a client
 
 ### Sync Stores Feature
 - **Endpoint:** `POST /api/admin/clients/[clientId]/sync-stores`
 - **Purpose:** Auto-import all active stores from Adobe Commerce as websites
+- **Requirements:** Client must have Adobe Commerce credentials configured
 - **Process:**
-  1. Connect to Adobe Commerce API
-  2. Fetch all active store views
-  3. Create website documents in Firestore
-  4. Skip existing websites (no duplicates)
-  5. Set default BigQuery table prefixes
-- **UI:** SyncStoresDialog component in Admin Clients page
+  1. Read credentials from client document
+  2. Connect to Adobe Commerce API
+  3. Fetch all active store views
+  4. Create website documents in Firestore
+  5. Skip existing websites (no duplicates)
+  6. Set default BigQuery table prefixes
+- **UI:**
+  - Configure credentials in ClientDialog (Edit Client)
+  - Sync Stores button in Admin Clients page (disabled if credentials not set)
+  - SyncStoresDialog shows confirmation and progress
 
 ## BigQuery Table Management
 
