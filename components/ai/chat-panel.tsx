@@ -54,6 +54,13 @@ export function ChatPanel() {
       comparisonPeriod,
     };
 
+    // Debug logging
+    console.log('Building context with:', {
+      selectedClientId,
+      selectedWebsiteId,
+      dateRange,
+    });
+
     // Fetch actual data from APIs if we have a client and website selected
     if (selectedClientId && selectedWebsiteId) {
       try {
@@ -68,10 +75,25 @@ export function ChatPanel() {
         const clientData = await clientResponse.json();
         const datasetId = clientData.data?.bigQueryDatasetId;
 
+        console.log('Dataset ID:', datasetId);
+
         if (datasetId) {
+          // Get the storeId from the website document if a specific website is selected
+          let websiteFilter = 'all_combined';
+          if (selectedWebsiteId && selectedWebsiteId !== 'all_combined') {
+            const websiteResponse = await fetch(
+              `/api/admin/clients/${selectedClientId}/websites/${selectedWebsiteId}`,
+              { headers }
+            );
+            if (websiteResponse.ok) {
+              const websiteData = await websiteResponse.json();
+              websiteFilter = websiteData.data?.storeId || selectedWebsiteId;
+            }
+          }
+
           const params = new URLSearchParams({
             dataset_id: datasetId,
-            website_id: selectedWebsiteId,
+            website_id: websiteFilter,
             start_date: dateRange.startDate,
             end_date: dateRange.endDate,
           });
