@@ -151,7 +151,7 @@ export function ChatPanel() {
             </div>
             <div>
               <h2 className="text-lg font-semibold text-gray-900">AI Assistant</h2>
-              <p className="text-xs text-gray-600">Powered by Gemini 2.0 Flash</p>
+              <p className="text-xs text-gray-600">Powered by Gemini 2.5 Flash</p>
             </div>
           </div>
           <div className="flex items-center gap-1">

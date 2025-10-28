@@ -66,9 +66,9 @@ Format your responses using markdown:
 
 Be conversational, helpful, and insightful. If you don't have enough data to answer a question, say so clearly.`;
 
-      // Generate response using Gemini 2.0 Flash
+      // Generate response using Gemini 2.5 Flash
       const { text } = await ai.generate({
-        model: googleAI.model('gemini-2.0-flash-exp'),
+        model: googleAI.model('gemini-2.5-flash'),
         system: SYSTEM_PROMPT,
         prompt: `${contextSummary}\n\nUser question: ${message}`,
         messages: messages,
