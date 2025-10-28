@@ -46,15 +46,70 @@ export function ChatPanel() {
     }
   }, [isOpen]);
 
-  const buildContext = (): ChatContext => {
-    return {
+  const buildContext = async (): Promise<ChatContext> => {
+    const context: ChatContext = {
       selectedClientId,
       selectedWebsiteId,
       dateRange,
       comparisonPeriod,
-      // Note: In a real implementation, you would fetch this data from your APIs
-      // For now, we'll pass null and let the AI know what data is available
     };
+
+    // Fetch actual data from APIs if we have a client and website selected
+    if (selectedClientId && selectedWebsiteId) {
+      try {
+        const token = await user?.getIdToken();
+        const headers = {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        };
+
+        // Get client info to get dataset ID
+        const clientResponse = await fetch(`/api/admin/clients/${selectedClientId}`, { headers });
+        const clientData = await clientResponse.json();
+        const datasetId = clientData.data?.bigQueryDatasetId;
+
+        if (datasetId) {
+          const params = new URLSearchParams({
+            dataset_id: datasetId,
+            website_id: selectedWebsiteId,
+            start_date: dateRange.startDate,
+            end_date: dateRange.endDate,
+          });
+
+          // Fetch sales data
+          const salesResponse = await fetch(`/api/reports/sales-overview?${params}`, { headers });
+          if (salesResponse.ok) {
+            const salesData = await salesResponse.json();
+            context.salesData = salesData.data;
+          }
+
+          // Fetch top products
+          const productsResponse = await fetch(`/api/reports/top-products?${params}&limit=10&sort_by=revenue`, { headers });
+          if (productsResponse.ok) {
+            const productsData = await productsResponse.json();
+            context.productData = productsData.data;
+          }
+
+          // Fetch annotations
+          const annotationsResponse = await fetch(`/api/admin/clients/${selectedClientId}/annotations`, { headers });
+          if (annotationsResponse.ok) {
+            const annotationsData = await annotationsResponse.json();
+            context.annotations = annotationsData.data;
+          }
+
+          // Fetch targets
+          const targetsResponse = await fetch(`/api/admin/clients/${selectedClientId}/targets`, { headers });
+          if (targetsResponse.ok) {
+            const targetsData = await targetsResponse.json();
+            context.targets = targetsData.data;
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching context data:', error);
+      }
+    }
+
+    return context;
   };
 
   const handleSend = async () => {
@@ -72,7 +127,7 @@ export function ChatPanel() {
     setIsLoading(true);
 
     try {
-      const context = buildContext();
+      const context = await buildContext();
       const conversationHistory = messages.map((msg) => ({
         role: msg.role,
         content: msg.content,
