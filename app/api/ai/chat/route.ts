@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/middleware';
-import { genkit } from 'genkit';
+import { genkit, z } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
 
 // Initialize Genkit with explicit API key
@@ -52,39 +52,70 @@ When analyzing data:
 5. Compare against targets when available
 
 When creating visualizations:
-1. Only suggest visualizations when they would genuinely help understand the data
-2. Choose the appropriate chart type (line for trends, bar for comparisons, donut for proportions)
-3. Keep visualizations simple and focused
-4. Provide clear titles and labels
-5. Format visualization data as JSON in a code block with language "visualization"
+1. Only create visualizations when they would genuinely help understand the data
+2. Choose the appropriate chart type:
+   - 'line' or 'area' for trends over time
+   - 'bar' for comparisons between categories
+   - 'donut' or 'pie' for proportions/percentages
+3. Provide clear, descriptive titles
+4. Structure data as an array of objects with consistent keys
+5. For time series, use a 'date' key and value keys for metrics
+6. For categorical data, use a 'name' or 'category' key and value keys for metrics
 
-Format your responses using markdown:
+Format your message responses using markdown:
 - Use **bold** for emphasis
 - Use bullet points for lists
 - Use tables for structured data
-- Use code blocks for technical details
+- Use headings (##, ###) for sections
 
-Be conversational, helpful, and insightful. If you don't have enough data to answer a question, say so clearly.`;
+Be conversational, helpful, and insightful. If you don't have enough data to answer a question, say so clearly.
 
-      // Generate response using Gemini 2.5 Flash
-      const { text } = await ai.generate({
+IMPORTANT: You must respond with a structured JSON object containing:
+- "message": Your formatted markdown response
+- "visualization": (optional) Chart configuration object if a visualization would help`;
+
+      // Define the output schema for structured response
+      const outputSchema = z.object({
+        message: z.string().describe('The formatted markdown response to the user'),
+        visualization: z.object({
+          type: z.enum(['line', 'area', 'bar', 'donut', 'pie']).describe('The type of chart to display'),
+          title: z.string().describe('The title of the chart'),
+          data: z.array(z.record(z.any())).describe('Array of data points for the chart'),
+          config: z.object({
+            xKey: z.string().optional().describe('The key for x-axis values'),
+            yKey: z.string().optional().describe('The key for y-axis values'),
+            categories: z.array(z.string()).optional().describe('Categories for the chart'),
+            colors: z.array(z.string()).optional().describe('Colors for the chart'),
+          }).optional(),
+        }).optional().describe('Optional chart visualization to display'),
+      });
+
+      // Generate response using Gemini 2.5 Flash with structured output
+      const { output } = await ai.generate({
         model: googleAI.model('gemini-2.5-flash'),
         system: SYSTEM_PROMPT,
         prompt: `${contextSummary}\n\nUser question: ${message}`,
         messages: messages,
+        output: {
+          schema: outputSchema,
+        },
         config: {
           temperature: 0.7,
           maxOutputTokens: 2048,
         },
       });
 
-      // Parse the response to extract visualization if present
-      const visualization = extractVisualization(text);
+      if (!output) {
+        return NextResponse.json(
+          { success: false, error: 'Failed to generate response' },
+          { status: 500 }
+        );
+      }
 
       return NextResponse.json({
         success: true,
-        message: text,
-        visualization,
+        message: output.message,
+        visualization: output.visualization,
       });
     } catch (error: any) {
       console.error('Chat error:', error);
@@ -155,20 +186,5 @@ function buildContextSummary(context: any): string {
   return parts.join('\n');
 }
 
-// Helper function to extract visualization from response
-function extractVisualization(text: string): any | undefined {
-  // Look for visualization markers in the response
-  const vizMatch = text.match(/```visualization\n([\s\S]*?)\n```/);
-  
-  if (vizMatch) {
-    try {
-      return JSON.parse(vizMatch[1]);
-    } catch (e) {
-      console.error('Failed to parse visualization:', e);
-      return undefined;
-    }
-  }
 
-  return undefined;
-}
 
