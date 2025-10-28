@@ -3,9 +3,9 @@ import { requireAuth } from '@/lib/auth/middleware';
 import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
 
-// Initialize Genkit
+// Initialize Genkit with explicit API key
 const ai = genkit({
-  plugins: [googleAI()],
+  plugins: [googleAI({ apiKey: process.env.GOOGLE_GENAI_API_KEY })],
 });
 
 export async function POST(request: NextRequest) {
