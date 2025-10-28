@@ -60,9 +60,15 @@ export async function GET(request: NextRequest) {
       }
       
       const [rows] = await bigquery.query(queryOptions);
-      
+
+      // Transform rows to convert BigQuery DATE objects to strings
+      const transformedRows = rows.map((row: any) => ({
+        ...row,
+        date: row.date?.value || row.date,
+      }));
+
       // Calculate summary
-      const summary = rows.reduce(
+      const summary = transformedRows.reduce(
         (acc: any, row: CustomerMetricsRow) => {
           acc.total_unique_customers += row.unique_customers || 0;
           acc.total_registered_customers += row.registered_customers || 0;
@@ -85,10 +91,10 @@ export async function GET(request: NextRequest) {
         ? summary.total_revenue_per_customer / summary.count
         : 0;
       
-      return NextResponse.json<ApiResponse<{ daily: typeof rows; summary: typeof summary }>>({
+      return NextResponse.json<ApiResponse<{ daily: typeof transformedRows; summary: typeof summary }>>({
         success: true,
         data: {
-          daily: rows,
+          daily: transformedRows,
           summary,
         },
       });

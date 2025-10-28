@@ -74,9 +74,15 @@ export async function GET(request: NextRequest) {
       
       // Execute query
       const [rows] = await bigquery.query(queryOptions);
-      
+
+      // Transform rows to convert BigQuery DATE objects to strings
+      const transformedRows = rows.map((row: any) => ({
+        ...row,
+        date: row.date?.value || row.date, // Convert {value: "2025-10-20"} to "2025-10-20"
+      }));
+
       // Calculate summary metrics
-      const summary = rows.reduce(
+      const summary = transformedRows.reduce(
         (acc: any, row: SalesOverviewRow) => {
           acc.total_orders += row.total_orders || 0;
           acc.total_revenue += row.total_revenue || 0;
@@ -121,7 +127,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         success: true,
         data: {
-          daily: rows,
+          daily: transformedRows,
           summary,
         },
       });
