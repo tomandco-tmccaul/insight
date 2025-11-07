@@ -12,15 +12,8 @@ runConfig:
   maxInstances: 10
   minInstances: 0
   
-  # Environment variables (non-sensitive, runtime only)
-  environmentVariables:
-    # BigQuery Configuration
-    BIGQUERY_DATASET_ID: 'insight_analytics'
-    BIGQUERY_LOCATION: 'europe-west2'
-  
   # Secrets (sensitive data stored in Google Secret Manager)
-  # Note: NEXT_PUBLIC_* variables are NOT here because they must be available at BUILD TIME
-  # They are configured in build.environmentVariables instead
+  # Note: NEXT_PUBLIC_* variables are NOT here - they are configured in the env section with BUILD availability
   secrets:
     # Google AI/Gemini API Key for AI features
     - secretId: GOOGLE_GENAI_API_KEY
@@ -40,22 +33,72 @@ runConfig:
     - secretId: GOOGLE_CLOUD_PROJECT
       key: GOOGLE_CLOUD_PROJECT
 
+# Environment variables configuration
+# Variables with BUILD availability are accessible during the build process
+# Variables with RUNTIME availability are accessible at runtime
+env:
+  - variable: NODE_ENV
+    value: production
+    availability:
+      - BUILD
+      - RUNTIME
+  
+  # Firebase Client Configuration (public, embedded in client bundle at BUILD time)
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: AIzaSyCkkB5Fcq51g1lmvoP0vgJLvVFJBEsS4A0
+    availability:
+      - BUILD
+      - RUNTIME
+  
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: insight-dashboard-1761555293.firebaseapp.com
+    availability:
+      - BUILD
+      - RUNTIME
+  
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: insight-dashboard-1761555293
+    availability:
+      - BUILD
+      - RUNTIME
+  
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: insight-dashboard-1761555293.appspot.com
+    availability:
+      - BUILD
+      - RUNTIME
+  
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: '292720819141'
+    availability:
+      - BUILD
+      - RUNTIME
+  
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: 1:292720819141:web:13a548b1595558cffa29ac
+    availability:
+      - BUILD
+      - RUNTIME
+  
+  - variable: NEXT_PUBLIC_USE_FIREBASE_EMULATOR
+    value: 'false'
+    availability:
+      - BUILD
+      - RUNTIME
+  
+  # BigQuery Configuration (runtime only)
+  - variable: BIGQUERY_DATASET_ID
+    value: insight_analytics
+    availability:
+      - RUNTIME
+  
+  - variable: BIGQUERY_LOCATION
+    value: europe-west2
+    availability:
+      - RUNTIME
+
 # Build configuration
 build:
   # Build command (Next.js build)
   buildCommand: npm run build
-  
-  # Environment variables available during build
-  # IMPORTANT: NEXT_PUBLIC_* variables MUST be here because they're embedded in the client bundle at build time
-  environmentVariables:
-    NODE_ENV: 'production'
-    
-    # Firebase Client Configuration (public, embedded in client bundle)
-    NEXT_PUBLIC_FIREBASE_API_KEY: 'AIzaSyCkkB5Fcq51g1lmvoP0vgJLvVFJBEsS4A0'
-    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: 'insight-dashboard-1761555293.firebaseapp.com'
-    NEXT_PUBLIC_FIREBASE_PROJECT_ID: 'insight-dashboard-1761555293'
-    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: 'insight-dashboard-1761555293.appspot.com'
-    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '292720819141'
-    NEXT_PUBLIC_FIREBASE_APP_ID: '1:292720819141:web:13a548b1595558cffa29ac'
-    NEXT_PUBLIC_USE_FIREBASE_EMULATOR: 'false'
 
