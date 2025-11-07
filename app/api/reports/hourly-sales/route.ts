@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/middleware';
 import { bigquery } from '@/lib/bigquery/client';
 import { ApiResponse } from '@/types';
+import { resolveWebsiteToBigQueryIds } from '@/lib/utils/website-resolver';
 
 interface HourlySalesRow {
   date: string;
@@ -18,6 +19,7 @@ export async function GET(request: NextRequest) {
       
       const datasetId = searchParams.get('dataset_id');
       const websiteId = searchParams.get('website_id');
+      const clientId = searchParams.get('client_id') || user.clientId;
       const startDate = searchParams.get('start_date');
       const endDate = searchParams.get('end_date');
       
@@ -26,6 +28,17 @@ export async function GET(request: NextRequest) {
           { success: false, error: 'Missing required parameters' },
           { status: 400 }
         );
+      }
+      
+      // Resolve website ID to BigQuery website IDs (handles grouped websites)
+      let bigQueryWebsiteIds: string[] | null = null;
+      if (websiteId && websiteId !== 'all_combined' && clientId) {
+        bigQueryWebsiteIds = await resolveWebsiteToBigQueryIds(clientId, websiteId);
+        if (!bigQueryWebsiteIds) {
+          bigQueryWebsiteIds = [websiteId];
+        }
+      } else if (websiteId && websiteId !== 'all_combined') {
+        bigQueryWebsiteIds = [websiteId];
       }
       
       let query = `
@@ -39,8 +52,14 @@ export async function GET(request: NextRequest) {
         WHERE date BETWEEN @start_date AND @end_date
       `;
       
-      if (websiteId && websiteId !== 'all_combined') {
-        query += ` AND website_id = @website_id`;
+      // Add website filter - use IN clause for grouped websites, = for single websites
+      if (bigQueryWebsiteIds && bigQueryWebsiteIds.length > 0) {
+        if (bigQueryWebsiteIds.length === 1) {
+          query += ` AND website_id = @website_id`;
+        } else {
+          const placeholders = bigQueryWebsiteIds.map((_, i) => `@website_id${i}`).join(', ');
+          query += ` AND website_id IN (${placeholders})`;
+        }
       }
       
       query += ` ORDER BY date DESC, hour DESC`;
@@ -53,8 +72,15 @@ export async function GET(request: NextRequest) {
         },
       };
       
-      if (websiteId && websiteId !== 'all_combined') {
-        queryOptions.params.website_id = websiteId;
+      // Add website ID(s) to params
+      if (bigQueryWebsiteIds && bigQueryWebsiteIds.length > 0) {
+        if (bigQueryWebsiteIds.length === 1) {
+          queryOptions.params.website_id = bigQueryWebsiteIds[0];
+        } else {
+          bigQueryWebsiteIds.forEach((id, i) => {
+            queryOptions.params[`website_id${i}`] = id;
+          });
+        }
       }
       
       const [rows] = await bigquery.query(queryOptions);

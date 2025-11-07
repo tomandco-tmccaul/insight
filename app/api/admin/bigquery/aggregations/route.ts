@@ -5,7 +5,7 @@ import { ApiResponse } from '@/types';
 
 export interface CreateAggregationRequest {
   datasetId: string;
-  aggregationType: 'sales_overview' | 'product_performance';
+  aggregationType: 'sales_overview' | 'product_performance' | 'seo_performance';
 }
 
 /**
@@ -34,6 +34,8 @@ export async function POST(request: NextRequest) {
         query = getSalesOverviewAggregationQuery(datasetId);
       } else if (aggregationType === 'product_performance') {
         query = getProductPerformanceAggregationQuery(datasetId);
+      } else if (aggregationType === 'seo_performance') {
+        query = getSEOPerformanceAggregationQuery(datasetId);
       } else {
         return NextResponse.json(
           {
@@ -176,6 +178,46 @@ function getProductPerformanceAggregationQuery(datasetId: string): string {
       AND o.items IS NOT NULL
     GROUP BY 
       date, website_id, sku, product_name, product_id
+  `;
+}
+
+function getSEOPerformanceAggregationQuery(datasetId: string): string {
+  const projectId = process.env.GOOGLE_CLOUD_PROJECT || 'insight-dashboard-1761555293';
+
+  return `
+    CREATE OR REPLACE TABLE \`${projectId}.${datasetId}.agg_seo_performance_daily\`
+    PARTITION BY date
+    CLUSTER BY website_id, query_text
+    AS
+    SELECT 
+      -- Handle date conversion (GSC date from Airbyte is typically a DATE type or YYYYMMDD string)
+      -- Try to handle both DATE and STRING formats
+      CASE 
+        WHEN date IS NULL THEN NULL
+        WHEN EXTRACT(DAYOFWEEK FROM date) IS NOT NULL THEN date  -- Already a DATE
+        WHEN CAST(date AS STRING) LIKE '____-__-__' THEN PARSE_DATE('%Y-%m-%d', CAST(date AS STRING))  -- YYYY-MM-DD format
+        WHEN CAST(date AS STRING) LIKE '________' THEN PARSE_DATE('%Y%m%d', CAST(date AS STRING))  -- YYYYMMDD format
+        ELSE date  -- Fall back to original
+      END as date,
+      -- Extract website_id from site_url if available, otherwise use a default
+      COALESCE(
+        REGEXP_EXTRACT(COALESCE(site_url, ''), r'https?://(?:www\.)?([^.]+)'),
+        'default'
+      ) as website_id,
+      query as query_text,
+      CAST(NULL AS STRING) as page_url,  -- page_url not available in by_query table
+      SUM(CAST(clicks AS INT64)) as total_clicks,
+      SUM(CAST(impressions AS INT64)) as total_impressions,
+      AVG(CAST(ctr AS FLOAT64)) as avg_ctr,
+      AVG(CAST(position AS FLOAT64)) as avg_position,
+      0.0 as attributed_revenue
+    FROM 
+      \`${projectId}.${datasetId}.gsc_search_analytics_by_query\`
+    WHERE 
+      date IS NOT NULL
+      AND query IS NOT NULL
+    GROUP BY 
+      date, website_id, query_text
   `;
 }
 

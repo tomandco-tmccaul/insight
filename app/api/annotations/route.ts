@@ -96,6 +96,15 @@ export async function POST(request: NextRequest) {
         .collection('annotations')
         .doc();
 
+      // Ensure user.uid is defined
+      if (!user.uid) {
+        console.error('User object missing uid:', user);
+        return NextResponse.json(
+          { success: false, error: 'User authentication error: missing uid' },
+          { status: 500 }
+        );
+      }
+
       const annotation: Annotation = {
         id: annotationRef.id,
         clientId: body.clientId,

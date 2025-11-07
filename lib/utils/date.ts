@@ -11,6 +11,14 @@ export function formatDate(date: string | Date, formatStr: string = 'MMM dd, yyy
 }
 
 /**
+ * Format a date for chart x-axis display (e.g., "24 Mar 24")
+ */
+export function formatChartDate(date: string | Date): string {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  return format(dateObj, 'dd MMM yy');
+}
+
+/**
  * Get date range for comparison period
  */
 export function getComparisonDateRange(
@@ -104,6 +112,18 @@ export function formatCurrency(value: number, currency: string = 'GBP'): string 
   return new Intl.NumberFormat('en-GB', {
     style: 'currency',
     currency,
+  }).format(value);
+}
+
+/**
+ * Format currency without decimal places (for chart y-axis)
+ */
+export function formatCurrencyNoDecimals(value: number, currency: string = 'GBP'): string {
+  return new Intl.NumberFormat('en-GB', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   }).format(value);
 }
 

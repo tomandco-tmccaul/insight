@@ -120,3 +120,220 @@
     @apply bg-background text-foreground;
   }
 }
+
+
+@layer utilities {
+  @keyframes shimmer-move {
+    100% { transform: translateX(100%); }
+  }
+  .shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background-image: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+    background-size: 200% 100%;
+    animation: shimmer-move 1.2s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+  
+  @keyframes pulse-glow {
+    0%, 100% { 
+      box-shadow: 0 0 20px rgba(99, 102, 241, 0.1);
+    }
+    50% { 
+      box-shadow: 0 0 30px rgba(99, 102, 241, 0.2);
+    }
+  }
+
+  @keyframes gradient-shift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  .animate-gradient {
+    background-size: 200% 200%;
+    animation: gradient-shift 3s ease infinite;
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 0.5s ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scale-in 0.3s ease-out;
+  }
+
+  /* Smooth scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(156, 163, 175, 0.3) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: rgba(156, 163, 175, 0.3);
+    border-radius: 4px;
+    transition: background-color 0.2s;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(156, 163, 175, 0.5);
+  }
+
+  /* Glass morphism effect */
+  .glass {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+  }
+
+  /* Subtle glow effect */
+  .glow {
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.1);
+  }
+
+  .glow-hover:hover {
+    box-shadow: 0 0 30px rgba(99, 102, 241, 0.2);
+    transition: box-shadow 0.3s ease;
+  }
+
+  /* Tremor/Recharts color overrides to prevent black fills */
+  /* Target all Recharts elements to prevent black fills */
+  .recharts-bar .recharts-bar-rectangle {
+    fill-opacity: 1 !important;
+  }
+
+  /* Comprehensive override for ALL black fills/strokes in charts */
+  svg.recharts-surface *[fill="#000000"],
+  svg.recharts-surface *[fill="#000"],
+  svg.recharts-surface *[fill="black"],
+  svg.recharts-surface *[fill="rgb(0, 0, 0)"],
+  svg.recharts-surface *[fill="rgba(0, 0, 0, 1)"],
+  svg.recharts-surface *[fill="rgba(0,0,0,1)"],
+  svg.recharts-surface *[fill="rgba(0, 0, 0, 0.5)"],
+  svg.recharts-surface *[stroke="#000000"],
+  svg.recharts-surface *[stroke="#000"],
+  svg.recharts-surface *[stroke="black"],
+  svg.recharts-surface *[stroke="rgb(0, 0, 0)"],
+  svg.recharts-surface *[stroke="rgba(0, 0, 0, 1)"],
+  svg.recharts-surface *[stroke="rgba(0,0,0,1)"] {
+    fill: #8b5cf6 !important;
+    stroke: #8b5cf6 !important;
+  }
+
+  /* Specific overrides for donut/pie chart paths */
+  svg.recharts-surface .recharts-pie path[fill="#000000"],
+  svg.recharts-surface .recharts-pie path[fill="#000"],
+  svg.recharts-surface .recharts-pie path[fill="black"],
+  svg.recharts-surface .recharts-sector[fill="#000000"],
+  svg.recharts-surface .recharts-sector[fill="#000"],
+  svg.recharts-surface .recharts-sector[fill="black"],
+  svg.recharts-surface .recharts-pie-sector[fill="#000000"],
+  svg.recharts-surface .recharts-pie-sector[fill="#000"],
+  svg.recharts-surface .recharts-pie-sector[fill="black"] {
+    fill: #8b5cf6 !important;
+  }
+
+  /* Ensure chart elements have color even if not explicitly set */
+  .recharts-bar-rectangle:not([fill]),
+  .recharts-bar-rectangle[fill=""],
+  .recharts-area-area:not([fill]),
+  .recharts-area-area[fill=""],
+  .recharts-line:not([stroke]),
+  .recharts-line[stroke=""],
+  .recharts-pie path:not([fill]),
+  .recharts-pie path[fill=""],
+  .recharts-sector:not([fill]),
+  .recharts-sector[fill=""],
+  .recharts-pie-sector:not([fill]),
+  .recharts-pie-sector[fill=""] {
+    fill: #8b5cf6 !important;
+    stroke: #8b5cf6 !important;
+  }
+
+  /* Catch-all for inline styles with black color */
+  svg.recharts-surface *[style*="fill: rgb(0, 0, 0)"],
+  svg.recharts-surface *[style*="fill:rgb(0,0,0)"],
+  svg.recharts-surface *[style*="fill: #000"],
+  svg.recharts-surface *[style*="fill:#000"],
+  svg.recharts-surface *[style*="fill: black"],
+  svg.recharts-surface *[style*="stroke: rgb(0, 0, 0)"],
+  svg.recharts-surface *[style*="stroke:rgb(0,0,0)"],
+  svg.recharts-surface *[style*="stroke: #000"],
+  svg.recharts-surface *[style*="stroke:#000"],
+  svg.recharts-surface *[style*="stroke: black"] {
+    fill: #8b5cf6 !important;
+    stroke: #8b5cf6 !important;
+  }
+
+  /* Ensure y-axis labels are horizontal (not rotated) */
+  .recharts-yAxis .recharts-cartesian-axis-tick-value,
+  .recharts-yAxis text {
+    transform: none !important;
+    writing-mode: horizontal-tb !important;
+  }
+
+  /* Revenue Trend Area Chart - Green fill */
+  /* Override grey fills in area charts to use emerald/green */
+  /* Only target actual grey color values */
+  svg.recharts-surface .recharts-area-area[fill*="gray"],
+  svg.recharts-surface .recharts-area-area[fill*="grey"],
+  svg.recharts-surface .recharts-area-area[fill="#e5e7eb"],
+  svg.recharts-surface .recharts-area-area[fill="#f3f4f6"],
+  svg.recharts-surface .recharts-area-area[fill="#d1d5db"],
+  svg.recharts-surface .recharts-area-area[fill="#9ca3af"],
+  svg.recharts-surface .recharts-area-area[fill="rgba(229, 231, 235"],
+  svg.recharts-surface .recharts-area-area[fill="rgba(243, 244, 246"],
+  svg.recharts-surface .recharts-area-area[fill="rgba(156, 163, 175"],
+  svg.recharts-surface .recharts-area-area[fill="rgba(209, 213, 219"],
+  /* Common grey values used by Tremor/Recharts */
+  svg.recharts-surface .recharts-area-area[fill="#e4e7eb"],
+  svg.recharts-surface .recharts-area-area[fill="rgba(228, 231, 235"] {
+    fill: rgba(16, 185, 129, 0.3) !important;
+  }
+}

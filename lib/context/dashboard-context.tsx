@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { DateRange, ComparisonPeriod } from '@/types';
 import { useAuth } from '@/lib/auth/context';
 
@@ -24,12 +24,24 @@ interface DashboardContextType {
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
 
+const STORAGE_KEYS = {
+  SELECTED_CLIENT_ID: 'dashboard_selected_client_id',
+  SELECTED_WEBSITE_ID: 'dashboard_selected_website_id',
+} as const;
+
 export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const { appUser } = useAuth();
   
-  // For clients, use their clientId; for admins, allow selection
-  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
-  const [selectedWebsiteId, setSelectedWebsiteId] = useState<string | null>(null);
+  // Initialize state with localStorage values (only on client side)
+  const [selectedClientId, setSelectedClientIdState] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem(STORAGE_KEYS.SELECTED_CLIENT_ID) || null;
+  });
+  
+  const [selectedWebsiteId, setSelectedWebsiteIdState] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem(STORAGE_KEYS.SELECTED_WEBSITE_ID) || null;
+  });
 
   // Default to last 30 days
   const [dateRange, setDateRange] = useState<DateRange>({
@@ -39,15 +51,40 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   const [comparisonPeriod, setComparisonPeriod] = useState<ComparisonPeriod>('previous_period');
 
+  // Wrapper to persist clientId to localStorage
+  const setSelectedClientId = useCallback((clientId: string | null) => {
+    setSelectedClientIdState(clientId);
+    if (typeof window !== 'undefined') {
+      if (clientId) {
+        localStorage.setItem(STORAGE_KEYS.SELECTED_CLIENT_ID, clientId);
+      } else {
+        localStorage.removeItem(STORAGE_KEYS.SELECTED_CLIENT_ID);
+      }
+    }
+  }, []);
+
+  // Wrapper to persist websiteId to localStorage
+  const setSelectedWebsiteId = useCallback((websiteId: string | null) => {
+    setSelectedWebsiteIdState(websiteId);
+    if (typeof window !== 'undefined') {
+      if (websiteId) {
+        localStorage.setItem(STORAGE_KEYS.SELECTED_WEBSITE_ID, websiteId);
+      } else {
+        localStorage.removeItem(STORAGE_KEYS.SELECTED_WEBSITE_ID);
+      }
+    }
+  }, []);
+
   // Set client ID based on user role
   useEffect(() => {
     if (appUser) {
       if (appUser.role === 'client' && appUser.clientId) {
+        // For client users, always use their clientId (ignore stored value)
         setSelectedClientId(appUser.clientId);
       }
-      // Admin users will select client via the header dropdown
+      // For admin users, use the stored value if available, otherwise let them select
     }
-  }, [appUser]);
+  }, [appUser, setSelectedClientId]);
 
   const value = {
     selectedClientId,

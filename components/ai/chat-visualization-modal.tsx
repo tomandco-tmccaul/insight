@@ -30,7 +30,7 @@ export function ChatVisualizationModal({
             data={data}
             index={config?.xKey || 'date'}
             categories={config?.categories || []}
-            colors={config?.colors || ['blue', 'green', 'red']}
+            colors={config?.colors || ['#6366f1', '#8b5cf6', '#d946ef']}
             yAxisWidth={60}
             showAnimation
           />
@@ -43,7 +43,7 @@ export function ChatVisualizationModal({
             data={data}
             index={config?.xKey || 'date'}
             categories={config?.categories || []}
-            colors={config?.colors || ['blue', 'green', 'red']}
+            colors={config?.colors || ['#6366f1', '#8b5cf6', '#d946ef']}
             yAxisWidth={60}
             showAnimation
           />
@@ -56,7 +56,7 @@ export function ChatVisualizationModal({
             data={data}
             index={config?.xKey || 'name'}
             categories={config?.categories || []}
-            colors={config?.colors || ['blue', 'green', 'red']}
+            colors={config?.colors || ['#6366f1', '#8b5cf6', '#d946ef']}
             yAxisWidth={60}
             showAnimation
           />
@@ -70,7 +70,7 @@ export function ChatVisualizationModal({
             data={data}
             category={config?.yKey || 'value'}
             index={config?.xKey || 'name'}
-            colors={config?.colors || ['blue', 'green', 'red', 'yellow', 'purple']}
+            colors={config?.colors || ['#6366f1', '#8b5cf6', '#d946ef', '#f59e0b', '#06b6d4', '#10b981', '#a855f7', '#ec4899', '#f43f5e', '#14b8a6']}
             showAnimation
           />
         );

@@ -52,12 +52,17 @@ app/
 ├── (dashboard)/          # Protected dashboard routes
 │   ├── layout.tsx        # Dashboard layout with sidebar
 │   ├── page.tsx          # Sales Overview
+│   ├── customers/        # Customer Insights (GA4)
 │   ├── product/
 │   ├── marketing/
-│   ├── website/
+│   ├── website/          # Website Behavior (GA4)
 │   ├── annotations/
 │   └── admin/            # Admin-only routes
 ├── api/                  # API routes
+│   ├── customers/
+│   │   └── insights/     # Customer Insights API (GA4)
+│   └── website/
+│       └── behavior/     # Website Behavior API (GA4)
 ├── login/                # Public auth page
 └── layout.tsx            # Root layout
 ```
@@ -172,11 +177,30 @@ GOOGLE_GENAI_API_KEY=
 ```
 
 ### BigQuery Tables
+
+#### Aggregated Tables (Adobe Commerce)
 - `agg_sales_overview_daily` - Daily sales aggregations
 - `agg_product_performance_daily` - Product metrics
 - `agg_marketing_channel_daily` - Marketing performance
 - `agg_seo_performance_daily` - SEO metrics
 - `agg_website_behavior_daily` - Session metrics
+
+#### GA4 Tables (Google Analytics 4 via Airbyte)
+- `ga4_daily_active_users` - Daily active users (column: `active1DayUsers`)
+- `ga4_weekly_active_users` - Weekly active users (column: `active7DayUsers`)
+- `ga4_four_weekly_active_users` - Monthly active users (column: `active28DayUsers`)
+- `ga4_website_overview` - Overall website metrics (sessions, users, pageviews, bounce rate)
+- `ga4_pages` - Page-level metrics (pageviews, bounce rate per page)
+- `ga4_traffic_sources` - Traffic source breakdown (source, medium, sessions)
+- `ga4_devices` - Device category metrics (desktop, mobile, tablet)
+- `ga4_locations` - Geographic breakdown (country-level data)
+
+**Important GA4 Schema Notes:**
+- Date fields are stored as strings in `YYYYMMDD` format (e.g., "20251102")
+- Use `REPLACE(@startDate, '-', '')` to convert ISO dates to GA4 format
+- Numeric fields are often strings - use `CAST(field AS INT64)` or `CAST(field AS FLOAT64)`
+- All tables include Airbyte metadata: `_airbyte_raw_id`, `_airbyte_extracted_at`, `_airbyte_meta`, `_airbyte_generation_id`
+- Column names use camelCase (e.g., `totalUsers`, `newUsers`, `screenPageViews`)
 
 ### Calculated Metrics
 Computed in-app, not in BigQuery:
@@ -207,6 +231,34 @@ Computed in-app, not in BigQuery:
 - Use `text-gray-900` for headings
 - Use `text-gray-600` for descriptions
 - Use `space-y-6` for vertical spacing
+
+
+### Animation & Motion
+- Prefer Framer Motion for route/page transitions and reveal effects
+- Page transitions: Wrap dashboard page content in `<AnimatePresence>` and a keyed `<motion.div>` using `usePathname()`
+  - Initial: `{ opacity: 0, y: 6 }`
+  - Animate: `{ opacity: 1, y: 0 }`
+  - Exit: `{ opacity: 0, y: -6 }`
+  - Transition: `{ duration: 0.2, ease: 'easeOut' }`
+- Sidebar/Header: Use glassmorphism (`bg-white/70 supports-[backdrop-filter]:bg-white/60 backdrop-blur`) with subtle shadows (`shadow-sm`)
+- Buttons: Micro‑interactions by default in `components/ui/button.tsx`
+  - Base includes `transition-all will-change-transform hover:shadow-sm active:scale-[0.98]`
+- Cards: Lift on hover in `components/ui/card.tsx`
+  - Base includes `transition-all hover:shadow-md`
+- Nav links: Smooth nudge on hover and click feedback
+  - Use `transition-all hover:translate-x-0.5 active:scale-[0.99]`
+- Main content background: Subtle gradient `bg-gradient-to-br from-gray-50 via-white to-gray-50` for a modern SaaS feel
+- Staggered content reveals for grids/lists
+  - Wrap grid in `<motion.div variants={container} initial="hidden" animate="show">`
+  - Parent variants: `{ hidden: { opacity: 1 }, show: { opacity: 1, transition: { staggerChildren: 0.08, delayChildren: 0.05 } } }`
+  - Wrap each card/item in `<motion.div variants={item}>`
+  - Item variants: `{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.25 } } }`
+- Skeleton shimmer loading
+  - Utility in globals: `.shimmer` with translating gradient overlay
+  - Skeleton base uses `relative overflow-hidden shimmer` alongside `animate-pulse`
+- Tables: Subtle row hover
+  - Use `transition-all hover:shadow-sm hover:bg-muted/60` on rows where possible
+
 
 ## Build & Deployment
 

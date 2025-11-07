@@ -96,18 +96,14 @@ export async function POST(
 
         // Check if website already exists
         const existingDoc = await websitesRef.doc(websiteId).get();
+        const existingData = existingDoc.exists ? (existingDoc.data() as Website) : null;
 
-        if (existingDoc.exists) {
-          console.log(`Website ${websiteId} already exists, skipping...`);
-          continue;
-        }
-
-        // Create new website document
+        // Prepare website data - preserve existing fields when updating
         const websiteData: Omit<Website, 'id'> = {
-          websiteName: store.name,
-          bigQueryWebsiteId: websiteId, // Can be updated later
-          storeId: store.id.toString(),
-          bigQueryTablePrefixes: {
+          websiteName: store.name, // Always update name from Adobe Commerce
+          bigQueryWebsiteId: existingData?.bigQueryWebsiteId || websiteId, // Preserve existing or use websiteId
+          storeId: store.id.toString(), // Always update storeId from Adobe Commerce (this is critical!)
+          bigQueryTablePrefixes: existingData?.bigQueryTablePrefixes || {
             adobeCommerce: 'adobe_commerce_',
             googleAds: 'google_ads_',
             facebookAds: 'facebook_ads_',
@@ -115,11 +111,19 @@ export async function POST(
             googleSearchConsole: 'gsc_',
             ga4: 'ga4_',
           },
-          createdAt: new Date().toISOString(),
+          createdAt: existingData?.createdAt || new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
 
-        await websitesRef.doc(websiteId).set(websiteData);
+        if (existingDoc.exists) {
+          // Update existing website - especially important for missing storeId
+          console.log(`Updating existing website ${websiteId} (${store.name}) with storeId: ${store.id.toString()}`);
+          await websitesRef.doc(websiteId).update(websiteData);
+        } else {
+          // Create new website document
+          console.log(`Creating new website ${websiteId} (${store.name}) with storeId: ${store.id.toString()}`);
+          await websitesRef.doc(websiteId).set(websiteData);
+        }
 
         createdWebsites.push({
           id: websiteId,
@@ -136,6 +140,7 @@ export async function POST(
           websitesCreated: createdWebsites.length,
           websites: createdWebsites,
         },
+        message: `Successfully synced ${createdWebsites.length} website(s) from Adobe Commerce. Existing websites were updated with latest storeId values.`,
       });
     } catch (error: unknown) {
       console.error('Error syncing stores:', error);

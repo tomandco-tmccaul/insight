@@ -180,6 +180,9 @@ export function ChatPanel() {
         };
 
         addMessage(assistantMessage);
+        
+        // Remove loading immediately when response arrives - no hanging
+        setIsLoading(false);
       } else {
         throw new Error(data.error || 'Failed to get response');
       }
@@ -192,7 +195,8 @@ export function ChatPanel() {
         timestamp: new Date(),
       };
       addMessage(errorMessage);
-    } finally {
+
+      // Remove loading immediately when response arrives - no hanging
       setIsLoading(false);
     }
   };

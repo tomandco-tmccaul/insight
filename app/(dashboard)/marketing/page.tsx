@@ -16,7 +16,10 @@ import { useDashboard } from '@/lib/context/dashboard-context';
 import { useIdToken } from '@/lib/auth/hooks';
 import { apiRequest, buildQueryString } from '@/lib/utils/api';
 import { formatCurrency, formatNumber } from '@/lib/utils/date';
-import { TrendingUp, Search } from 'lucide-react';
+import { ChartTooltip } from '@/components/ui/chart-tooltip';
+import { TrendingUp, Search, PieChart, BarChart3 } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { ReportAnnotations } from '@/components/dashboard/report-annotations';
 
 interface ChannelData {
   channel: string;
@@ -45,11 +48,41 @@ interface MarketingData {
 }
 
 export default function MarketingPage() {
-  const { selectedWebsiteId, dateRange } = useDashboard();
+  const { selectedClientId, selectedWebsiteId, dateRange } = useDashboard();
   const getIdToken = useIdToken();
   const [data, setData] = useState<MarketingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [storeId, setStoreId] = useState<string | null>(null);
+
+  // Fetch website's store ID when selection changes
+  useEffect(() => {
+    async function fetchWebsiteData() {
+      if (!selectedClientId || !selectedWebsiteId || selectedWebsiteId === 'all_combined') {
+        setStoreId(null);
+        return;
+      }
+
+      try {
+        const idToken = await getIdToken();
+        const response = await apiRequest<{ id: string; websiteName: string; storeId: string }>(
+          `/api/admin/clients/${selectedClientId}/websites/${selectedWebsiteId}`,
+          {},
+          idToken || undefined
+        );
+
+        if (response.success && response.data) {
+          setStoreId(response.data.storeId);
+        } else {
+          setError('Failed to fetch website data');
+        }
+      } catch (err: any) {
+        setError(err.message || 'An error occurred');
+      }
+    }
+
+    fetchWebsiteData();
+  }, [selectedClientId, selectedWebsiteId, getIdToken]);
 
   useEffect(() => {
     async function fetchData() {
@@ -58,13 +91,24 @@ export default function MarketingPage() {
         return;
       }
 
+      // Wait for storeId if we have a specific website selected
+      if (selectedWebsiteId !== 'all_combined' && !storeId) {
+        return;
+      }
+
       setLoading(true);
       setError(null);
 
       try {
         const idToken = await getIdToken();
+        
+        // Use storeId if a specific website is selected, otherwise pass 'all_combined'
+        const websiteFilter = selectedWebsiteId === 'all_combined' || !storeId
+          ? 'all_combined'
+          : storeId;
+
         const queryString = buildQueryString({
-          websiteId: selectedWebsiteId,
+          websiteId: websiteFilter,
           startDate: dateRange.startDate,
           endDate: dateRange.endDate,
         });
@@ -88,7 +132,7 @@ export default function MarketingPage() {
     }
 
     fetchData();
-  }, [selectedWebsiteId, dateRange, getIdToken]);
+  }, [selectedWebsiteId, storeId, dateRange, getIdToken]);
 
   if (!selectedWebsiteId) {
     return (
@@ -161,65 +205,137 @@ export default function MarketingPage() {
         </p>
       </div>
 
+      <ReportAnnotations />
+
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="p-6">
+        <Card className="p-6 h-full flex flex-col">
           <div className="text-sm font-medium text-gray-600">Total Spend</div>
-          <div className="mt-2 text-2xl font-bold text-gray-900">
+          <div className="mt-2 text-2xl font-bold text-gray-900 flex-1">
             {formatCurrency(totals.spend)}
           </div>
         </Card>
-        <Card className="p-6">
+        <Card className="p-6 h-full flex flex-col">
           <div className="text-sm font-medium text-gray-600">Total Revenue</div>
-          <div className="mt-2 text-2xl font-bold text-gray-900">
+          <div className="mt-2 text-2xl font-bold text-gray-900 flex-1">
             {formatCurrency(totals.revenue)}
           </div>
         </Card>
-        <Card className="p-6">
+        <Card className="p-6 h-full flex flex-col">
           <div className="text-sm font-medium text-gray-600">Blended ROAS</div>
-          <div className="mt-2 text-2xl font-bold text-gray-900">
+          <div className="mt-2 text-2xl font-bold text-gray-900 flex-1">
             {blendedROAS.toFixed(2)}x
           </div>
         </Card>
-        <Card className="p-6">
+        <Card className="p-6 h-full flex flex-col">
           <div className="text-sm font-medium text-gray-600">Blended CPA</div>
-          <div className="mt-2 text-2xl font-bold text-gray-900">
+          <div className="mt-2 text-2xl font-bold text-gray-900 flex-1">
             {formatCurrency(blendedCPA)}
           </div>
         </Card>
       </div>
 
       {/* Charts */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900">Spend by Channel</h3>
-          <div className="mt-4">
-            <DonutChart
-              className="h-64"
-              data={spendByChannel}
-              category="value"
-              index="name"
-              valueFormatter={(value) => formatCurrency(value)}
-              colors={['blue', 'cyan', 'indigo', 'violet', 'purple']}
-            />
-          </div>
-        </Card>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="grid gap-6 lg:grid-cols-2"
+      >
+        <motion.div whileHover={{ scale: 1.01 }} className="group">
+          <Card className="p-6 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-50/50 to-indigo-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="relative">
+              <div className="flex items-center gap-3 mb-4">
+                <motion.div
+                  animate={{
+                    rotate: [0, 360],
+                  }}
+                  transition={{
+                    duration: 20,
+                    repeat: Infinity,
+                    ease: "linear",
+                  }}
+                  className="rounded-lg bg-gradient-to-br from-purple-400 to-indigo-500 p-2 shadow-md"
+                >
+                  <PieChart className="h-5 w-5 text-white" />
+                </motion.div>
+                <h3 className="text-lg font-semibold text-gray-900">Spend by Channel</h3>
+              </div>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.2, duration: 0.4 }}
+                className="mt-4"
+              >
+                <DonutChart
+                  className="h-64"
+                  data={spendByChannel}
+                  category="value"
+                  index="name"
+                  valueFormatter={(value) => formatCurrency(value)}
+                  colors={['#6366f1', '#8b5cf6', '#d946ef', '#a855f7', '#ec4899', '#f59e0b', '#10b981', '#06b6d4', '#f43f5e', '#14b8a6']}
+                  showAnimation={true}
+                  animationDuration={1000}
+                  customTooltip={(props) => (
+                    <ChartTooltip
+                      {...props}
+                      valueFormatter={(value) => formatCurrency(value)}
+                    />
+                  )}
+                />
+              </motion.div>
+            </div>
+          </Card>
+        </motion.div>
 
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900">ROAS by Channel</h3>
-          <div className="mt-4">
-            <BarChart
-              className="h-64"
-              data={roasChart}
-              index="channel"
-              categories={['ROAS']}
-              colors={['emerald']}
-              valueFormatter={(value) => `${value.toFixed(2)}x`}
-              showLegend={false}
-            />
-          </div>
-        </Card>
-      </div>
+        <motion.div whileHover={{ scale: 1.01 }} className="group">
+          <Card className="p-6 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/50 to-green-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="relative">
+              <div className="flex items-center gap-3 mb-4">
+                <motion.div
+                  animate={{
+                    rotate: [0, 5, -5, 0],
+                  }}
+                  transition={{
+                    duration: 4,
+                    repeat: Infinity,
+                    repeatDelay: 2,
+                  }}
+                  className="rounded-lg bg-gradient-to-br from-emerald-400 to-green-500 p-2 shadow-md"
+                >
+                  <BarChart3 className="h-5 w-5 text-white" />
+                </motion.div>
+                <h3 className="text-lg font-semibold text-gray-900">ROAS by Channel</h3>
+              </div>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.25, duration: 0.4 }}
+                className="mt-4"
+              >
+                <BarChart
+                  className="h-64"
+                  data={roasChart}
+                  index="channel"
+                  categories={['ROAS']}
+                  colors={['#8b5cf6']}
+                  valueFormatter={(value) => `${value.toFixed(2)}x`}
+                  showLegend={false}
+                  showAnimation={false}
+                  customTooltip={(props) => (
+                    <ChartTooltip
+                      {...props}
+                      valueFormatter={(value) => `${value.toFixed(2)}x`}
+                    />
+                  )}
+                />
+              </motion.div>
+            </div>
+          </Card>
+        </motion.div>
+      </motion.div>
 
       {/* Channel Performance Table */}
       <Card>

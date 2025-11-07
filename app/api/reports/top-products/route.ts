@@ -3,13 +3,15 @@ import { requireAuth } from '@/lib/auth/middleware';
 import { bigquery } from '@/lib/bigquery/client';
 import { ProductPerformanceRow } from '@/types/bigquery';
 import { ApiResponse } from '@/types';
+import { resolveWebsiteToBigQueryIds } from '@/lib/utils/website-resolver';
 
 export async function GET(request: NextRequest) {
   return requireAuth(request, async (req, user) => {
     try {
       const { searchParams } = new URL(req.url);
       const datasetId = searchParams.get('dataset_id');
-      const websiteId = searchParams.get('website_id'); // store_id or 'all_combined'
+      const websiteId = searchParams.get('website_id');
+      const clientId = searchParams.get('client_id') || user.clientId;
       const startDate = searchParams.get('start_date');
       const endDate = searchParams.get('end_date');
       const limit = parseInt(searchParams.get('limit') || '10', 10);
@@ -25,11 +27,27 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // Build the query
-      const websiteFilter =
-        websiteId && websiteId !== 'all_combined'
-          ? `AND website_id = @website_id`
-          : '';
+      // Resolve website ID to BigQuery website IDs (handles grouped websites)
+      let bigQueryWebsiteIds: string[] | null = null;
+      if (websiteId && websiteId !== 'all_combined' && clientId) {
+        bigQueryWebsiteIds = await resolveWebsiteToBigQueryIds(clientId, websiteId);
+        if (!bigQueryWebsiteIds) {
+          bigQueryWebsiteIds = [websiteId];
+        }
+      } else if (websiteId && websiteId !== 'all_combined') {
+        bigQueryWebsiteIds = [websiteId];
+      }
+
+      // Build the query filter
+      let websiteFilter = '';
+      if (bigQueryWebsiteIds && bigQueryWebsiteIds.length > 0) {
+        if (bigQueryWebsiteIds.length === 1) {
+          websiteFilter = `AND website_id = @website_id`;
+        } else {
+          const placeholders = bigQueryWebsiteIds.map((_, i) => `@website_id${i}`).join(', ');
+          websiteFilter = `AND website_id IN (${placeholders})`;
+        }
+      }
 
       const orderByClause =
         sortBy === 'quantity'
@@ -56,15 +74,25 @@ export async function GET(request: NextRequest) {
         LIMIT @limit
       `;
 
-      const options = {
+      const options: any = {
         query,
         params: {
           start_date: startDate,
           end_date: endDate,
           limit: limit,
-          ...(websiteId && websiteId !== 'all_combined' && { website_id: websiteId }),
         },
       };
+
+      // Add website ID(s) to params
+      if (bigQueryWebsiteIds && bigQueryWebsiteIds.length > 0) {
+        if (bigQueryWebsiteIds.length === 1) {
+          options.params.website_id = bigQueryWebsiteIds[0];
+        } else {
+          bigQueryWebsiteIds.forEach((id, i) => {
+            options.params[`website_id${i}`] = id;
+          });
+        }
+      }
 
       const [rows] = await bigquery.query(options);
 

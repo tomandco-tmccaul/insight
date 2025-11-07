@@ -46,6 +46,10 @@ export interface Website {
     adobeCommerce?: string; // e.g., "adobe_commerce_" or "adobe_commerce_harlequin_"
   };
 
+  // Website Grouping (for overview websites)
+  isGrouped?: boolean; // true if this is a grouped/overview website
+  groupedWebsiteIds?: string[]; // Array of website IDs that are grouped together (e.g., ["harlequin_uk", "harlequin_us"])
+
   createdAt?: string;
   updatedAt?: string;
 }

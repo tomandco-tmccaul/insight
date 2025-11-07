@@ -36,7 +36,14 @@ export async function verifyAuth(request: NextRequest): Promise<AppUser | null> 
       return null;
     }
 
-    return userDoc.data() as AppUser;
+    const userData = userDoc.data() as AppUser;
+
+    // Ensure uid is set (in case it's not stored in Firestore)
+    if (!userData.uid) {
+      userData.uid = decodedToken.uid;
+    }
+
+    return userData;
   } catch (error) {
     console.error('Auth verification error:', error);
     return null;

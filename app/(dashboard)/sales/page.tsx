@@ -7,16 +7,11 @@ import { AreaChart, BarChart, DonutChart, LineChart } from '@tremor/react';
 import { useDashboard } from '@/lib/context/dashboard-context';
 import { useIdToken } from '@/lib/auth/hooks';
 import { apiRequest, buildQueryString } from '@/lib/utils/api';
-import { formatCurrency, formatNumber, formatPercentage, calculatePercentageChange } from '@/lib/utils/date';
-import { TrendingUp, TrendingDown, Users, ShoppingBag, Clock, Percent, Package } from 'lucide-react';
-import { Target, Website } from '@/types/firestore';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { formatCurrency, formatCurrencyNoDecimals, formatNumber, formatPercentage, calculatePercentageChange, formatChartDate } from '@/lib/utils/date';
+import { ChartTooltip } from '@/components/ui/chart-tooltip';
+import { TrendingUp, TrendingDown, Users, ShoppingBag, Clock, Percent, Package, PieChart, BarChart3, DollarSign } from 'lucide-react';
+import { Target } from '@/types/firestore';
+import { ReportAnnotations } from '@/components/dashboard/report-annotations';
 import {
   Table,
   TableBody,
@@ -26,6 +21,21 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+
+import { motion } from 'framer-motion';
+
+const motionContainer = {
+  hidden: { opacity: 1 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.08, delayChildren: 0.05 },
+  },
+};
+
+const motionItem = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.25 } },
+};
 
 // Helper function to calculate comparison date range
 function calculateComparisonDates(
@@ -136,7 +146,7 @@ interface HourlySales {
 }
 
 export default function SalesPerformancePage() {
-  const { selectedClientId, dateRange, comparisonPeriod } = useDashboard();
+  const { selectedClientId, selectedWebsiteId, dateRange, comparisonPeriod } = useDashboard();
   const getIdToken = useIdToken();
   const [data, setData] = useState<SalesData | null>(null);
   const [comparisonData, setComparisonData] = useState<SalesData | null>(null);
@@ -147,13 +157,9 @@ export default function SalesPerformancePage() {
   const [datasetId, setDatasetId] = useState<string | null>(null);
   const [targets, setTargets] = useState<Target[]>([]);
   const [topProducts, setTopProducts] = useState<any[]>([]);
-
-  // Local state for this page only - independent of global context
-  const [websites, setWebsites] = useState<Website[]>([]);
-  const [localSelectedWebsiteId, setLocalSelectedWebsiteId] = useState<string>('all_combined');
   const [storeId, setStoreId] = useState<string | null>(null);
 
-  // Fetch client's BigQuery dataset ID and websites
+  // Fetch client's BigQuery dataset ID
   useEffect(() => {
     async function fetchClientData() {
       if (!selectedClientId) {
@@ -176,17 +182,6 @@ export default function SalesPerformancePage() {
         } else {
           setError('Failed to fetch client data');
         }
-
-        // Fetch websites for this client
-        const websitesResponse = await apiRequest<Website[]>(
-          `/api/admin/clients/${selectedClientId}/websites`,
-          {},
-          idToken || undefined
-        );
-
-        if (websitesResponse.success && websitesResponse.data) {
-          setWebsites(websitesResponse.data);
-        }
       } catch (err: any) {
         setError(err.message || 'An error occurred');
       }
@@ -195,10 +190,10 @@ export default function SalesPerformancePage() {
     fetchClientData();
   }, [selectedClientId, getIdToken]);
 
-  // Fetch website's store ID when local selection changes
+  // Fetch website's store ID when selection changes
   useEffect(() => {
     async function fetchWebsiteData() {
-      if (!selectedClientId || !localSelectedWebsiteId || localSelectedWebsiteId === 'all_combined') {
+      if (!selectedClientId || !selectedWebsiteId || selectedWebsiteId === 'all_combined') {
         setStoreId(null);
         return;
       }
@@ -206,15 +201,34 @@ export default function SalesPerformancePage() {
       try {
         const idToken = await getIdToken();
         const response = await apiRequest<{ id: string; websiteName: string; storeId: string }>(
-          `/api/admin/clients/${selectedClientId}/websites/${localSelectedWebsiteId}`,
+          `/api/admin/clients/${selectedClientId}/websites/${selectedWebsiteId}`,
           {},
           idToken || undefined
         );
 
         if (response.success && response.data) {
-          setStoreId(response.data.storeId);
+          const fetchedStoreId = response.data.storeId;
+          console.log('[Sales] Fetched website data:', {
+            websiteId: selectedWebsiteId,
+            storeId: fetchedStoreId,
+            websiteData: response.data,
+            allFields: Object.keys(response.data),
+          });
+          
+          if (!fetchedStoreId) {
+            console.error('[Sales] Missing storeId for website:', {
+              websiteId: selectedWebsiteId,
+              websiteName: response.data.websiteName,
+              availableFields: Object.keys(response.data),
+            });
+            setError(`Website "${response.data.websiteName || selectedWebsiteId}" is missing a storeId. Please update it in Admin → Websites.`);
+            setStoreId(null);
+          } else {
+            setStoreId(fetchedStoreId);
+          }
         } else {
           setError('Failed to fetch website data');
+          setStoreId(null);
         }
       } catch (err: any) {
         setError(err.message || 'An error occurred');
@@ -222,7 +236,7 @@ export default function SalesPerformancePage() {
     }
 
     fetchWebsiteData();
-  }, [selectedClientId, localSelectedWebsiteId, getIdToken]);
+  }, [selectedClientId, selectedWebsiteId, getIdToken]);
 
   // Fetch targets
   useEffect(() => {
@@ -260,7 +274,7 @@ export default function SalesPerformancePage() {
         const idToken = await getIdToken();
 
         // Use storeId if a specific website is selected, otherwise 'all_combined'
-        const websiteFilter = localSelectedWebsiteId === 'all_combined' || !storeId
+        const websiteFilter = selectedWebsiteId === 'all_combined' || !storeId
           ? 'all_combined'
           : storeId;
 
@@ -289,7 +303,7 @@ export default function SalesPerformancePage() {
     }
 
     fetchTopProducts();
-  }, [selectedClientId, datasetId, localSelectedWebsiteId, storeId, dateRange, getIdToken]);
+  }, [selectedClientId, datasetId, selectedWebsiteId, storeId, dateRange, getIdToken]);
 
   // Fetch sales data
   useEffect(() => {
@@ -306,9 +320,16 @@ export default function SalesPerformancePage() {
         const idToken = await getIdToken();
 
         // Use storeId if a specific website is selected, otherwise 'all_combined'
-        const websiteFilter = localSelectedWebsiteId === 'all_combined' || !storeId
+        const websiteFilter = selectedWebsiteId === 'all_combined' || !storeId
           ? 'all_combined'
           : storeId;
+
+        // Debug logging
+        console.log('[Sales] Website filter:', {
+          selectedWebsiteId,
+          storeId,
+          websiteFilter,
+        });
 
         // Build query parameters for current period
         const queryString = buildQueryString({
@@ -365,7 +386,7 @@ export default function SalesPerformancePage() {
     }
 
     fetchData();
-  }, [selectedClientId, localSelectedWebsiteId, dateRange, comparisonPeriod, datasetId, storeId, getIdToken]);
+  }, [selectedClientId, selectedWebsiteId, dateRange, comparisonPeriod, datasetId, storeId, getIdToken]);
 
   // Fetch customer metrics
   useEffect(() => {
@@ -374,7 +395,7 @@ export default function SalesPerformancePage() {
 
       try {
         const idToken = await getIdToken();
-        const websiteFilter = localSelectedWebsiteId === 'all_combined' || !storeId
+        const websiteFilter = selectedWebsiteId === 'all_combined' || !storeId
           ? 'all_combined'
           : storeId;
 
@@ -400,7 +421,7 @@ export default function SalesPerformancePage() {
     }
 
     fetchCustomerMetrics();
-  }, [selectedClientId, datasetId, localSelectedWebsiteId, storeId, dateRange, getIdToken]);
+  }, [selectedClientId, datasetId, selectedWebsiteId, storeId, dateRange, getIdToken]);
 
   // Fetch hourly sales
   useEffect(() => {
@@ -409,7 +430,7 @@ export default function SalesPerformancePage() {
 
       try {
         const idToken = await getIdToken();
-        const websiteFilter = localSelectedWebsiteId === 'all_combined' || !storeId
+        const websiteFilter = selectedWebsiteId === 'all_combined' || !storeId
           ? 'all_combined'
           : storeId;
 
@@ -435,7 +456,7 @@ export default function SalesPerformancePage() {
     }
 
     fetchHourlySales();
-  }, [selectedClientId, datasetId, localSelectedWebsiteId, storeId, dateRange, getIdToken]);
+  }, [selectedClientId, datasetId, selectedWebsiteId, storeId, dateRange, getIdToken]);
 
   if (!selectedClientId) {
     return (
@@ -443,6 +464,21 @@ export default function SalesPerformancePage() {
         <div className="text-center">
           <h3 className="text-lg font-semibold text-gray-900">No Client Selected</h3>
           <p className="mt-2 text-gray-600">Please select a client from the header to view data</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error if storeId is missing for a specific website
+  if (error && selectedWebsiteId && selectedWebsiteId !== 'all_combined' && !storeId) {
+    return (
+      <div className="flex h-96 items-center justify-center">
+        <div className="text-center max-w-md">
+          <h3 className="text-lg font-semibold text-red-600">Configuration Error</h3>
+          <p className="mt-2 text-gray-600">{error}</p>
+          <p className="mt-4 text-sm text-gray-500">
+            The selected website is missing required configuration. Please go to <strong>Admin → Websites</strong> and ensure the <strong>storeId</strong> field is set.
+          </p>
         </div>
       </div>
     );
@@ -488,98 +524,107 @@ export default function SalesPerformancePage() {
     ? calculatePercentageChange(comparisonData.summary.unique_customers, data.summary.unique_customers)
     : null;
 
-  // Prepare chart data
-  const chartData = data.daily.map((row) => ({
-    date: row.date,
-    Revenue: row.total_revenue,
-    Orders: row.total_orders,
-  }));
+  // Prepare chart data with comparison values
+  // Sort daily data by date ascending (oldest to newest) for proper graph display
+  const sortedDaily = [...data.daily].sort((a, b) => 
+    new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+  
+  const chartData = sortedDaily.map((row) => {
+    const comparisonRow = comparisonData?.daily.find((d) => d.date === row.date);
+    return {
+      date: formatChartDate(row.date),
+      Revenue: row.total_revenue,
+      Orders: row.total_orders,
+      // Include comparison data for tooltip
+      _comparisonRevenue: comparisonRow?.total_revenue ?? null,
+      _comparisonOrders: comparisonRow?.total_orders ?? null,
+    };
+  });
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Sales Performance</h1>
-          <p className="mt-2 text-gray-600">
-            Detailed sales analysis from Adobe Commerce
-          </p>
-        </div>
-
-        {/* Website Filter - Local to this page */}
-        <div className="flex items-center gap-2">
-          <label className="text-sm font-medium text-gray-700">Filter by Store:</label>
-          <Select value={localSelectedWebsiteId} onValueChange={setLocalSelectedWebsiteId}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Select store" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all_combined">All Stores Combined</SelectItem>
-              {websites.map((website) => (
-                <SelectItem key={website.id} value={website.id}>
-                  {website.websiteName}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Sales Performance</h1>
+        <p className="mt-2 text-gray-600">
+          Detailed sales analysis from Adobe Commerce
+        </p>
       </div>
+
+      <ReportAnnotations />
+
 
       {/* Primary KPI Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <KPICard
-          label="Total Revenue"
-          value={formatCurrency(data.summary.total_revenue)}
-          change={revenueChange}
-          icon={<ShoppingBag className="h-5 w-5" />}
-        />
-        <KPICard
-          label="Orders"
-          value={formatNumber(data.summary.total_orders)}
-          change={ordersChange}
-          icon={<Package className="h-5 w-5" />}
-        />
-        <KPICard
-          label="AOV"
-          value={formatCurrency(data.summary.aov)}
-          change={aovChange}
-          icon={<TrendingUp className="h-5 w-5" />}
-        />
-        <KPICard
-          label="Customers"
-          value={formatNumber(data.summary.unique_customers)}
-          change={customersChange}
-          icon={<Users className="h-5 w-5" />}
-        />
-      </div>
+      <motion.div variants={motionContainer} initial="hidden" animate="show" className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <motion.div variants={motionItem} className="h-full">
+          <KPICard
+            label="Total Revenue"
+            value={formatCurrency(data.summary.total_revenue)}
+            change={revenueChange}
+            icon={<ShoppingBag className="h-5 w-5" />}
+          />
+        </motion.div>
+        <motion.div variants={motionItem} className="h-full">
+          <KPICard
+            label="Orders"
+            value={formatNumber(data.summary.total_orders)}
+            change={ordersChange}
+            icon={<Package className="h-5 w-5" />}
+          />
+        </motion.div>
+        <motion.div variants={motionItem} className="h-full">
+          <KPICard
+            label="AOV"
+            value={formatCurrency(data.summary.aov)}
+            change={aovChange}
+            icon={<TrendingUp className="h-5 w-5" />}
+          />
+        </motion.div>
+        <motion.div variants={motionItem} className="h-full">
+          <KPICard
+            label="Customers"
+            value={formatNumber(data.summary.unique_customers)}
+            change={customersChange}
+            icon={<Users className="h-5 w-5" />}
+          />
+        </motion.div>
+      </motion.div>
 
       {/* Secondary Metrics */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
+      <motion.div variants={motionContainer} initial="hidden" animate="show" className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <motion.div variants={motionItem} className="h-full">
+          <Card className="p-4 h-full flex flex-col">
+          <div className="flex items-center justify-between flex-1">
+            <div className="flex-1">
               <p className="text-sm text-gray-600">Items per Order</p>
               <p className="text-2xl font-bold text-gray-900">
                 {data.summary.items_per_order.toFixed(2)}
               </p>
+              {/* Spacer to maintain consistent height */}
+              <p className="text-xs text-transparent mt-1">placeholder</p>
             </div>
             <div className="rounded-lg bg-blue-100 p-2">
               <Package className="h-5 w-5 text-blue-600" />
             </div>
           </div>
         </Card>
+        </motion.div>
 
         {data.summary.total_discounts !== undefined && (
-          <Card className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
+          <motion.div variants={motionItem} className="h-full">
+          <Card className="p-4 h-full flex flex-col">
+            <div className="flex items-center justify-between flex-1">
+              <div className="flex-1">
                 <p className="text-sm text-gray-600">Total Discounts</p>
                 <p className="text-2xl font-bold text-gray-900">
                   {formatCurrency(data.summary.total_discounts)}
                 </p>
-                {data.summary.total_revenue > 0 && (
+                {data.summary.total_revenue > 0 ? (
                   <p className="text-xs text-gray-500 mt-1">
                     {formatPercentage((data.summary.total_discounts / data.summary.total_revenue) * 100)} of revenue
                   </p>
+                ) : (
+                  <p className="text-xs text-transparent mt-1">placeholder</p>
                 )}
               </div>
               <div className="rounded-lg bg-orange-100 p-2">
@@ -587,93 +632,216 @@ export default function SalesPerformancePage() {
               </div>
             </div>
           </Card>
+          </motion.div>
         )}
 
         {data.summary.total_shipping !== undefined && (
-          <Card className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
+          <motion.div variants={motionItem} className="h-full">
+          <Card className="p-4 h-full flex flex-col">
+            <div className="flex items-center justify-between flex-1">
+              <div className="flex-1">
                 <p className="text-sm text-gray-600">Shipping Revenue</p>
                 <p className="text-2xl font-bold text-gray-900">
                   {formatCurrency(data.summary.total_shipping)}
                 </p>
+                {/* Spacer to maintain consistent height */}
+                <p className="text-xs text-transparent mt-1">placeholder</p>
               </div>
               <div className="rounded-lg bg-purple-100 p-2">
                 <TrendingUp className="h-5 w-5 text-purple-600" />
               </div>
             </div>
           </Card>
+          </motion.div>
         )}
 
         {data.summary.total_tax !== undefined && (
-          <Card className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
+          <motion.div variants={motionItem} className="h-full">
+          <Card className="p-4 h-full flex flex-col">
+            <div className="flex items-center justify-between flex-1">
+              <div className="flex-1">
                 <p className="text-sm text-gray-600">Tax Collected</p>
                 <p className="text-2xl font-bold text-gray-900">
                   {formatCurrency(data.summary.total_tax)}
                 </p>
+                {/* Spacer to maintain consistent height */}
+                <p className="text-xs text-transparent mt-1">placeholder</p>
               </div>
               <div className="rounded-lg bg-green-100 p-2">
                 <TrendingUp className="h-5 w-5 text-green-600" />
               </div>
             </div>
           </Card>
+          </motion.div>
         )}
-      </div>
+      </motion.div>
 
       {/* Charts */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900">Revenue Trend</h3>
-          <div className="mt-4">
-            <AreaChart
-              className="h-64"
-              data={chartData}
-              index="date"
-              categories={['Revenue']}
-              colors={['blue']}
-              valueFormatter={(value) => formatCurrency(value)}
-              showLegend={false}
-            />
-          </div>
-        </Card>
+      <motion.div
+        variants={motionContainer}
+        initial="hidden"
+        animate="show"
+        className="grid gap-6 lg:grid-cols-2"
+      >
+        <motion.div variants={motionItem} whileHover={{ scale: 1.01 }} className="group">
+          <Card className="p-6 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/50 to-green-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="relative">
+              <div className="flex items-center gap-3 mb-4">
+                <motion.div
+                  animate={{
+                    rotate: [0, 5, -5, 0],
+                  }}
+                  transition={{
+                    duration: 4,
+                    repeat: Infinity,
+                    repeatDelay: 2,
+                  }}
+                  className="rounded-lg bg-gradient-to-br from-emerald-400 to-green-500 p-2 shadow-md"
+                >
+                  <TrendingUp className="h-5 w-5 text-white" />
+                </motion.div>
+                <h3 className="text-lg font-semibold text-gray-900">Revenue Trend</h3>
+              </div>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.2, duration: 0.4 }}
+                className="mt-4"
+              >
+                <AreaChart
+                  className="h-64"
+                  data={chartData}
+                  index="date"
+                  categories={['Revenue']}
+                  colors={['#10b981']}
+                  valueFormatter={(value) => formatCurrencyNoDecimals(value)}
+                  allowDecimals={false}
+                  yAxisWidth={80}
+                  rotateLabelX={{ angle: 0 }}
+                  showLegend={false}
+                  showAnimation={true}
+                  animationDuration={1000}
+                  customTooltip={(props) => (
+                    <ChartTooltip
+                      {...props}
+                      valueFormatter={(value) => formatCurrencyNoDecimals(value)}
+                      comparisonKey="_comparisonRevenue"
+                      comparisonLabel={comparisonPeriod === 'previous_year' ? 'Same period last year' : 'Previous period'}
+                    />
+                  )}
+                />
+              </motion.div>
+            </div>
+          </Card>
+        </motion.div>
 
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900">Orders Trend</h3>
-          <div className="mt-4">
-            <BarChart
-              className="h-64"
-              data={chartData}
-              index="date"
-              categories={['Orders']}
-              colors={['emerald']}
-              valueFormatter={(value) => formatNumber(value)}
-              showLegend={false}
-            />
-          </div>
-        </Card>
-      </div>
+        <motion.div variants={motionItem} whileHover={{ scale: 1.01 }} className="group">
+          <Card className="p-6 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/50 to-green-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="relative">
+              <div className="flex items-center gap-3 mb-4">
+                <motion.div
+                  animate={{
+                    rotate: [0, 5, -5, 0],
+                  }}
+                  transition={{
+                    duration: 4,
+                    repeat: Infinity,
+                    repeatDelay: 2,
+                  }}
+                  className="rounded-lg bg-gradient-to-br from-emerald-400 to-green-500 p-2 shadow-md"
+                >
+                  <ShoppingBag className="h-5 w-5 text-white" />
+                </motion.div>
+                <h3 className="text-lg font-semibold text-gray-900">Orders Trend</h3>
+              </div>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.25, duration: 0.4 }}
+                className="mt-4"
+              >
+                <BarChart
+                  className="h-64"
+                  data={chartData}
+                  index="date"
+                  categories={['Orders']}
+                  colors={['#8b5cf6']}
+                  valueFormatter={(value) => formatNumber(value)}
+                  showLegend={false}
+                  showAnimation={false}
+                  customTooltip={(props) => (
+                    <ChartTooltip
+                      {...props}
+                      valueFormatter={(value) => formatNumber(value)}
+                      comparisonKey="_comparisonOrders"
+                      comparisonLabel={comparisonPeriod === 'previous_year' ? 'Same period last year' : 'Previous period'}
+                    />
+                  )}
+                />
+              </motion.div>
+            </div>
+          </Card>
+        </motion.div>
+      </motion.div>
 
       {/* Order Status & Revenue Breakdown */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      <motion.div
+        variants={motionContainer}
+        initial="hidden"
+        animate="show"
+        className="grid gap-6 lg:grid-cols-2"
+      >
         {/* Order Status Breakdown */}
         {data.summary.orders_complete !== undefined && (
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Order Status Breakdown</h3>
-            <DonutChart
-              className="h-64"
-              data={[
-                { name: 'Complete', value: data.summary.orders_complete || 0 },
-                { name: 'Processing', value: data.summary.orders_processing || 0 },
-                { name: 'Pending', value: data.summary.orders_pending || 0 },
-                { name: 'Canceled', value: data.summary.orders_canceled || 0 },
-              ].filter(item => item.value > 0)}
-              category="value"
-              index="name"
-              colors={['emerald', 'blue', 'amber', 'red']}
-              valueFormatter={(value) => formatNumber(value)}
-            />
+          <motion.div variants={motionItem} whileHover={{ scale: 1.01 }} className="group">
+            <Card className="p-6 relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/50 to-blue-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="relative">
+                <div className="flex items-center gap-3 mb-4">
+                  <motion.div
+                    animate={{
+                      rotate: [0, 360],
+                    }}
+                    transition={{
+                      duration: 20,
+                      repeat: Infinity,
+                      ease: "linear",
+                    }}
+                    className="rounded-lg bg-gradient-to-br from-emerald-400 to-blue-500 p-2 shadow-md"
+                  >
+                    <PieChart className="h-5 w-5 text-white" />
+                  </motion.div>
+                  <h3 className="text-lg font-semibold text-gray-900">Order Status Breakdown</h3>
+                </div>
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.2, duration: 0.4 }}
+                >
+                  <DonutChart
+                    className="h-64"
+                    data={[
+                      { name: 'Complete', value: data.summary.orders_complete || 0 },
+                      { name: 'Processing', value: data.summary.orders_processing || 0 },
+                      { name: 'Pending', value: data.summary.orders_pending || 0 },
+                      { name: 'Canceled', value: data.summary.orders_canceled || 0 },
+                    ].filter(item => item.value > 0)}
+                    category="value"
+                    index="name"
+                    colors={['#10b981', '#06b6d4', '#f59e0b', '#f43f5e', '#6366f1', '#8b5cf6', '#d946ef', '#a855f7']}
+                    valueFormatter={(value) => formatNumber(value)}
+                    showAnimation={true}
+                    animationDuration={1000}
+                    customTooltip={(props) => (
+                      <ChartTooltip
+                        {...props}
+                        valueFormatter={(value) => formatNumber(value)}
+                      />
+                    )}
+                  />
+                </motion.div>
             <div className="mt-4 grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-gray-600">Complete</p>
@@ -700,26 +868,60 @@ export default function SalesPerformancePage() {
                 </p>
               </div>
             </div>
+            </div>
           </Card>
+          </motion.div>
         )}
 
         {/* Revenue Breakdown */}
         {data.summary.subtotal !== undefined && (
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Revenue Breakdown</h3>
-            <DonutChart
-              className="h-64"
-              data={[
-                { name: 'Subtotal', value: data.summary.subtotal || 0 },
-                { name: 'Shipping', value: data.summary.total_shipping || 0 },
-                { name: 'Tax', value: data.summary.total_tax || 0 },
-                { name: 'Discounts', value: -(data.summary.total_discounts || 0) },
-              ].filter(item => Math.abs(item.value) > 0)}
-              category="value"
-              index="name"
-              colors={['blue', 'purple', 'green', 'orange']}
-              valueFormatter={(value) => formatCurrency(Math.abs(value))}
-            />
+          <motion.div variants={motionItem} whileHover={{ scale: 1.01 }} className="group">
+            <Card className="p-6 relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/50 to-purple-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="relative">
+                <div className="flex items-center gap-3 mb-4">
+                  <motion.div
+                    animate={{
+                      rotate: [0, 360],
+                    }}
+                    transition={{
+                      duration: 20,
+                      repeat: Infinity,
+                      ease: "linear",
+                    }}
+                    className="rounded-lg bg-gradient-to-br from-indigo-400 to-purple-500 p-2 shadow-md"
+                  >
+                    <DollarSign className="h-5 w-5 text-white" />
+                  </motion.div>
+                  <h3 className="text-lg font-semibold text-gray-900">Revenue Breakdown</h3>
+                </div>
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.25, duration: 0.4 }}
+                >
+                  <DonutChart
+                    className="h-64"
+                    data={[
+                      { name: 'Subtotal', value: data.summary.subtotal || 0 },
+                      { name: 'Shipping', value: data.summary.total_shipping || 0 },
+                      { name: 'Tax', value: data.summary.total_tax || 0 },
+                      { name: 'Discounts', value: -(data.summary.total_discounts || 0) },
+                    ].filter(item => Math.abs(item.value) > 0)}
+                    category="value"
+                    index="name"
+                    colors={['#6366f1', '#8b5cf6', '#10b981', '#f59e0b', '#06b6d4', '#d946ef', '#a855f7', '#ec4899']}
+                    valueFormatter={(value) => formatCurrency(Math.abs(value))}
+                    showAnimation={true}
+                    animationDuration={1000}
+                    customTooltip={(props) => (
+                      <ChartTooltip
+                        {...props}
+                        valueFormatter={(value) => formatCurrency(Math.abs(value))}
+                      />
+                    )}
+                  />
+                </motion.div>
             <div className="mt-4 space-y-2">
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600">Subtotal</span>
@@ -752,9 +954,11 @@ export default function SalesPerformancePage() {
                 </span>
               </div>
             </div>
+            </div>
           </Card>
+          </motion.div>
         )}
-      </div>
+      </motion.div>
 
       {/* Customer Metrics */}
       {customerMetrics && (
@@ -858,9 +1062,15 @@ export default function SalesPerformancePage() {
             }))}
             index="hour"
             categories={['Orders', 'Revenue']}
-            colors={['blue', 'emerald']}
+            colors={['#6366f1', '#8b5cf6']}
             valueFormatter={(value) => formatNumber(value)}
             yAxisWidth={60}
+            customTooltip={(props) => (
+              <ChartTooltip
+                {...props}
+                valueFormatter={(value) => formatNumber(value)}
+              />
+            )}
           />
         </Card>
       )}
@@ -873,7 +1083,7 @@ export default function SalesPerformancePage() {
             <RevenueVsTargetChart
               data={data}
               targets={targets}
-              selectedWebsiteId={localSelectedWebsiteId}
+              selectedWebsiteId={selectedWebsiteId}
               dateRange={dateRange}
             />
           </div>
@@ -899,7 +1109,7 @@ export default function SalesPerformancePage() {
                 </thead>
                 <tbody>
                   {topProducts.map((product, index) => (
-                    <tr key={product.sku} className="border-b border-gray-100">
+                    <tr key={product.sku} className="border-b border-gray-100 transition-colors hover:bg-gray-50">
                       <td className="py-3 text-gray-900">
                         <div className="flex items-center gap-2">
                           <span className="text-gray-400">#{index + 1}</span>
@@ -943,12 +1153,12 @@ function KPICard({
   icon?: React.ReactNode;
 }) {
   return (
-    <Card className="p-6">
+    <Card className="p-6 h-full flex flex-col">
       <div className="flex items-center justify-between mb-2">
         <div className="text-sm font-medium text-gray-600">{label}</div>
         {icon && <div className="text-gray-400">{icon}</div>}
       </div>
-      <div className="flex items-baseline gap-2">
+      <div className="flex items-baseline gap-2 flex-1">
         <div className="text-2xl font-bold text-gray-900">{value}</div>
         {change !== null && (
           <div
@@ -1039,9 +1249,16 @@ function RevenueVsTargetChart({
         data={chartData}
         index="name"
         categories={['value']}
-        colors={['blue']}
+        colors={['#06b6d4']}
         valueFormatter={(value) => formatCurrency(value)}
         showLegend={false}
+        showAnimation={false}
+        customTooltip={(props) => (
+          <ChartTooltip
+            {...props}
+            valueFormatter={(value) => formatCurrency(value)}
+          />
+        )}
       />
     </div>
   );

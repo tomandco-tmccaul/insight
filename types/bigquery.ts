@@ -158,3 +158,144 @@ export interface ReportContext {
   comparisonPeriod: ComparisonPeriod;
 }
 
+// ============================================================================
+// GA4 Data Models (from Airbyte GA4 connector)
+// ============================================================================
+
+// GA4 Website Overview - Overall site metrics
+export interface GA4WebsiteOverviewRow {
+  property_id: string; // GA4 property ID
+  date: string; // YYYY-MM-DD format
+  activeUsers: number;
+  newUsers: number;
+  totalUsers: number;
+  sessions: number;
+  engagedSessions: number;
+  averageSessionDuration: number; // in seconds
+  screenPageViews: number;
+  screenPageViewsPerSession: number;
+  eventCount: number;
+  conversions: number;
+  totalRevenue: number;
+  engagementRate: number; // percentage
+  bounceRate: number; // percentage
+  _airbyte_extracted_at: string;
+  _airbyte_ab_id?: string;
+  _airbyte_emitted_at?: string;
+  _airbyte_normalized_at?: string;
+}
+
+// GA4 Daily Active Users
+export interface GA4DailyActiveUsersRow {
+  property_id: string;
+  date: string; // YYYY-MM-DD format
+  activeUsers: number;
+  _airbyte_extracted_at: string;
+  _airbyte_ab_id?: string;
+  _airbyte_emitted_at?: string;
+  _airbyte_normalized_at?: string;
+}
+
+// GA4 Weekly Active Users
+export interface GA4WeeklyActiveUsersRow {
+  property_id: string;
+  date: string; // YYYY-MM-DD format
+  activeUsers: number;
+  _airbyte_extracted_at: string;
+  _airbyte_ab_id?: string;
+  _airbyte_emitted_at?: string;
+  _airbyte_normalized_at?: string;
+}
+
+// GA4 Four Weekly Active Users (Monthly)
+export interface GA4FourWeeklyActiveUsersRow {
+  property_id: string;
+  date: string; // YYYY-MM-DD format
+  activeUsers: number;
+  _airbyte_extracted_at: string;
+  _airbyte_ab_id?: string;
+  _airbyte_emitted_at?: string;
+  _airbyte_normalized_at?: string;
+}
+
+// GA4 Pages - Page-level metrics
+export interface GA4PagesRow {
+  property_id: string;
+  date: string;
+  hostName: string;
+  pagePath: string;
+  pageTitle?: string;
+  screenPageViews: number;
+  sessions: number;
+  engagedSessions: number;
+  averageSessionDuration: number;
+  bounceRate: number;
+  _airbyte_extracted_at: string;
+  _airbyte_ab_id?: string;
+  _airbyte_emitted_at?: string;
+  _airbyte_normalized_at?: string;
+}
+
+// GA4 Traffic Sources - Session source/medium breakdown
+export interface GA4TrafficSourcesRow {
+  property_id: string;
+  date: string;
+  sessionSource: string;
+  sessionMedium: string;
+  sessionCampaignName?: string;
+  sessions: number;
+  activeUsers: number;
+  newUsers: number;
+  engagedSessions: number;
+  averageSessionDuration: number;
+  screenPageViews: number;
+  conversions: number;
+  totalRevenue: number;
+  bounceRate: number;
+  _airbyte_extracted_at: string;
+  _airbyte_ab_id?: string;
+  _airbyte_emitted_at?: string;
+  _airbyte_normalized_at?: string;
+}
+
+// GA4 Devices - Device category breakdown
+export interface GA4DevicesRow {
+  property_id: string;
+  date: string;
+  deviceCategory: string; // 'desktop', 'mobile', 'tablet'
+  sessions: number;
+  activeUsers: number;
+  newUsers: number;
+  engagedSessions: number;
+  averageSessionDuration: number;
+  screenPageViews: number;
+  conversions: number;
+  totalRevenue: number;
+  bounceRate: number;
+  _airbyte_extracted_at: string;
+  _airbyte_ab_id?: string;
+  _airbyte_emitted_at?: string;
+  _airbyte_normalized_at?: string;
+}
+
+// GA4 Locations - Geographic breakdown
+export interface GA4LocationsRow {
+  property_id: string;
+  country: string;
+  region?: string;
+  city?: string;
+  sessions: number;
+  activeUsers: number;
+  newUsers: number;
+  engagedSessions: number;
+  averageSessionDuration: number;
+  screenPageViews: number;
+  conversions: number;
+  totalRevenue: number;
+  bounceRate: number;
+  _airbyte_extracted_at: string;
+  _airbyte_ab_id?: string;
+  _airbyte_emitted_at?: string;
+  _airbyte_normalized_at?: string;
+}
+

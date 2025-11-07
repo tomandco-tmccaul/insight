@@ -106,7 +106,7 @@ export default function AdminBigQueryPage() {
     }
   };
 
-  const createAggregation = async (aggregationType: 'sales_overview' | 'product_performance') => {
+  const createAggregation = async (aggregationType: 'sales_overview' | 'product_performance' | 'seo_performance') => {
     const client = clients.find((c) => c.id === selectedClientId);
     if (!client?.bigQueryDatasetId) return;
 
@@ -233,7 +233,7 @@ export default function AdminBigQueryPage() {
                     </div>
                   )}
 
-                  <div className="grid gap-4 md:grid-cols-2">
+                  <div className="grid gap-4 md:grid-cols-3">
                     <div className="rounded-lg border border-gray-200 p-4">
                       <h3 className="font-medium text-gray-900">Sales Overview</h3>
                       <p className="mt-1 text-sm text-gray-600">
@@ -271,6 +271,31 @@ export default function AdminBigQueryPage() {
                         disabled={creatingAggregation === 'product_performance'}
                       >
                         {creatingAggregation === 'product_performance' ? (
+                          <>
+                            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                            Creating...
+                          </>
+                        ) : (
+                          <>
+                            <Database className="mr-2 h-4 w-4" />
+                            Create Table
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
+                    <div className="rounded-lg border border-gray-200 p-4">
+                      <h3 className="font-medium text-gray-900">SEO Performance</h3>
+                      <p className="mt-1 text-sm text-gray-600">
+                        Daily aggregation of search queries, clicks, impressions, and positions from GSC
+                      </p>
+                      <Button
+                        className="mt-3"
+                        size="sm"
+                        onClick={() => createAggregation('seo_performance')}
+                        disabled={creatingAggregation === 'seo_performance'}
+                      >
+                        {creatingAggregation === 'seo_performance' ? (
                           <>
                             <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
                             Creating...

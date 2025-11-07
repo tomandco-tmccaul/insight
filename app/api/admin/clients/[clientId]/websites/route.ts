@@ -61,11 +61,40 @@ export async function POST(
     try {
       const { clientId } = await params;
       const body = await request.json();
-      const { id, websiteName, bigQueryWebsiteId, storeId, bigQueryTablePrefixes } = body as CreateWebsite & { id: string };
+      const { 
+        id, 
+        websiteName, 
+        bigQueryWebsiteId, 
+        storeId, 
+        bigQueryTablePrefixes,
+        isGrouped,
+        groupedWebsiteIds
+      } = body as CreateWebsite & { 
+        id: string;
+        isGrouped?: boolean;
+        groupedWebsiteIds?: string[];
+      };
 
-      if (!id || !websiteName || !bigQueryWebsiteId || !storeId) {
+      // For grouped websites, storeId is optional
+      if (!id || !websiteName || !bigQueryWebsiteId) {
         return NextResponse.json(
-          { success: false, error: 'Missing required fields: id, websiteName, bigQueryWebsiteId, storeId' },
+          { success: false, error: 'Missing required fields: id, websiteName, bigQueryWebsiteId' },
+          { status: 400 }
+        );
+      }
+
+      // For non-grouped websites, storeId is required
+      if (!isGrouped && !storeId) {
+        return NextResponse.json(
+          { success: false, error: 'Missing required field: storeId (required for non-grouped websites)' },
+          { status: 400 }
+        );
+      }
+
+      // For grouped websites, groupedWebsiteIds is required
+      if (isGrouped && (!groupedWebsiteIds || groupedWebsiteIds.length < 2)) {
+        return NextResponse.json(
+          { success: false, error: 'Grouped websites must have at least 2 website IDs in groupedWebsiteIds' },
           { status: 400 }
         );
       }
@@ -97,8 +126,10 @@ export async function POST(
         id,
         websiteName,
         bigQueryWebsiteId,
-        storeId,
+        storeId: storeId || '', // Empty string for grouped websites
         bigQueryTablePrefixes: bigQueryTablePrefixes || {},
+        isGrouped: isGrouped || false,
+        groupedWebsiteIds: groupedWebsiteIds || undefined,
         createdAt: now,
         updatedAt: now,
       };

@@ -17,6 +17,7 @@ import { useIdToken } from '@/lib/auth/hooks';
 import { apiRequest, buildQueryString } from '@/lib/utils/api';
 import { formatCurrency, formatNumber } from '@/lib/utils/date';
 import { TrendingUp, TrendingDown, Package } from 'lucide-react';
+import { ReportAnnotations } from '@/components/dashboard/report-annotations';
 
 interface ProductData {
   product_id: string;
@@ -32,11 +33,46 @@ interface ProductData {
 }
 
 export default function ProductPage() {
-  const { selectedWebsiteId, dateRange } = useDashboard();
+  const { selectedClientId, selectedWebsiteId, dateRange } = useDashboard();
   const getIdToken = useIdToken();
   const [products, setProducts] = useState<ProductData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [storeId, setStoreId] = useState<string | null>(null);
+
+  // Fetch website's store ID when selection changes
+  useEffect(() => {
+    async function fetchWebsiteData() {
+      if (!selectedClientId || !selectedWebsiteId || selectedWebsiteId === 'all_combined') {
+        setStoreId(null);
+        return;
+      }
+
+      try {
+        const idToken = await getIdToken();
+        const response = await apiRequest<{ id: string; websiteName: string; storeId: string; isGrouped?: boolean }>(
+          `/api/admin/clients/${selectedClientId}/websites/${selectedWebsiteId}`,
+          {},
+          idToken || undefined
+        );
+
+        if (response.success && response.data) {
+          // Grouped websites don't need a storeId - they aggregate data from multiple websites
+          if (response.data.isGrouped) {
+            setStoreId(null); // Grouped websites don't use storeId
+          } else {
+            setStoreId(response.data.storeId);
+          }
+        } else {
+          setError('Failed to fetch website data');
+        }
+      } catch (err: any) {
+        setError(err.message || 'An error occurred');
+      }
+    }
+
+    fetchWebsiteData();
+  }, [selectedClientId, selectedWebsiteId, getIdToken]);
 
   useEffect(() => {
     async function fetchData() {
@@ -45,13 +81,24 @@ export default function ProductPage() {
         return;
       }
 
+      // Wait for storeId if we have a specific website selected
+      if (selectedWebsiteId !== 'all_combined' && !storeId) {
+        return;
+      }
+
       setLoading(true);
       setError(null);
 
       try {
         const idToken = await getIdToken();
+        
+        // Use storeId if a specific website is selected, otherwise pass 'all_combined'
+        const websiteFilter = selectedWebsiteId === 'all_combined' || !storeId
+          ? 'all_combined'
+          : storeId;
+
         const queryString = buildQueryString({
-          websiteId: selectedWebsiteId,
+          websiteId: websiteFilter,
           startDate: dateRange.startDate,
           endDate: dateRange.endDate,
           limit: '100',
@@ -76,7 +123,7 @@ export default function ProductPage() {
     }
 
     fetchData();
-  }, [selectedWebsiteId, dateRange, getIdToken]);
+  }, [selectedWebsiteId, storeId, dateRange, getIdToken]);
 
   if (!selectedWebsiteId) {
     return (
@@ -126,29 +173,31 @@ export default function ProductPage() {
         </p>
       </div>
 
+      <ReportAnnotations />
+
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="p-6">
+        <Card className="p-6 h-full flex flex-col">
           <div className="text-sm font-medium text-gray-600">Total Products</div>
-          <div className="mt-2 text-2xl font-bold text-gray-900">
+          <div className="mt-2 text-2xl font-bold text-gray-900 flex-1">
             {formatNumber(products.length)}
           </div>
         </Card>
-        <Card className="p-6">
+        <Card className="p-6 h-full flex flex-col">
           <div className="text-sm font-medium text-gray-600">Total Revenue</div>
-          <div className="mt-2 text-2xl font-bold text-gray-900">
+          <div className="mt-2 text-2xl font-bold text-gray-900 flex-1">
             {formatCurrency(products.reduce((sum, p) => sum + p.total_revenue, 0))}
           </div>
         </Card>
-        <Card className="p-6">
+        <Card className="p-6 h-full flex flex-col">
           <div className="text-sm font-medium text-gray-600">Units Sold</div>
-          <div className="mt-2 text-2xl font-bold text-gray-900">
+          <div className="mt-2 text-2xl font-bold text-gray-900 flex-1">
             {formatNumber(products.reduce((sum, p) => sum + p.quantity_sold, 0))}
           </div>
         </Card>
-        <Card className="p-6">
+        <Card className="p-6 h-full flex flex-col">
           <div className="text-sm font-medium text-gray-600">Low Stock Items</div>
-          <div className="mt-2 text-2xl font-bold text-gray-900">
+          <div className="mt-2 text-2xl font-bold text-gray-900 flex-1">
             {formatNumber(lowStock.length)}
           </div>
         </Card>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,6 +15,7 @@ import { Plus, Pencil, Trash2, Globe, ChevronRight, RefreshCw } from 'lucide-rea
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { ClientDialog } from '@/components/admin/client-dialog';
 import { WebsiteDialog } from '@/components/admin/website-dialog';
+import { WebsiteGroupDialog } from '@/components/admin/website-group-dialog';
 import { SyncStoresDialog } from '@/components/admin/sync-stores-dialog';
 import { Client, Website } from '@/types/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -28,6 +29,7 @@ export default function AdminClientsPage() {
   const [loading, setLoading] = useState(true);
   const [clientDialogOpen, setClientDialogOpen] = useState(false);
   const [websiteDialogOpen, setWebsiteDialogOpen] = useState(false);
+  const [websiteGroupDialogOpen, setWebsiteGroupDialogOpen] = useState(false);
   const [syncStoresDialogOpen, setSyncStoresDialogOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [selectedWebsite, setSelectedWebsite] = useState<Website | null>(null);
@@ -179,8 +181,8 @@ export default function AdminClientsPage() {
               </TableHeader>
               <TableBody>
                 {clients.map((client) => (
-                  <>
-                    <TableRow key={client.id}>
+                  <React.Fragment key={client.id}>
+                    <TableRow>
                       <TableCell className="font-medium">
                         <button
                           onClick={() => handleExpandClient(client.id)}
@@ -258,6 +260,23 @@ export default function AdminClientsPage() {
                                   variant="outline"
                                   onClick={() => {
                                     setSelectedClient(client);
+                                    setWebsiteGroupDialogOpen(true);
+                                  }}
+                                  disabled={!websites[client.id] || websites[client.id].length < 2}
+                                  title={
+                                    !websites[client.id] || websites[client.id].length < 2
+                                      ? 'Need at least 2 websites to create a group'
+                                      : 'Group websites together'
+                                  }
+                                >
+                                  <Plus className="mr-2 h-3 w-3" />
+                                  Group Websites
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setSelectedClient(client);
                                     setSelectedWebsite(null);
                                     setWebsiteDialogOpen(true);
                                   }}
@@ -280,13 +299,24 @@ export default function AdminClientsPage() {
                                     className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-3"
                                   >
                                     <div>
-                                      <div className="font-medium text-sm">
+                                      <div className="font-medium text-sm flex items-center gap-2">
                                         {website.websiteName}
+                                        {website.isGrouped && (
+                                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
+                                            Grouped
+                                          </span>
+                                        )}
                                       </div>
                                       <div className="text-xs text-gray-500">
                                         ID: <span className="font-mono">{website.id}</span>
                                         {' • '}
                                         BigQuery: <span className="font-mono">{website.bigQueryWebsiteId}</span>
+                                        {website.isGrouped && website.groupedWebsiteIds && (
+                                          <>
+                                            {' • '}
+                                            Includes: {website.groupedWebsiteIds.join(', ')}
+                                          </>
+                                        )}
                                       </div>
                                     </div>
                                     <div className="flex gap-2">
@@ -317,7 +347,7 @@ export default function AdminClientsPage() {
                         </TableCell>
                       </TableRow>
                     )}
-                  </>
+                  </React.Fragment>
                 ))}
               </TableBody>
             </Table>
@@ -345,6 +375,16 @@ export default function AdminClientsPage() {
             }}
             clientId={selectedClient.id}
             website={selectedWebsite}
+            onSuccess={() => fetchWebsites(selectedClient.id)}
+          />
+
+          <WebsiteGroupDialog
+            open={websiteGroupDialogOpen}
+            onOpenChange={(open) => {
+              setWebsiteGroupDialogOpen(open);
+            }}
+            clientId={selectedClient.id}
+            websites={websites[selectedClient.id] || []}
             onSuccess={() => fetchWebsites(selectedClient.id)}
           />
 
