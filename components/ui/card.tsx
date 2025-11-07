@@ -1,9 +1,9 @@
 import * as React from "react"
-import { motion } from "framer-motion"
+import { motion, HTMLMotionProps } from "framer-motion"
 
 import { cn } from "@/lib/utils"
 
-function Card({ className, ...props }: React.ComponentProps<"div">) {
+function Card({ className, ...props }: Omit<HTMLMotionProps<"div">, "initial" | "animate" | "whileHover">) {
   return (
     <motion.div
       data-slot="card"

@@ -859,23 +859,26 @@ Structure your insights as:
       // Also check for nested structures or text fields
       let insightsText: any = null;
       
+      // Cast output to any to access runtime properties that may not be in schema
+      const outputAny = output as any;
+      
       // Try multiple possible field names and structures
       if (output?.insights) {
         insightsText = output.insights;
         console.log('Found insights in output.insights');
-      } else if (output?.analysis) {
-        insightsText = output.analysis;
+      } else if (outputAny?.analysis) {
+        insightsText = outputAny.analysis;
         console.warn('Found insights in output.analysis instead of output.insights');
-      } else if (output?.text) {
-        insightsText = output.text;
+      } else if (outputAny?.text) {
+        insightsText = outputAny.text;
         console.warn('Found insights in output.text');
-      } else if (typeof output === 'string') {
-        insightsText = output;
+      } else if (typeof outputAny === 'string') {
+        insightsText = outputAny;
         console.warn('Output is a direct string');
-      } else if (output && typeof output === 'object') {
+      } else if (outputAny && typeof outputAny === 'object') {
         // Check if output is an object with multiple string fields (like section headers)
         // This happens when Gemini returns { "Executive Summary": "...", "Sales Performance": "...", etc. }
-        const stringFields = Object.entries(output).filter(([_, value]) => typeof value === 'string' && value.length > 50);
+        const stringFields = Object.entries(outputAny).filter(([_, value]) => typeof value === 'string' && value.length > 50);
         
         if (stringFields.length > 1) {
           // Multiple string fields - likely section headers, join them all
@@ -894,14 +897,14 @@ Structure your insights as:
           console.warn(`Found insights in single field: ${stringFields[0][0]}`);
         } else {
           // Check for array fields
-          const arrayFields = Object.entries(output).filter(([_, value]) => Array.isArray(value));
+          const arrayFields = Object.entries(outputAny).filter(([_, value]) => Array.isArray(value));
           if (arrayFields.length > 0) {
             // Use the first array field
             insightsText = arrayFields[0][1];
             console.warn(`Found insights in array field: ${arrayFields[0][0]}`);
           } else {
-            console.error('Could not find insights in output. Available fields:', Object.keys(output));
-            console.error('Output structure:', JSON.stringify(output, null, 2).substring(0, 2000));
+            console.error('Could not find insights in output. Available fields:', Object.keys(outputAny));
+            console.error('Output structure:', JSON.stringify(outputAny, null, 2).substring(0, 2000));
           }
         }
       }
