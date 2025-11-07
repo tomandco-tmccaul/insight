@@ -1,0 +1,68 @@
+# Firebase App Hosting configuration
+# Documentation: https://firebase.google.com/docs/app-hosting
+
+runConfig:
+  # Runtime configuration for Node.js
+  runtime: nodejs22
+  
+  # CPU and memory allocation
+  cpu: 1
+  memory: 1Gi
+  concurrency: 100
+  maxInstances: 10
+  minInstances: 0
+  
+  # Environment variables (non-sensitive)
+  environmentVariables:
+    # BigQuery Configuration
+    BIGQUERY_DATASET_ID: 'insight_analytics'
+    BIGQUERY_LOCATION: 'europe-west2'
+    
+    # Firebase Public Configuration (client-side, not sensitive)
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID: 'insight-dashboard-1761555293'
+    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: 'insight-dashboard-1761555293.firebaseapp.com'
+    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: 'insight-dashboard-1761555293.appspot.com'
+    
+    # Development flags
+    NEXT_PUBLIC_USE_FIREBASE_EMULATOR: 'false'
+  
+  # Secrets (sensitive data stored in Google Secret Manager)
+  secrets:
+    # Google AI/Gemini API Key for AI features
+    - secretId: GOOGLE_GENAI_API_KEY
+      # Key in Secret Manager (must be created first)
+      key: GOOGLE_GENAI_API_KEY
+    
+    # Firebase Admin SDK Configuration
+    - secretId: FIREBASE_PROJECT_ID
+      key: FIREBASE_PROJECT_ID
+    
+    - secretId: FIREBASE_CLIENT_EMAIL
+      key: FIREBASE_CLIENT_EMAIL
+    
+    - secretId: FIREBASE_PRIVATE_KEY
+      key: FIREBASE_PRIVATE_KEY
+    
+    # Firebase Client Configuration (contains API key)
+    - secretId: NEXT_PUBLIC_FIREBASE_API_KEY
+      key: NEXT_PUBLIC_FIREBASE_API_KEY
+    
+    - secretId: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+      key: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    
+    - secretId: NEXT_PUBLIC_FIREBASE_APP_ID
+      key: NEXT_PUBLIC_FIREBASE_APP_ID
+    
+    # Google Cloud Project (may contain sensitive info)
+    - secretId: GOOGLE_CLOUD_PROJECT
+      key: GOOGLE_CLOUD_PROJECT
+
+# Build configuration
+build:
+  # Build command (Next.js build)
+  buildCommand: npm run build
+  
+  # Environment variables available during build
+  environmentVariables:
+    NODE_ENV: 'production'
+

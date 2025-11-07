@@ -836,17 +836,10 @@ Structure your insights as:
         console.log('Gemini API output:', output ? JSON.stringify(output, null, 2).substring(0, 1000) : 'No output');
         console.log('Output keys:', output ? Object.keys(output) : 'N/A');
         console.log('Has insights?', !!output?.insights);
-        console.log('Has analysis?', !!output?.analysis);
         if (output?.insights) {
           console.log('Insights type:', Array.isArray(output.insights) ? 'array' : typeof output.insights, 'length:', Array.isArray(output.insights) ? output.insights.length : (typeof output.insights === 'string' ? output.insights.length : 'N/A'));
           if (typeof output.insights === 'string') {
             console.log('Insights preview (first 300 chars):', output.insights.substring(0, 300));
-          }
-        }
-        if (output?.analysis) {
-          console.log('Analysis type:', Array.isArray(output.analysis) ? 'array' : typeof output.analysis, 'length:', Array.isArray(output.analysis) ? output.analysis.length : (typeof output.analysis === 'string' ? output.analysis.length : 'N/A'));
-          if (typeof output.analysis === 'string') {
-            console.log('Analysis preview (first 300 chars):', output.analysis.substring(0, 300));
           }
         }
       } catch (error: any) {
