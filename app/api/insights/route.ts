@@ -35,6 +35,13 @@ export async function GET(request: NextRequest) {
         );
       }
 
+      if (!adminDb) {
+        return NextResponse.json(
+          { success: false, error: 'Database not initialized' },
+          { status: 500 }
+        );
+      }
+
       // Fetch client data to get BigQuery dataset ID
       const clientDoc = await adminDb
         .collection('clients')
@@ -94,8 +101,8 @@ export async function GET(request: NextRequest) {
         fetch(`${req.nextUrl.origin}/api/reports/customer-metrics?${params}`, { headers }).catch(() => null),
         fetch(`${req.nextUrl.origin}/api/reports/top-products?${params}&limit=100&sort_by=revenue`, { headers }),
         fetch(`${req.nextUrl.origin}/api/reports/product-type-breakdown?${params}`, { headers }).catch(() => null),
-        fetch(`${req.nextUrl.origin}/api/marketing/performance?websiteId=${websiteFilter}&startDate=${startDate}&endDate=${endDate}`, { headers }).catch(() => null),
-        fetch(`${req.nextUrl.origin}/api/website/behavior?websiteId=${websiteFilter}&startDate=${startDate}&endDate=${endDate}`, { headers }).catch(() => null),
+        fetch(`${req.nextUrl.origin}/api/marketing/performance?websiteId=${websiteId}&startDate=${startDate}&endDate=${endDate}`, { headers }).catch(() => null),
+        fetch(`${req.nextUrl.origin}/api/website/behavior?websiteId=${websiteId}&startDate=${startDate}&endDate=${endDate}`, { headers }).catch(() => null),
         adminDb
           .collection('clients')
           .doc(clientId)
@@ -132,8 +139,8 @@ export async function GET(request: NextRequest) {
       const productsData = productsResponse.ok ? await productsResponse.json() : null;
       const marketingData = marketingResponse?.ok ? await marketingResponse.json() : null;
       const websiteData = websiteResponse?.ok ? await websiteResponse.json() : null;
-      const annotationsData = annotationsResponse?.data || [];
-      const targetsData = targetsResponse?.data || [];
+      const annotationsData = (annotationsResponse as any)?.success ? (annotationsResponse as any).data : [];
+      const targetsData = (targetsResponse as any)?.success ? (targetsResponse as any).data : [];
 
       // Get currency from client data or default to GBP
       const currency = (clientData?.currency as string) || 'GBP';
@@ -485,6 +492,13 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           { success: false, error: 'Unauthorized' },
           { status: 403 }
+        );
+      }
+
+      if (!adminDb) {
+        return NextResponse.json(
+          { success: false, error: 'Database not initialized' },
+          { status: 500 }
         );
       }
 

@@ -6,13 +6,13 @@ import { formatCurrency, formatCurrencyNoDecimals, formatNumber, formatPercentag
 interface ChartTooltipProps {
   active?: boolean;
   payload?: Array<{
-    name?: string;
-    value?: number;
-    dataKey?: string;
+    name?: string | number | (string | number)[];
+    value?: string | number | (string | number)[];
+    dataKey?: string | number;
     color?: string;
     payload?: any;
   }>;
-  label?: string;
+  label?: string | number;
   valueFormatter?: (value: number) => string;
   currentLabel?: string;
   comparisonLabel?: string;
@@ -32,17 +32,18 @@ export function ChartTooltip({
     return null;
   }
 
-  const currentValue = payload[0]?.value ?? 0;
+  const rawValue = payload[0]?.value;
+  const currentValue = typeof rawValue === 'number' ? rawValue : 0;
   const payloadData = payload[0]?.payload;
-  const comparisonValue = comparisonKey && payloadData 
+  const comparisonValue = comparisonKey && payloadData
     ? payloadData[comparisonKey] ?? null
     : null;
-  const percentageChange = comparisonValue !== null && typeof comparisonValue === 'number'
+  const percentageChange = comparisonValue !== null && typeof comparisonValue === 'number' && typeof currentValue === 'number'
     ? calculatePercentageChange(comparisonValue, currentValue)
     : null;
 
   // Use label (x-axis value) if available, otherwise fall back to currentLabel
-  const displayLabel = label || currentLabel;
+  const displayLabel = label !== undefined ? String(label) : currentLabel;
 
   return (
     <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-3 min-w-[200px]">
