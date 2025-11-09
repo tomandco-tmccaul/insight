@@ -121,6 +121,7 @@ export interface Invite {
   invitedBy: string; // User ID of the admin who sent the invite
   expiresAt: string; // ISO 8601 timestamp
   usedAt: string | null; // ISO 8601 timestamp when invite was used
+  passwordResetLink?: string | null; // Firebase Auth password reset link (optional)
   createdAt: string; // ISO 8601 timestamp
 }
 

@@ -141,7 +141,28 @@ export async function POST(request: NextRequest) {
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
       const inviteLink = `${baseUrl}/invite/${inviteToken}`;
 
-      // Send invite email
+      // Generate password reset link using Firebase Auth
+      // This will be sent via Firebase's email service if SMTP is configured
+      let passwordResetLink: string | null = null;
+      try {
+        const actionCodeSettings = {
+          url: inviteLink, // Redirect to our invite page
+          handleCodeInApp: false,
+        };
+        passwordResetLink = await auth.generatePasswordResetLink(email, actionCodeSettings);
+        
+        // Store the password reset link in the invite document
+        await db.collection('invites').doc(inviteToken).update({
+          passwordResetLink,
+        });
+      } catch (linkError: any) {
+        console.error('Error generating password reset link:', linkError);
+        // Continue without password reset link - user can still use invite token
+      }
+
+      // Send invite email via Firebase Auth
+      // Note: Firebase will send the password reset email automatically if SMTP is configured
+      // Configure SMTP at: Firebase Console > Authentication > Templates > SMTP settings
       try {
         await sendInviteEmail({
           email,

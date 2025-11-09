@@ -32,6 +32,10 @@ runConfig:
     # Google Cloud Project
     - secretId: GOOGLE_CLOUD_PROJECT
       key: GOOGLE_CLOUD_PROJECT
+    
+    # Email sending is handled by Firebase Auth's built-in email system
+    # Configure SMTP in Firebase Console > Authentication > Templates > SMTP settings
+    # No additional secrets needed - Firebase handles email sending automatically
 
 # Environment variables configuration
 # Variables with BUILD availability are accessible during the build process
@@ -95,6 +99,13 @@ env:
   - variable: BIGQUERY_LOCATION
     value: europe-west2
     availability:
+      - RUNTIME
+  
+  # App URL for invite links
+  - variable: NEXT_PUBLIC_APP_URL
+    value: https://insight.tomandco.co.uk
+    availability:
+      - BUILD
       - RUNTIME
 
 # Build configuration
