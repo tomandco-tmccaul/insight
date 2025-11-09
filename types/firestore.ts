@@ -112,3 +112,15 @@ export type UpdateAnnotation = Partial<Omit<Annotation, 'id'>>;
 export type CreateCustomLink = Omit<CustomLink, 'id' | 'createdAt' | 'updatedAt'>;
 export type UpdateCustomLink = Partial<Omit<CustomLink, 'id'>>;
 
+// Root Collection: /invites/{invite_token}
+export interface Invite {
+  token: string; // The invite token (used as document ID)
+  email: string;
+  role: 'admin' | 'client';
+  clientId: string | null;
+  invitedBy: string; // User ID of the admin who sent the invite
+  expiresAt: string; // ISO 8601 timestamp
+  usedAt: string | null; // ISO 8601 timestamp when invite was used
+  createdAt: string; // ISO 8601 timestamp
+}
+

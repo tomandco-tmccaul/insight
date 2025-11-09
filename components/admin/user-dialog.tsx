@@ -41,7 +41,6 @@ export function UserDialog({
   const [formData, setFormData] = useState({
     uid: '',
     email: '',
-    password: '',
     role: 'client' as 'admin' | 'client',
     clientId: '',
   });
@@ -61,7 +60,6 @@ export function UserDialog({
       setFormData({
         uid: user.uid,
         email: user.email,
-        password: '',
         role: user.role,
         clientId: user.clientId || '',
       });
@@ -70,7 +68,6 @@ export function UserDialog({
       setFormData({
         uid: '',
         email: '',
-        password: '',
         role: 'client',
         clientId: '',
       });
@@ -134,7 +131,7 @@ export function UserDialog({
       onOpenChange(false);
 
       // Reset form
-      setFormData({ uid: '', email: '', password: '', role: 'client', clientId: '' });
+      setFormData({ uid: '', email: '', role: 'client', clientId: '' });
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -150,45 +147,30 @@ export function UserDialog({
           <DialogDescription>
             {isEdit
               ? 'Update user role and client assignment.'
-              : 'Create a new user account.'}
+              : 'Send an invitation to create a new user account. The user will receive an email with a link to set up their account.'}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-4">
             {!isEdit && (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="user@example.com"
-                    value={formData.email}
-                    onChange={(e) =>
-                      setFormData({ ...formData, email: e.target.value })
-                    }
-                    required
-                    disabled={loading}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="Min 6 characters"
-                    value={formData.password}
-                    onChange={(e) =>
-                      setFormData({ ...formData, password: e.target.value })
-                    }
-                    required
-                    disabled={loading}
-                    minLength={6}
-                  />
-                </div>
-              </>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="user@example.com"
+                  value={formData.email}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
+                  required
+                  disabled={loading}
+                />
+                <p className="text-xs text-gray-500">
+                  An invitation email will be sent to this address
+                </p>
+              </div>
             )}
 
             {isEdit && (
