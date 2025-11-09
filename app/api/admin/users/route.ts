@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
         userRecord = await auth.getUserByEmail(email);
         // User exists, check if they already have an account
         const existingUserDoc = await db.collection('users').doc(userRecord.uid).get();
-        if (existingUserDoc.exists()) {
+        if (existingUserDoc.exists) {
           return NextResponse.json(
             { success: false, error: 'User with this email already exists' },
             { status: 409 }
