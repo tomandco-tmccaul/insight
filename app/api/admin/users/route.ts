@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
         email,
         role,
         clientId: role === 'client' ? clientId : null,
-        invitedBy: adminUser.uid,
+        invitedBy: adminUser?.uid || 'system', // Use 'system' if no admin user (first admin creation)
         expiresAt: expiresAt.toISOString(),
         usedAt: null,
         createdAt: now,
@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
         await sendInviteEmail({
           email,
           inviteLink,
-          invitedBy: adminUser.email,
+          invitedBy: adminUser?.email || 'System',
         });
       } catch (emailError) {
         console.error('Error sending invite email:', emailError);

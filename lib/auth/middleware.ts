@@ -70,13 +70,52 @@ export async function requireAuth(
 }
 
 /**
+ * Check if there are any admin users in the system
+ */
+async function hasAnyAdmins(): Promise<boolean> {
+  if (!adminDb) {
+    return false;
+  }
+  
+  try {
+    const adminUsersSnapshot = await adminDb
+      .collection('users')
+      .where('role', '==', 'admin')
+      .limit(1)
+      .get();
+    
+    return !adminUsersSnapshot.empty;
+  } catch (error) {
+    console.error('Error checking for admins:', error);
+    return false;
+  }
+}
+
+/**
  * Middleware to require admin role
+ * Allows creating the first admin user if no admins exist (for initial setup)
  */
 export async function requireAdmin(
   request: NextRequest,
-  handler: (req: NextRequest, user: AppUser) => Promise<NextResponse>
+  handler: (req: NextRequest, user: AppUser | null) => Promise<NextResponse>
 ): Promise<NextResponse> {
   const user = await verifyAuth(request);
+  const hasAdmins = await hasAnyAdmins();
+
+  // If no admins exist and this is a POST request (creating a user), allow it
+  // This enables initial setup where the first admin can be created
+  if (!hasAdmins && request.method === 'POST') {
+    // Verify that the request is trying to create an admin user
+    try {
+      const body = await request.clone().json();
+      if (body.role === 'admin') {
+        // Allow creating the first admin without authentication
+        return handler(request, null);
+      }
+    } catch (error) {
+      // If we can't parse the body, fall through to normal admin check
+    }
+  }
 
   if (!user || user.role !== 'admin') {
     return NextResponse.json(
