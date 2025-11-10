@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   return requireAdmin(request, async () => {
     try {
-      if (!db) {
+      if (!db || !auth) {
         return NextResponse.json(
           { success: false, error: 'Database not initialized' },
           { status: 500 }
@@ -22,10 +22,46 @@ export async function GET(request: NextRequest) {
       }
       const usersSnapshot = await db.collection('users').get();
       
-      const users: AppUser[] = usersSnapshot.docs.map((doc) => ({
-        uid: doc.id,
-        ...doc.data(),
-      } as AppUser));
+      // Enrich user data with Firebase Auth metadata
+      const users: AppUser[] = await Promise.all(
+        usersSnapshot.docs.map(async (doc) => {
+          const userData = doc.data() as AppUser;
+          const uid = doc.id;
+          
+          try {
+            // Get Firebase Auth user metadata
+            const firebaseUser = await auth.getUser(uid);
+            
+            // Sync lastSignInTime from Firebase Auth if available
+            if (firebaseUser.metadata.lastSignInTime) {
+              const lastSignInTime = new Date(firebaseUser.metadata.lastSignInTime).toISOString();
+              // Only update if Firestore doesn't have it or Firebase Auth has a newer value
+              if (!userData.lastLoggedInAt || lastSignInTime > userData.lastLoggedInAt) {
+                userData.lastLoggedInAt = lastSignInTime;
+              }
+            }
+            
+            // Sync emailVerified status
+            if (firebaseUser.emailVerified && !userData.verifiedAt) {
+              // Email is verified but we don't have verifiedAt timestamp
+              // We'll set it to creation time or current time as fallback
+              userData.verifiedAt = firebaseUser.metadata.creationTime 
+                ? new Date(firebaseUser.metadata.creationTime).toISOString()
+                : new Date().toISOString();
+            }
+          } catch (error: any) {
+            // If user doesn't exist in Firebase Auth, skip metadata sync
+            if (error.code !== 'auth/user-not-found') {
+              console.error(`Error fetching Firebase Auth data for user ${uid}:`, error);
+            }
+          }
+          
+          return {
+            uid,
+            ...userData,
+          } as AppUser;
+        })
+      );
 
       return NextResponse.json({
         success: true,
@@ -82,8 +118,10 @@ export async function POST(request: NextRequest) {
 
       // Check if user already exists
       let userRecord;
+      let isExistingUser = false;
       try {
         userRecord = await auth.getUserByEmail(email);
+        isExistingUser = true;
         // User exists, check if they already have an account
         const existingUserDoc = await db.collection('users').doc(userRecord.uid).get();
         if (existingUserDoc.exists) {
@@ -116,6 +154,33 @@ export async function POST(request: NextRequest) {
         createdAt: now,
         updatedAt: now,
       };
+
+      // Sync Firebase Auth metadata if available
+      if (isExistingUser) {
+        // Set verifiedAt if email is already verified
+        if (userRecord.emailVerified) {
+          // Use creation time as verifiedAt (email was verified at account creation)
+          // or lastSignInTime if that's earlier (conservative approach)
+          const creationTime = userRecord.metadata.creationTime 
+            ? new Date(userRecord.metadata.creationTime).getTime()
+            : null;
+          const lastSignInTime = userRecord.metadata.lastSignInTime
+            ? new Date(userRecord.metadata.lastSignInTime).getTime()
+            : null;
+          
+          // Use the earliest available timestamp, or current time as fallback
+          if (creationTime) {
+            userData.verifiedAt = new Date(Math.min(creationTime, lastSignInTime || creationTime)).toISOString();
+          } else {
+            userData.verifiedAt = now;
+          }
+        }
+        
+        // Sync lastSignInTime from Firebase Auth metadata
+        if (userRecord.metadata.lastSignInTime) {
+          userData.lastLoggedInAt = new Date(userRecord.metadata.lastSignInTime).toISOString();
+        }
+      }
 
       await db.collection('users').doc(userRecord.uid).set(userData);
 

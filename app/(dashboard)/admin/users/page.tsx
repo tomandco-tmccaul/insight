@@ -133,6 +133,8 @@ export default function AdminUsersPage() {
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Client</TableHead>
+                  <TableHead>Verified</TableHead>
+                  <TableHead>Last Login</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -162,6 +164,26 @@ export default function AdminUsersPage() {
                       ) : (
                         <span className="text-sm text-gray-400">—</span>
                       )}
+                    </TableCell>
+                    <TableCell className="text-sm text-gray-600">
+                      {user.verifiedAt ? (
+                        <span className="text-green-600">
+                          {new Date(user.verifiedAt).toLocaleDateString()}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">Not verified</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-sm text-gray-600">
+                      {user.lastLoggedInAt
+                        ? new Date(user.lastLoggedInAt).toLocaleDateString('en-GB', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })
+                        : 'Never'}
                     </TableCell>
                     <TableCell className="text-sm text-gray-600">
                       {user.createdAt

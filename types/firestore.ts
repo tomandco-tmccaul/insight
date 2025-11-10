@@ -9,6 +9,8 @@ export interface AppUser {
   clientId: string | null; // e.g., "sanderson_design_group"
   createdAt?: string;
   updatedAt?: string;
+  verifiedAt?: string; // ISO 8601 timestamp when email was verified
+  lastLoggedInAt?: string; // ISO 8601 timestamp of last login
 }
 
 // Root Collection: /clients/{client_id}

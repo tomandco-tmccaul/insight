@@ -134,15 +134,22 @@ export async function POST(
       throw error;
     }
 
-    // Update user password
+    // Update user password and verify email
     await auth.updateUser(userRecord.uid, {
       password,
       emailVerified: true,
     });
 
+    // Update user document with verifiedAt timestamp
+    const now = new Date().toISOString();
+    await db.collection('users').doc(userRecord.uid).update({
+      verifiedAt: now,
+      updatedAt: now,
+    });
+
     // Mark invite as used
     await db.collection('invites').doc(token).update({
-      usedAt: new Date().toISOString(),
+      usedAt: now,
     });
 
     return NextResponse.json({

@@ -31,6 +31,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Update lastLoggedInAt timestamp
+  const updateLastLoggedIn = async () => {
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) return;
+
+      const token = await currentUser.getIdToken();
+      await fetch('/api/users/me', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      // Refresh app user data to get updated lastLoggedInAt
+      await fetchAppUser(currentUser.uid);
+    } catch (error) {
+      // Silently fail - don't block login if this fails
+      console.error('Error updating last logged in timestamp:', error);
+    }
+  };
+
   // Fetch app user data from Firestore
   const fetchAppUser = async (uid: string) => {
     try {
@@ -63,11 +84,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     await signInWithEmailAndPassword(auth, email, password);
+    // Update lastLoggedInAt after successful login
+    await updateLastLoggedIn();
   };
 
   const signInWithGoogle = async () => {
-    const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
+    await signInWithPopup(auth, new GoogleAuthProvider());
+    // Update lastLoggedInAt after successful login
+    await updateLastLoggedIn();
   };
 
   const signUp = async (email: string, password: string) => {

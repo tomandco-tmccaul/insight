@@ -60,9 +60,16 @@ export async function POST(
       );
     }
 
+    // Update user document with verifiedAt timestamp (Google sign-in verifies email automatically)
+    const now = new Date().toISOString();
+    await db.collection('users').doc(user.uid).update({
+      verifiedAt: now,
+      updatedAt: now,
+    });
+
     // Mark invite as used
     await db.collection('invites').doc(token).update({
-      usedAt: new Date().toISOString(),
+      usedAt: now,
     });
 
     return NextResponse.json({
