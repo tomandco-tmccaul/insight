@@ -41,7 +41,7 @@ export interface Website {
 
   // BigQuery Table Prefixes (used to construct full table names)
   // Final table name = {prefix}{table_name}
-  // e.g., "adobe_commerce_" + "orders" = "adobe_commerce_orders"
+  // e.g., "adobe_commerce_sql_" + "sales_order" = "adobe_commerce_sql_sales_order"
   bigQueryTablePrefixes: {
     googleAds?: string; // e.g., "google_ads_" or "google_ads_harlequin_"
     facebookAds?: string; // e.g., "facebook_ads_" or "facebook_ads_harlequin_"

@@ -5,7 +5,7 @@ Adobe Commerce uses `store_id` to identify different websites/brands. This docum
 
 ## Store IDs in BigQuery Data
 
-Based on analysis of `sanderson_design_group.adobe_commerce_orders`:
+Based on analysis of `sanderson_design_group.adobe_commerce_sql_sales_order`:
 
 | Store ID | Order Count | Total Revenue | First Order | Last Order | Likely Website |
 |----------|-------------|---------------|-------------|------------|----------------|
