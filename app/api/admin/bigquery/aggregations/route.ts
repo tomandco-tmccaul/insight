@@ -110,7 +110,7 @@ function getSalesOverviewAggregationQuery(datasetId: string): string {
       
       CURRENT_TIMESTAMP() as _aggregated_at
     FROM 
-      \`${projectId}.${datasetId}.adobe_commerce_orders\`
+      \`${projectId}.${datasetId}.adobe_commerce_sql_sales_order\`
     WHERE 
       created_at IS NOT NULL
     GROUP BY 
@@ -131,7 +131,7 @@ function getProductPerformanceAggregationQuery(datasetId: string): string {
       CAST(o.store_id AS STRING) as website_id,
       item.sku,
       item.name as product_name,
-      item.product_id,
+      CAST(item.product_id AS STRING) as product_id,
       
       -- Quantity metrics
       SUM(CAST(item.qty_ordered AS FLOAT64)) as total_qty_ordered,
@@ -156,26 +156,12 @@ function getProductPerformanceAggregationQuery(datasetId: string): string {
       
       CURRENT_TIMESTAMP() as _aggregated_at
     FROM 
-      \`${projectId}.${datasetId}.adobe_commerce_orders\` o,
-      UNNEST(JSON_EXTRACT_ARRAY(o.items)) as item_json,
-      UNNEST([STRUCT(
-        JSON_EXTRACT_SCALAR(item_json, '$.sku') as sku,
-        JSON_EXTRACT_SCALAR(item_json, '$.name') as name,
-        JSON_EXTRACT_SCALAR(item_json, '$.product_id') as product_id,
-        JSON_EXTRACT_SCALAR(item_json, '$.qty_ordered') as qty_ordered,
-        JSON_EXTRACT_SCALAR(item_json, '$.qty_invoiced') as qty_invoiced,
-        JSON_EXTRACT_SCALAR(item_json, '$.qty_shipped') as qty_shipped,
-        JSON_EXTRACT_SCALAR(item_json, '$.qty_canceled') as qty_canceled,
-        JSON_EXTRACT_SCALAR(item_json, '$.qty_refunded') as qty_refunded,
-        JSON_EXTRACT_SCALAR(item_json, '$.row_total') as row_total,
-        JSON_EXTRACT_SCALAR(item_json, '$.base_row_total') as base_row_total,
-        JSON_EXTRACT_SCALAR(item_json, '$.discount_amount') as discount_amount,
-        JSON_EXTRACT_SCALAR(item_json, '$.tax_amount') as tax_amount,
-        JSON_EXTRACT_SCALAR(item_json, '$.price') as price
-      )]) as item
+      \`${projectId}.${datasetId}.adobe_commerce_sql_sales_order\` o
+    INNER JOIN 
+      \`${projectId}.${datasetId}.adobe_commerce_sql_sales_order_item\` item
+      ON o.entity_id = item.order_id
     WHERE 
       o.created_at IS NOT NULL
-      AND o.items IS NOT NULL
     GROUP BY 
       date, website_id, sku, product_name, product_id
   `;
