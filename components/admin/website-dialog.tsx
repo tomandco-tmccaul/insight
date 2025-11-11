@@ -271,7 +271,7 @@ export function WebsiteDialog({
                 BigQuery Table Prefixes
               </Label>
               <p className="text-xs text-gray-500">
-                Table prefixes for each data source. Defaults are provided but can be customized. Final table name = prefix + table name (e.g., "adobe_commerce_" + "orders" = "adobe_commerce_orders")
+                Table prefixes for each data source. Defaults are provided but can be customized. Final table name = prefix + table name (e.g., "adobe_commerce_sql_" + "sales_order" = "adobe_commerce_sql_sales_order")
               </p>
 
               <div className="space-y-2">
