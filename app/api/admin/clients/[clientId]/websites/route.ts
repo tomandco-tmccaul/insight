@@ -66,11 +66,13 @@ export async function POST(
         websiteName, 
         bigQueryWebsiteId, 
         storeId, 
+        url,
         bigQueryTablePrefixes,
         isGrouped,
         groupedWebsiteIds
       } = body as CreateWebsite & { 
         id: string;
+        url?: string;
         isGrouped?: boolean;
         groupedWebsiteIds?: string[];
       };
@@ -127,6 +129,7 @@ export async function POST(
         websiteName,
         bigQueryWebsiteId,
         storeId: storeId || '', // Empty string for grouped websites
+        url: url || undefined,
         bigQueryTablePrefixes: bigQueryTablePrefixes || {},
         isGrouped: isGrouped || false,
         groupedWebsiteIds: groupedWebsiteIds || undefined,

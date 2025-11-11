@@ -103,6 +103,7 @@ export async function POST(
           websiteName: store.name, // Always update name from Adobe Commerce
           bigQueryWebsiteId: existingData?.bigQueryWebsiteId || websiteId, // Preserve existing or use websiteId
           storeId: store.id.toString(), // Always update storeId from Adobe Commerce (this is critical!)
+          url: existingData?.url || undefined, // Preserve existing URL if set
           bigQueryTablePrefixes: existingData?.bigQueryTablePrefixes || {
             adobeCommerce: 'adobe_commerce_',
             googleAds: 'google_ads_',

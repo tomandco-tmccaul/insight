@@ -38,6 +38,7 @@ export function WebsiteDialog({
     websiteName: '',
     bigQueryWebsiteId: '',
     storeId: '',
+    url: '',
     bigQueryTablePrefixes: {
       googleAds: 'google_ads_',
       facebookAds: 'facebook_ads_',
@@ -58,6 +59,7 @@ export function WebsiteDialog({
         websiteName: website.websiteName || '',
         bigQueryWebsiteId: website.bigQueryWebsiteId || '',
         storeId: website.storeId || '',
+        url: website.url || '',
         bigQueryTablePrefixes: {
           googleAds: website.bigQueryTablePrefixes?.googleAds || 'google_ads_',
           facebookAds: website.bigQueryTablePrefixes?.facebookAds || 'facebook_ads_',
@@ -74,6 +76,7 @@ export function WebsiteDialog({
         websiteName: '',
         bigQueryWebsiteId: '',
         storeId: '',
+        url: '',
         bigQueryTablePrefixes: {
           googleAds: 'google_ads_',
           facebookAds: 'facebook_ads_',
@@ -104,6 +107,7 @@ export function WebsiteDialog({
             websiteName: formData.websiteName,
             bigQueryWebsiteId: formData.bigQueryWebsiteId,
             storeId: formData.storeId,
+            url: formData.url || undefined,
             bigQueryTablePrefixes: formData.bigQueryTablePrefixes,
           }
         : formData;
@@ -132,6 +136,7 @@ export function WebsiteDialog({
         websiteName: '',
         bigQueryWebsiteId: '',
         storeId: '',
+        url: '',
         bigQueryTablePrefixes: {
           googleAds: 'google_ads_',
           facebookAds: 'facebook_ads_',
@@ -236,6 +241,28 @@ export function WebsiteDialog({
               />
               <p className="text-xs text-gray-500">
                 The store_id in Adobe Commerce (maps to website)
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="url">
+                Website URL
+              </Label>
+              <Input
+                id="url"
+                type="url"
+                placeholder="https://www.harlequin.com"
+                value={formData.url}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    url: e.target.value,
+                  })
+                }
+                disabled={loading}
+              />
+              <p className="text-xs text-gray-500">
+                Base URL for the website/store. Used to link data across sources (Google Search Console, GA4, etc.). Include protocol (https://) and domain.
               </p>
             </div>
 

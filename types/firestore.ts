@@ -36,6 +36,9 @@ export interface Website {
   // Adobe Commerce Configuration
   storeId: string; // "1" or "9" or "10" (The store_id in Adobe Commerce - maps to website)
 
+  // Website URL (for linking data sources)
+  url?: string; // "https://www.harlequin.com" (Base URL for the website/store - used to link data across sources)
+
   // BigQuery Table Prefixes (used to construct full table names)
   // Final table name = {prefix}{table_name}
   // e.g., "adobe_commerce_" + "orders" = "adobe_commerce_orders"

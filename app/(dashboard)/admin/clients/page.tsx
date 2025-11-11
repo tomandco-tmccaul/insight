@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus, Pencil, Trash2, Globe, ChevronRight, RefreshCw } from 'lucide-react';
+import { Plus, Pencil, Trash2, Globe, ChevronRight, RefreshCw, AlertCircle, ExternalLink } from 'lucide-react';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { ClientDialog } from '@/components/admin/client-dialog';
 import { WebsiteDialog } from '@/components/admin/website-dialog';
@@ -298,7 +298,7 @@ export default function AdminClientsPage() {
                                     key={website.id}
                                     className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-3"
                                   >
-                                    <div>
+                                    <div className="flex-1">
                                       <div className="font-medium text-sm flex items-center gap-2">
                                         {website.websiteName}
                                         {website.isGrouped && (
@@ -306,16 +306,48 @@ export default function AdminClientsPage() {
                                             Grouped
                                           </span>
                                         )}
+                                        {!website.url && !website.isGrouped && (
+                                          <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded flex items-center gap-1">
+                                            <AlertCircle className="h-3 w-3" />
+                                            No URL
+                                          </span>
+                                        )}
                                       </div>
-                                      <div className="text-xs text-gray-500">
-                                        ID: <span className="font-mono">{website.id}</span>
-                                        {' • '}
-                                        BigQuery: <span className="font-mono">{website.bigQueryWebsiteId}</span>
+                                      <div className="text-xs text-gray-500 space-y-1 mt-1">
+                                        <div>
+                                          ID: <span className="font-mono">{website.id}</span>
+                                          {' • '}
+                                          BigQuery: <span className="font-mono">{website.bigQueryWebsiteId}</span>
+                                          {!website.isGrouped && website.storeId && (
+                                            <>
+                                              {' • '}
+                                              Store ID: <span className="font-mono">{website.storeId}</span>
+                                            </>
+                                          )}
+                                        </div>
+                                        {website.url ? (
+                                          <div className="flex items-center gap-1 text-blue-600">
+                                            <ExternalLink className="h-3 w-3" />
+                                            <a
+                                              href={website.url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="hover:underline"
+                                              onClick={(e) => e.stopPropagation()}
+                                            >
+                                              {website.url}
+                                            </a>
+                                          </div>
+                                        ) : !website.isGrouped ? (
+                                          <div className="text-yellow-600 flex items-center gap-1">
+                                            <AlertCircle className="h-3 w-3" />
+                                            <span>URL not set - recommended for data source linking</span>
+                                          </div>
+                                        ) : null}
                                         {website.isGrouped && website.groupedWebsiteIds && (
-                                          <>
-                                            {' • '}
+                                          <div>
                                             Includes: {website.groupedWebsiteIds.join(', ')}
-                                          </>
+                                          </div>
                                         )}
                                       </div>
                                     </div>
