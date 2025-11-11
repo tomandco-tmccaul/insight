@@ -94,6 +94,56 @@ export interface SEOPerformanceRow {
   attributed_revenue?: number;
 }
 
+// Customer metrics daily aggregation (from agg_customer_metrics_daily)
+export interface CustomerMetricsDailyRow {
+  date: string; // YYYY-MM-DD format
+  website_id: string;
+  unique_customers: number;
+  registered_customers: number;
+  guest_customers: number;
+  revenue_per_customer: number;
+  _aggregated_at: string; // TIMESTAMP
+}
+
+// Sales overview hourly aggregation (from agg_sales_overview_hourly)
+export interface SalesOverviewHourlyRow {
+  date: string; // YYYY-MM-DD format
+  hour: number; // 0-23
+  website_id: string;
+  total_orders: number;
+  total_revenue: number;
+  _aggregated_at: string; // TIMESTAMP
+}
+
+// Sales overview monthly aggregation (from agg_sales_overview_monthly)
+export interface SalesOverviewMonthlyRow {
+  year: number;
+  month: number; // 1-12
+  website_id: string;
+  total_orders: number;
+  unique_customers: number;
+  total_revenue: number;
+  subtotal: number;
+  total_tax: number;
+  total_shipping: number;
+  total_discounts: number;
+  total_items: number;
+  _aggregated_at: string; // TIMESTAMP
+}
+
+// SEO performance daily aggregation (from agg_seo_performance_daily)
+export interface SEOPerformanceDailyRow {
+  date: string; // YYYY-MM-DD format
+  website_id: string;
+  query_text: string;
+  page_url?: string;
+  total_clicks: number;
+  total_impressions: number;
+  avg_ctr: number;
+  avg_position: number;
+  attributed_revenue: number;
+}
+
 // Website behavior data
 export interface WebsiteBehaviorRow {
   date: string;
@@ -815,5 +865,47 @@ export interface AdobeCommerceStoreWebsiteRow {
   default_group_id?: number;
   is_default?: number;
   sort_order?: number;
+}
+
+// ============================================================================
+// Google Search Console Tables (from Airbyte GSC connector)
+// ============================================================================
+
+// GSC Search Analytics by Query - Query-level search performance
+export interface GSCSearchAnalyticsByQueryRow {
+  // Airbyte metadata fields
+  _airbyte_raw_id: string;
+  _airbyte_extracted_at: string;
+  _airbyte_meta: any; // JSON
+  _airbyte_generation_id?: number;
+
+  // Search metrics
+  date?: string; // DATE
+  query?: string;
+  site_url?: string;
+  search_type?: string;
+  clicks?: number;
+  impressions?: number;
+  ctr?: number; // NUMERIC
+  position?: number; // NUMERIC
+}
+
+// GSC Search Analytics by Page - Page-level search performance
+export interface GSCSearchAnalyticsByPageRow {
+  // Airbyte metadata fields
+  _airbyte_raw_id: string;
+  _airbyte_extracted_at: string;
+  _airbyte_meta: any; // JSON
+  _airbyte_generation_id?: number;
+
+  // Search metrics
+  date?: string; // DATE
+  page?: string;
+  site_url?: string;
+  search_type?: string;
+  clicks?: number;
+  impressions?: number;
+  ctr?: number; // NUMERIC
+  position?: number; // NUMERIC
 }
 
