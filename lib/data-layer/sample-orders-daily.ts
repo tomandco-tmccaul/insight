@@ -30,6 +30,16 @@ export async function getSampleOrdersDaily(
 
   // Build website filter
   const websiteFilter = await buildWebsiteFilter(clientId, websiteId);
+  
+  const filterClause = websiteFilter.filterClause 
+    ? websiteFilter.filterClause.replace(/(?<!@)website_id/g, 'o.website_id')
+    : '';
+
+  console.log('[Sample Orders Daily] Query filter:', {
+    websiteId,
+    filterClause,
+    params: websiteFilter.params,
+  });
 
   const query = `
     SELECT 
@@ -41,7 +51,7 @@ export async function getSampleOrdersDaily(
     FROM \`${bigquery.projectId}.${datasetId}.mv_adobe_commerce_orders_flattened\` o
     WHERE o.order_date BETWEEN @start_date AND @end_date
       AND COALESCE(CAST(o.ext_is_samples AS INT64), 0) = 1
-      ${websiteFilter.filterClause ? websiteFilter.filterClause.replace(/(?<!@)website_id/g, 'o.website_id') : ''}
+      ${filterClause}
     GROUP BY date, o.website_id
     ORDER BY date DESC
   `;

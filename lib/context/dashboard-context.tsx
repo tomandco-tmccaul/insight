@@ -27,6 +27,8 @@ const DashboardContext = createContext<DashboardContextType | undefined>(undefin
 const STORAGE_KEYS = {
   SELECTED_CLIENT_ID: 'dashboard_selected_client_id',
   SELECTED_WEBSITE_ID: 'dashboard_selected_website_id',
+  DATE_RANGE: 'dashboard_date_range',
+  COMPARISON_PERIOD: 'dashboard_comparison_period',
 } as const;
 
 export function DashboardProvider({ children }: { children: React.ReactNode }) {
@@ -43,13 +45,40 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     return localStorage.getItem(STORAGE_KEYS.SELECTED_WEBSITE_ID) || null;
   });
 
-  // Default to last 30 days
-  const [dateRange, setDateRange] = useState<DateRange>({
-    startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0],
+  // Initialize dateRange from localStorage or default to last 30 days
+  const [dateRange, setDateRangeState] = useState<DateRange>(() => {
+    if (typeof window === 'undefined') {
+      return {
+        startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        endDate: new Date().toISOString().split('T')[0],
+      };
+    }
+    const stored = localStorage.getItem(STORAGE_KEYS.DATE_RANGE);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (parsed.startDate && parsed.endDate) {
+          return parsed;
+        }
+      } catch (e) {
+        // Invalid JSON, use default
+      }
+    }
+    return {
+      startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      endDate: new Date().toISOString().split('T')[0],
+    };
   });
 
-  const [comparisonPeriod, setComparisonPeriod] = useState<ComparisonPeriod>('previous_period');
+  // Initialize comparisonPeriod from localStorage or default to 'previous_period'
+  const [comparisonPeriod, setComparisonPeriodState] = useState<ComparisonPeriod>(() => {
+    if (typeof window === 'undefined') return 'previous_period';
+    const stored = localStorage.getItem(STORAGE_KEYS.COMPARISON_PERIOD);
+    if (stored && (stored === 'previous_period' || stored === 'previous_year' || stored === 'none')) {
+      return stored as ComparisonPeriod;
+    }
+    return 'previous_period';
+  });
 
   // Wrapper to persist clientId to localStorage
   const setSelectedClientId = useCallback((clientId: string | null) => {
@@ -72,6 +101,22 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       } else {
         localStorage.removeItem(STORAGE_KEYS.SELECTED_WEBSITE_ID);
       }
+    }
+  }, []);
+
+  // Wrapper to persist dateRange to localStorage
+  const setDateRange = useCallback((range: DateRange) => {
+    setDateRangeState(range);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.DATE_RANGE, JSON.stringify(range));
+    }
+  }, []);
+
+  // Wrapper to persist comparisonPeriod to localStorage
+  const setComparisonPeriod = useCallback((period: ComparisonPeriod) => {
+    setComparisonPeriodState(period);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.COMPARISON_PERIOD, period);
     }
   }, []);
 

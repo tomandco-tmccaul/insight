@@ -51,10 +51,17 @@ export async function buildWebsiteFilter(
 
   // Build filter clause and parameters
   if (bigQueryWebsiteIds.length === 1) {
-    return {
+    const filter = {
       filterClause: 'AND website_id = @website_id',
       params: { website_id: bigQueryWebsiteIds[0] },
     };
+    console.log('[Data Layer] Built website filter (single):', {
+      websiteId,
+      bigQueryWebsiteIds,
+      filterClause: filter.filterClause,
+      params: filter.params,
+    });
+    return filter;
   } else {
     // Multiple websites (grouped) - use IN clause
     const placeholders = bigQueryWebsiteIds.map((_, i) => `@website_id${i}`).join(', ');
@@ -62,10 +69,17 @@ export async function buildWebsiteFilter(
     bigQueryWebsiteIds.forEach((id, i) => {
       params[`website_id${i}`] = id;
     });
-    return {
+    const filter = {
       filterClause: `AND website_id IN (${placeholders})`,
       params,
     };
+    console.log('[Data Layer] Built website filter (multiple):', {
+      websiteId,
+      bigQueryWebsiteIds,
+      filterClause: filter.filterClause,
+      params: filter.params,
+    });
+    return filter;
   }
 }
 
@@ -145,11 +159,20 @@ export async function executeQuery<T extends Record<string, any>>(
     maxFields?: string[];
   }
 ): Promise<T[]> {
+  // Log query details for debugging
+  console.log('[Data Layer] Executing query:', {
+    queryPreview: query.substring(0, 200) + '...',
+    params,
+    paramCount: Object.keys(params).length,
+  });
+
   // Execute query
   const [rows] = await bigquery.query({
     query,
     params,
   });
+
+  console.log('[Data Layer] Query returned', rows.length, 'rows');
 
   // Process results (currency conversion + aggregation)
   return processQueryResults(rows as T[], options);

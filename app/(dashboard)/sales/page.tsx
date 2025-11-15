@@ -341,12 +341,8 @@ export default function SalesPerformancePage() {
 
       try {
         const idToken = await getIdToken();
-        // Use selectedWebsiteId for grouped websites, storeId for non-grouped websites, or 'all_combined'
-        const websiteFilter = selectedWebsiteId === 'all_combined'
-          ? 'all_combined'
-          : isGroupedWebsite
-          ? selectedWebsiteId
-          : (storeId || 'all_combined');
+        // Always use selectedWebsiteId - the data layer will resolve it to BigQuery website IDs
+        const websiteFilter = selectedWebsiteId === 'all_combined' ? 'all_combined' : selectedWebsiteId || 'all_combined';
 
         const queryString = buildQueryString({
           dataset_id: datasetId,
@@ -411,12 +407,8 @@ export default function SalesPerformancePage() {
 
       try {
         const idToken = await getIdToken();
-        // Use selectedWebsiteId for grouped websites, storeId for non-grouped websites, or 'all_combined'
-        const websiteFilter = selectedWebsiteId === 'all_combined'
-          ? 'all_combined'
-          : isGroupedWebsite
-          ? selectedWebsiteId
-          : (storeId || 'all_combined');
+        // Always use selectedWebsiteId - the data layer will resolve it to BigQuery website IDs
+        const websiteFilter = selectedWebsiteId === 'all_combined' ? 'all_combined' : selectedWebsiteId || 'all_combined';
 
         const queryString = buildQueryString({
           dataset_id: datasetId,
@@ -451,12 +443,8 @@ export default function SalesPerformancePage() {
 
       try {
         const idToken = await getIdToken();
-        // Use selectedWebsiteId for grouped websites, storeId for non-grouped websites, or 'all_combined'
-        const websiteFilter = selectedWebsiteId === 'all_combined'
-          ? 'all_combined'
-          : isGroupedWebsite
-          ? selectedWebsiteId
-          : (storeId || 'all_combined');
+        // Always use selectedWebsiteId - the data layer will resolve it to BigQuery website IDs
+        const websiteFilter = selectedWebsiteId === 'all_combined' ? 'all_combined' : selectedWebsiteId || 'all_combined';
 
         const queryString = buildQueryString({
           dataset_id: datasetId,
@@ -491,12 +479,8 @@ export default function SalesPerformancePage() {
 
       try {
         const idToken = await getIdToken();
-        // Use selectedWebsiteId for grouped websites, storeId for non-grouped websites, or 'all_combined'
-        const websiteFilter = selectedWebsiteId === 'all_combined'
-          ? 'all_combined'
-          : isGroupedWebsite
-          ? selectedWebsiteId
-          : (storeId || 'all_combined');
+        // Always use selectedWebsiteId - the data layer will resolve it to BigQuery website IDs
+        const websiteFilter = selectedWebsiteId === 'all_combined' ? 'all_combined' : selectedWebsiteId || 'all_combined';
 
         const queryString = buildQueryString({
           dataset_id: datasetId,
@@ -532,12 +516,8 @@ export default function SalesPerformancePage() {
 
       try {
         const idToken = await getIdToken();
-        // Use selectedWebsiteId for grouped websites, storeId for non-grouped websites, or 'all_combined'
-        const websiteFilter = selectedWebsiteId === 'all_combined'
-          ? 'all_combined'
-          : isGroupedWebsite
-          ? selectedWebsiteId
-          : (storeId || 'all_combined');
+        // Always use selectedWebsiteId - the data layer will resolve it to BigQuery website IDs
+        const websiteFilter = selectedWebsiteId === 'all_combined' ? 'all_combined' : selectedWebsiteId || 'all_combined';
 
         const queryString = buildQueryString({
           dataset_id: datasetId,
@@ -587,12 +567,8 @@ export default function SalesPerformancePage() {
 
       try {
         const idToken = await getIdToken();
-        // Use selectedWebsiteId for grouped websites, storeId for non-grouped websites, or 'all_combined'
-        const websiteFilter = selectedWebsiteId === 'all_combined'
-          ? 'all_combined'
-          : isGroupedWebsite
-          ? selectedWebsiteId
-          : (storeId || 'all_combined');
+        // Always use selectedWebsiteId - the data layer will resolve it to BigQuery website IDs
+        const websiteFilter = selectedWebsiteId === 'all_combined' ? 'all_combined' : selectedWebsiteId || 'all_combined';
 
         const queryString = buildQueryString({
           dataset_id: datasetId,
@@ -652,12 +628,8 @@ export default function SalesPerformancePage() {
 
       try {
         const idToken = await getIdToken();
-        // Use selectedWebsiteId for grouped websites, storeId for non-grouped websites, or 'all_combined'
-        const websiteFilter = selectedWebsiteId === 'all_combined'
-          ? 'all_combined'
-          : isGroupedWebsite
-          ? selectedWebsiteId
-          : (storeId || 'all_combined');
+        // Always use selectedWebsiteId - the data layer will resolve it to BigQuery website IDs
+        const websiteFilter = selectedWebsiteId === 'all_combined' ? 'all_combined' : selectedWebsiteId || 'all_combined';
 
         const params = new URLSearchParams({
           dataset_id: datasetId,
@@ -693,12 +665,8 @@ export default function SalesPerformancePage() {
 
       try {
         const idToken = await getIdToken();
-        // Use selectedWebsiteId for grouped websites, storeId for non-grouped websites, or 'all_combined'
-        const websiteFilter = selectedWebsiteId === 'all_combined'
-          ? 'all_combined'
-          : isGroupedWebsite
-          ? selectedWebsiteId
-          : (storeId || 'all_combined');
+        // Always use selectedWebsiteId - the data layer will resolve it to BigQuery website IDs
+        const websiteFilter = selectedWebsiteId === 'all_combined' ? 'all_combined' : selectedWebsiteId || 'all_combined';
 
         const queryString = buildQueryString({
           dataset_id: datasetId,
@@ -763,12 +731,8 @@ export default function SalesPerformancePage() {
 
       try {
         const idToken = await getIdToken();
-        // Use selectedWebsiteId for grouped websites, storeId for non-grouped websites, or 'all_combined'
-        const websiteFilter = selectedWebsiteId === 'all_combined'
-          ? 'all_combined'
-          : isGroupedWebsite
-          ? selectedWebsiteId
-          : (storeId || 'all_combined');
+        // Always use selectedWebsiteId - the data layer will resolve it to BigQuery website IDs
+        const websiteFilter = selectedWebsiteId === 'all_combined' ? 'all_combined' : selectedWebsiteId || 'all_combined';
 
         const queryString = buildQueryString({
           dataset_id: datasetId,
@@ -887,12 +851,8 @@ export default function SalesPerformancePage() {
 
       try {
         const idToken = await getIdToken();
-        // Use selectedWebsiteId for grouped websites, storeId for non-grouped websites, or 'all_combined'
-        const websiteFilter = selectedWebsiteId === 'all_combined'
-          ? 'all_combined'
-          : isGroupedWebsite
-          ? selectedWebsiteId
-          : (storeId || 'all_combined');
+        // Always use selectedWebsiteId - the data layer will resolve it to BigQuery website IDs
+        const websiteFilter = selectedWebsiteId === 'all_combined' ? 'all_combined' : selectedWebsiteId || 'all_combined';
 
         const queryString = buildQueryString({
           dataset_id: datasetId,
@@ -926,12 +886,8 @@ export default function SalesPerformancePage() {
 
       try {
         const idToken = await getIdToken();
-        // Use selectedWebsiteId for grouped websites, storeId for non-grouped websites, or 'all_combined'
-        const websiteFilter = selectedWebsiteId === 'all_combined'
-          ? 'all_combined'
-          : isGroupedWebsite
-          ? selectedWebsiteId
-          : (storeId || 'all_combined');
+        // Always use selectedWebsiteId - the data layer will resolve it to BigQuery website IDs
+        const websiteFilter = selectedWebsiteId === 'all_combined' ? 'all_combined' : selectedWebsiteId || 'all_combined';
 
         const queryString = buildQueryString({
           dataset_id: datasetId,
