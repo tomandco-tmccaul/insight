@@ -20,6 +20,7 @@ import { ChartTooltip } from '@/components/ui/chart-tooltip';
 import { TrendingUp, Search, PieChart, BarChart3 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ReportAnnotations } from '@/components/dashboard/report-annotations';
+import { PageHeader } from '@/components/dashboard/page-header';
 
 interface ChannelData {
   channel: string;
@@ -54,25 +55,34 @@ export default function MarketingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [storeId, setStoreId] = useState<string | null>(null);
+  const [isGroupedWebsite, setIsGroupedWebsite] = useState<boolean>(false);
 
   // Fetch website's store ID when selection changes
   useEffect(() => {
     async function fetchWebsiteData() {
       if (!selectedClientId || !selectedWebsiteId || selectedWebsiteId === 'all_combined') {
         setStoreId(null);
+        setIsGroupedWebsite(false);
         return;
       }
 
       try {
         const idToken = await getIdToken();
-        const response = await apiRequest<{ id: string; websiteName: string; storeId: string }>(
+        const response = await apiRequest<{ id: string; websiteName: string; storeId: string; isGrouped?: boolean }>(
           `/api/admin/clients/${selectedClientId}/websites/${selectedWebsiteId}`,
           {},
           idToken || undefined
         );
 
         if (response.success && response.data) {
-          setStoreId(response.data.storeId);
+          // Grouped websites don't need a storeId - they aggregate data from multiple websites
+          if (response.data.isGrouped) {
+            setStoreId(null); // Grouped websites don't use storeId
+            setIsGroupedWebsite(true);
+          } else {
+            setStoreId(response.data.storeId);
+            setIsGroupedWebsite(false);
+          }
         } else {
           setError('Failed to fetch website data');
         }
@@ -91,10 +101,7 @@ export default function MarketingPage() {
         return;
       }
 
-      // Wait for storeId if we have a specific website selected
-      if (selectedWebsiteId !== 'all_combined' && !storeId) {
-        return;
-      }
+      // No need to wait for storeId - we use selectedWebsiteId directly
 
       setLoading(true);
       setError(null);
@@ -102,10 +109,8 @@ export default function MarketingPage() {
       try {
         const idToken = await getIdToken();
         
-        // Use storeId if a specific website is selected, otherwise pass 'all_combined'
-        const websiteFilter = selectedWebsiteId === 'all_combined' || !storeId
-          ? 'all_combined'
-          : storeId;
+        // Always use selectedWebsiteId - the data layer will resolve it to BigQuery website IDs
+        const websiteFilter = selectedWebsiteId === 'all_combined' ? 'all_combined' : selectedWebsiteId || 'all_combined';
 
         const queryString = buildQueryString({
           websiteId: websiteFilter,
@@ -132,7 +137,7 @@ export default function MarketingPage() {
     }
 
     fetchData();
-  }, [selectedWebsiteId, storeId, dateRange, getIdToken]);
+  }, [selectedWebsiteId, dateRange, getIdToken]);
 
   if (!selectedWebsiteId) {
     return (
@@ -198,12 +203,10 @@ export default function MarketingPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Digital Marketing Breakdown</h1>
-        <p className="mt-2 text-gray-600">
-          Compare all channels and analyze performance by platform
-        </p>
-      </div>
+      <PageHeader
+        title="Digital Marketing Breakdown"
+        description="Compare all channels and analyze performance by platform"
+      />
 
       <ReportAnnotations />
 

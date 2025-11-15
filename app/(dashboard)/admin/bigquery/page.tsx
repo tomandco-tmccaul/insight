@@ -106,7 +106,7 @@ export default function AdminBigQueryPage() {
     }
   };
 
-  const createAggregation = async (aggregationType: 'sales_overview' | 'product_performance' | 'seo_performance') => {
+  const createAggregation = async (aggregationType: 'sales_overview' | 'sales_overview_hourly' | 'sales_overview_monthly' | 'product_performance' | 'seo_performance' | 'sales_items_materialized_view' | 'products_flattened_materialized_view' | 'orders_flattened_materialized_view' | 'all') => {
     const client = clients.find((c) => c.id === selectedClientId);
     if (!client?.bigQueryDatasetId) return;
 
@@ -130,17 +130,33 @@ export default function AdminBigQueryPage() {
 
       const data = await response.json();
       if (data.success) {
-        setSuccess(`Successfully created ${aggregationType} aggregation table!`);
+        if (aggregationType === 'all') {
+          const results = data.data?.results || [];
+          const successCount = results.filter((r: any) => r.success).length;
+          const failedCount = results.filter((r: any) => !r.success).length;
+          
+          if (failedCount === 0) {
+            setSuccess(`Successfully created all ${successCount} views/tables!`);
+          } else {
+            setError(`Created ${successCount} successfully, ${failedCount} failed. Check console for details.`);
+            console.error('Failed aggregations:', results.filter((r: any) => !r.success));
+          }
+        } else {
+          const itemType = aggregationType.includes('materialized_view')
+            ? 'materialized view' 
+            : 'table';
+          setSuccess(`Successfully created ${aggregationType} ${itemType}!`);
+        }
         // Refresh tables list
         await fetchTables();
-        // Clear success message after 3 seconds
-        setTimeout(() => setSuccess(null), 3000);
+        // Clear success message after 5 seconds
+        setTimeout(() => setSuccess(null), 5000);
       } else {
-        setError(data.error || 'Failed to create aggregation table');
+        setError(data.error || 'Failed to create aggregation');
       }
     } catch (error) {
       console.error('Error creating aggregation:', error);
-      setError('An error occurred while creating aggregation table');
+      setError('An error occurred while creating aggregation');
     } finally {
       setCreatingAggregation(null);
     }
@@ -210,14 +226,33 @@ export default function AdminBigQueryPage() {
             {selectedClient?.bigQueryDatasetId && (
               <Card className="p-6">
                 <div className="space-y-4">
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                      <Plus className="h-5 w-5" />
-                      Create Aggregation Tables
-                    </h2>
-                    <p className="mt-1 text-sm text-gray-600">
-                      Create pre-aggregated tables for faster dashboard performance
-                    </p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                        <Plus className="h-5 w-5" />
+                        Aggregation Views & Tables
+                      </h2>
+                      <p className="mt-1 text-sm text-gray-600">
+                        Create pre-aggregated tables and materialized views for faster dashboard performance
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => createAggregation('all')}
+                      disabled={creatingAggregation === 'all'}
+                      size="lg"
+                    >
+                      {creatingAggregation === 'all' ? (
+                        <>
+                          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                          Creating All...
+                        </>
+                      ) : (
+                        <>
+                          <Database className="mr-2 h-4 w-4" />
+                          Create All
+                        </>
+                      )}
+                    </Button>
                   </div>
 
                   {success && (
@@ -233,81 +268,275 @@ export default function AdminBigQueryPage() {
                     </div>
                   )}
 
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <div className="rounded-lg border border-gray-200 p-4">
-                      <h3 className="font-medium text-gray-900">Sales Overview</h3>
-                      <p className="mt-1 text-sm text-gray-600">
-                        Daily aggregation of orders, revenue, and customer metrics
-                      </p>
-                      <Button
-                        className="mt-3"
-                        size="sm"
-                        onClick={() => createAggregation('sales_overview')}
-                        disabled={creatingAggregation === 'sales_overview'}
-                      >
-                        {creatingAggregation === 'sales_overview' ? (
-                          <>
-                            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                            Creating...
-                          </>
-                        ) : (
-                          <>
-                            <Database className="mr-2 h-4 w-4" />
-                            Create Table
-                          </>
-                        )}
-                      </Button>
-                    </div>
-
-                    <div className="rounded-lg border border-gray-200 p-4">
-                      <h3 className="font-medium text-gray-900">Product Performance</h3>
-                      <p className="mt-1 text-sm text-gray-600">
-                        Daily aggregation of product sales, quantities, and pricing
-                      </p>
-                      <Button
-                        className="mt-3"
-                        size="sm"
-                        onClick={() => createAggregation('product_performance')}
-                        disabled={creatingAggregation === 'product_performance'}
-                      >
-                        {creatingAggregation === 'product_performance' ? (
-                          <>
-                            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                            Creating...
-                          </>
-                        ) : (
-                          <>
-                            <Database className="mr-2 h-4 w-4" />
-                            Create Table
-                          </>
-                        )}
-                      </Button>
-                    </div>
-
-                    <div className="rounded-lg border border-gray-200 p-4">
-                      <h3 className="font-medium text-gray-900">SEO Performance</h3>
-                      <p className="mt-1 text-sm text-gray-600">
-                        Daily aggregation of search queries, clicks, impressions, and positions from GSC
-                      </p>
-                      <Button
-                        className="mt-3"
-                        size="sm"
-                        onClick={() => createAggregation('seo_performance')}
-                        disabled={creatingAggregation === 'seo_performance'}
-                      >
-                        {creatingAggregation === 'seo_performance' ? (
-                          <>
-                            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                            Creating...
-                          </>
-                        ) : (
-                          <>
-                            <Database className="mr-2 h-4 w-4" />
-                            Create Table
-                          </>
-                        )}
-                      </Button>
-                    </div>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Auto-Refresh</TableHead>
+                          <TableHead className="text-right">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <TableRow>
+                          <TableCell className="font-medium">Sales Overview</TableCell>
+                          <TableCell>
+                            <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-purple-100 text-purple-700">
+                              MATERIALIZED VIEW
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-sm text-gray-600">
+                            Daily aggregation of orders, revenue, and customer metrics
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm text-green-600">Hourly</span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => createAggregation('sales_overview')}
+                              disabled={creatingAggregation === 'sales_overview' || creatingAggregation === 'all'}
+                            >
+                              {creatingAggregation === 'sales_overview' ? (
+                                <>
+                                  <RefreshCw className="mr-2 h-3 w-3 animate-spin" />
+                                  Creating...
+                                </>
+                              ) : (
+                                'Create'
+                              )}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                        
+                        <TableRow>
+                          <TableCell className="font-medium">Sales Overview (Hourly)</TableCell>
+                          <TableCell>
+                            <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-purple-100 text-purple-700">
+                              MATERIALIZED VIEW
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-sm text-gray-600">
+                            Hourly aggregation of orders and revenue for intraday analysis
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm text-gray-500">Hourly</span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => createAggregation('sales_overview_hourly')}
+                              disabled={creatingAggregation === 'sales_overview_hourly' || creatingAggregation === 'all'}
+                            >
+                              {creatingAggregation === 'sales_overview_hourly' ? (
+                                <>
+                                  <RefreshCw className="mr-2 h-3 w-3 animate-spin" />
+                                  Creating...
+                                </>
+                              ) : (
+                                'Create'
+                              )}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                        
+                        <TableRow>
+                          <TableCell className="font-medium">Sales Overview (Monthly)</TableCell>
+                          <TableCell>
+                            <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-purple-100 text-purple-700">
+                              MATERIALIZED VIEW
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-sm text-gray-600">
+                            Monthly aggregation of orders, revenue, and customer metrics for long-term trends
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm text-gray-500">Hourly</span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => createAggregation('sales_overview_monthly')}
+                              disabled={creatingAggregation === 'sales_overview_monthly' || creatingAggregation === 'all'}
+                            >
+                              {creatingAggregation === 'sales_overview_monthly' ? (
+                                <>
+                                  <RefreshCw className="mr-2 h-3 w-3 animate-spin" />
+                                  Creating...
+                                </>
+                              ) : (
+                                'Create'
+                              )}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                        
+                        <TableRow>
+                          <TableCell className="font-medium">Product Performance</TableCell>
+                          <TableCell>
+                            <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-purple-100 text-purple-700">
+                              MATERIALIZED VIEW
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-sm text-gray-600">
+                            Daily aggregation of product sales, quantities, and pricing
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm text-green-600">Hourly</span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => createAggregation('product_performance')}
+                              disabled={creatingAggregation === 'product_performance' || creatingAggregation === 'all'}
+                            >
+                              {creatingAggregation === 'product_performance' ? (
+                                <>
+                                  <RefreshCw className="mr-2 h-3 w-3 animate-spin" />
+                                  Creating...
+                                </>
+                              ) : (
+                                'Create'
+                              )}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                        
+                        <TableRow>
+                          <TableCell className="font-medium">SEO Performance</TableCell>
+                          <TableCell>
+                            <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-purple-100 text-purple-700">
+                              MATERIALIZED VIEW
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-sm text-gray-600">
+                            Daily aggregation of search queries, clicks, impressions from GSC
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm text-green-600">Hourly</span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => createAggregation('seo_performance')}
+                              disabled={creatingAggregation === 'seo_performance' || creatingAggregation === 'all'}
+                            >
+                              {creatingAggregation === 'seo_performance' ? (
+                                <>
+                                  <RefreshCw className="mr-2 h-3 w-3 animate-spin" />
+                                  Creating...
+                                </>
+                              ) : (
+                                'Create'
+                              )}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                        
+                        <TableRow>
+                          <TableCell className="font-medium">Sales Items</TableCell>
+                          <TableCell>
+                            <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-purple-100 text-purple-700">
+                              MATERIALIZED VIEW
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-sm text-gray-600">
+                            Flattened sales order items with order details
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm text-green-600">Hourly</span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => createAggregation('sales_items_materialized_view')}
+                              disabled={creatingAggregation === 'sales_items_materialized_view' || creatingAggregation === 'all'}
+                            >
+                              {creatingAggregation === 'sales_items_materialized_view' ? (
+                                <>
+                                  <RefreshCw className="mr-2 h-3 w-3 animate-spin" />
+                                  Creating...
+                                </>
+                              ) : (
+                                'Create'
+                              )}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                        
+                        <TableRow>
+                          <TableCell className="font-medium">Products Flattened</TableCell>
+                          <TableCell>
+                            <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-purple-100 text-purple-700">
+                              MATERIALIZED VIEW
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-sm text-gray-600">
+                            Products with custom_attributes extracted as columns
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm text-green-600">Hourly</span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => createAggregation('products_flattened_materialized_view')}
+                              disabled={creatingAggregation === 'products_flattened_materialized_view' || creatingAggregation === 'all'}
+                            >
+                              {creatingAggregation === 'products_flattened_materialized_view' ? (
+                                <>
+                                  <RefreshCw className="mr-2 h-3 w-3 animate-spin" />
+                                  Creating...
+                                </>
+                              ) : (
+                                'Create'
+                              )}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                        
+                        <TableRow>
+                          <TableCell className="font-medium">Orders Flattened</TableCell>
+                          <TableCell>
+                            <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-purple-100 text-purple-700">
+                              MATERIALIZED VIEW
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-sm text-gray-600">
+                            Flattened orders with all fields optimized for queries
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm text-green-600">Hourly</span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => createAggregation('orders_flattened_materialized_view')}
+                              disabled={creatingAggregation === 'orders_flattened_materialized_view' || creatingAggregation === 'all'}
+                            >
+                              {creatingAggregation === 'orders_flattened_materialized_view' ? (
+                                <>
+                                  <RefreshCw className="mr-2 h-3 w-3 animate-spin" />
+                                  Creating...
+                                </>
+                              ) : (
+                                'Create'
+                              )}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
                   </div>
                 </div>
               </Card>

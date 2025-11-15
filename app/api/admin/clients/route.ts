@@ -65,6 +65,7 @@ export async function POST(request: NextRequest) {
         bigQueryDatasetId,
         adobeCommerceEndpoint,
         adobeCommerceAccessToken,
+        currencySettings,
       } = body as CreateClient & { id: string };
 
       if (!id || !clientName || !bigQueryDatasetId) {
@@ -97,6 +98,10 @@ export async function POST(request: NextRequest) {
         bigQueryDatasetId,
         ...(adobeCommerceEndpoint && { adobeCommerceEndpoint }),
         ...(adobeCommerceAccessToken && { adobeCommerceAccessToken }),
+        currencySettings: currencySettings || {
+          baseCurrency: 'GBP',
+          monthlyRates: {},
+        },
         createdAt: now,
         updatedAt: now,
       };

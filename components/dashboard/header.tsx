@@ -141,7 +141,7 @@ export function DashboardHeader() {
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-      className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-gray-200/50 bg-gradient-to-r from-white/95 via-white/90 to-white/95 supports-[backdrop-filter]:bg-white/80 backdrop-blur-xl shadow-[0_1px_3px_rgba(0,0,0,0.05)]"
+      className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-gray-200/60 bg-gradient-to-r from-white/98 via-white/95 to-white/98 supports-[backdrop-filter]:bg-white/85 backdrop-blur-xl shadow-[0_1px_4px_rgba(0,0,0,0.06)]"
     >
       {/* Left side - Report selector and filters */}
       <motion.div
@@ -153,7 +153,7 @@ export function DashboardHeader() {
         {/* Client Selector (Admin only) */}
         {appUser?.role === 'admin' && (
           <Select value={selectedClientId || ''} onValueChange={setSelectedClientId}>
-            <SelectTrigger className="w-[220px] transition-all duration-200 hover:border-indigo-300 focus:border-indigo-400 focus:ring-indigo-200">
+            <SelectTrigger className="w-[220px] h-9 text-sm font-medium transition-all duration-200 hover:border-indigo-300 focus:border-indigo-400 focus:ring-indigo-200">
               <SelectValue placeholder="Select client" />
             </SelectTrigger>
             <SelectContent>
@@ -163,7 +163,7 @@ export function DashboardHeader() {
                 <div className="px-2 py-1.5 text-sm text-gray-500">No clients found</div>
               ) : (
                 clients.map((client) => (
-                  <SelectItem key={client.id} value={client.id}>
+                  <SelectItem key={client.id} value={client.id} className="text-sm">
                     {client.clientName}
                   </SelectItem>
                 ))
@@ -174,7 +174,7 @@ export function DashboardHeader() {
 
         {/* Report/Website Selector */}
         <Select value={selectedWebsiteId || ''} onValueChange={setSelectedWebsiteId}>
-          <SelectTrigger className="w-[200px] transition-all duration-200 hover:border-indigo-300 focus:border-indigo-400 focus:ring-indigo-200">
+          <SelectTrigger className="w-[200px] h-9 text-sm font-medium transition-all duration-200 hover:border-indigo-300 focus:border-indigo-400 focus:ring-indigo-200">
             <SelectValue placeholder="Select website" />
           </SelectTrigger>
           <SelectContent>
@@ -184,13 +184,13 @@ export function DashboardHeader() {
               <div className="px-2 py-1.5 text-sm text-gray-500">No websites found</div>
             ) : (
               <>
-                <SelectItem value="all_combined">All Websites</SelectItem>
+                <SelectItem value="all_combined" className="text-sm font-medium">All Websites</SelectItem>
                 {websites.map((website) => (
-                  <SelectItem key={website.id} value={website.id}>
+                  <SelectItem key={website.id} value={website.id} className="text-sm">
                     <div className="flex items-center gap-2">
                       <span>{website.websiteName}</span>
                       {website.isGrouped && (
-                        <span className="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">
+                        <span className="text-xs font-medium bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">
                           Grouped
                         </span>
                       )}
@@ -210,13 +210,13 @@ export function DashboardHeader() {
 
         {/* Comparison Period */}
         <Select value={comparisonPeriod} onValueChange={(value) => setComparisonPeriod(value as any)}>
-          <SelectTrigger className="w-[180px] transition-all duration-200 hover:border-indigo-300 focus:border-indigo-400 focus:ring-indigo-200">
+          <SelectTrigger className="w-[180px] h-9 text-sm font-medium transition-all duration-200 hover:border-indigo-300 focus:border-indigo-400 focus:ring-indigo-200">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="none">No Comparison</SelectItem>
-            <SelectItem value="previous_period">Previous Period</SelectItem>
-            <SelectItem value="previous_year">Previous Year</SelectItem>
+            <SelectItem value="none" className="text-sm">No Comparison</SelectItem>
+            <SelectItem value="previous_period" className="text-sm">Previous Period</SelectItem>
+            <SelectItem value="previous_year" className="text-sm">Previous Year</SelectItem>
           </SelectContent>
         </Select>
       </motion.div>
@@ -261,10 +261,10 @@ export function DashboardHeader() {
             className="w-56 border-gray-200/50 shadow-lg backdrop-blur-xl bg-white/95"
           >
             <DropdownMenuLabel>
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium">{appUser?.email}</p>
+              <div className="flex flex-col space-y-1.5">
+                <p className="text-sm font-semibold text-gray-900">{appUser?.email}</p>
                 <div className="flex items-center gap-1.5">
-                  <p className="text-xs text-gray-500 capitalize">{appUser?.role}</p>
+                  <p className="text-xs font-medium text-gray-500 capitalize">{appUser?.role}</p>
                   {appUser?.role === 'admin' && (
                     <motion.div
                       animate={{ scale: [1, 1.2, 1] }}
@@ -278,7 +278,7 @@ export function DashboardHeader() {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={handleSignOut}
-              className="transition-colors cursor-pointer focus:bg-red-50 focus:text-red-600"
+              className="text-sm font-medium transition-colors cursor-pointer focus:bg-red-50 focus:text-red-600"
             >
               Log out
             </DropdownMenuItem>

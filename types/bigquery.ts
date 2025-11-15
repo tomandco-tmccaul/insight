@@ -1,195 +1,846 @@
 // BigQuery Data Models
-// These interfaces represent the schema of aggregated reporting tables
+// These interfaces represent the schema of tables in BigQuery
+// Auto-generated from BigQuery schemas
 
-// Represents the schema of the `agg_sales_overview_daily` table
-export interface SalesOverviewRow {
-  date: string; // YYYY-MM-DD format
-  website_id: string;
+// ============================================================================
+// Aggregated Reporting Materialized Views
+// ============================================================================
 
-  // Order Metrics
-  total_orders: number;
-  unique_customers: number;
-
-  // Revenue Metrics
-  total_revenue: number;
-  subtotal: number;
-  total_tax: number;
-  total_shipping: number;
-  total_discounts: number;
-
-  // Item Metrics
-  total_items: number;
-
-  // Order Status Breakdown
-  orders_complete: number;
-  orders_pending: number;
-  orders_processing: number;
-  orders_canceled: number;
-
-  // Revenue by Status
-  revenue_complete: number;
-  revenue_pending: number;
-
-  // Metadata
-  _aggregated_at: string;
-}
-
-// Product performance data (from agg_product_performance_daily)
-export interface ProductPerformanceRow {
-  date: string; // YYYY-MM-DD format
-  website_id: string; // store_id from Adobe Commerce
-  sku: string;
-  product_name: string;
-  product_id: string;
-
-  // Quantity metrics
-  total_qty_ordered: number;
-  total_qty_invoiced: number;
-  total_qty_shipped: number;
-  total_qty_canceled: number;
-  total_qty_refunded: number;
-
-  // Revenue metrics
-  total_revenue: number;
-  total_base_revenue: number;
-  total_discount: number;
-  total_tax: number;
-
-  // Price metrics
-  avg_price: number;
-  min_price: number;
-  max_price: number;
-
-  // Order count
-  order_count: number;
-
-  // Metadata
-  _aggregated_at: string;
-}
-
-// Marketing channel data
-export interface MarketingChannelRow {
-  date: string;
-  website_id: string;
-  channel: string; // 'google_ads', 'facebook_ads', 'pinterest_ads', 'organic', 'direct', etc.
-  campaign_name?: string;
-  spend: number;
-  sessions: number;
-  revenue: number;
-  conversions: number;
-  impressions?: number;
-  clicks?: number;
-}
-
-// SEO / Search Console data
-export interface SEOPerformanceRow {
-  date: string;
-  website_id: string;
-  query: string;
-  page_url?: string;
-  impressions: number;
-  clicks: number;
-  ctr: number;
-  average_position: number;
-  attributed_revenue?: number;
-}
-
-// Customer metrics daily aggregation (from agg_customer_metrics_daily)
+// mv_agg_customer_metrics_daily
 export interface CustomerMetricsDailyRow {
-  date: string; // YYYY-MM-DD format
-  website_id: string;
-  unique_customers: number;
-  registered_customers: number;
-  guest_customers: number;
-  revenue_per_customer: number;
-  _aggregated_at: string; // TIMESTAMP
+  date?: string | null;
+  website_id?: string | null;
+  unique_customers?: number | null;
+  registered_customers?: number | null;
+  guest_customers?: number | null;
+  revenue_per_customer?: number | null;
+  _aggregated_at?: string | null;
 }
 
-// Sales overview hourly aggregation (from agg_sales_overview_hourly)
+// mv_agg_product_performance_daily
+export interface ProductPerformanceDailyRow {
+  date?: string | null;
+  website_id?: string | null;
+  sku?: string | null;
+  product_name?: string | null;
+  product_id?: string | null;
+  total_qty_ordered?: number | null;
+  total_qty_invoiced?: number | null;
+  total_qty_shipped?: number | null;
+  total_qty_canceled?: number | null;
+  total_qty_refunded?: number | null;
+  total_revenue?: number | null;
+  total_base_revenue?: number | null;
+  total_discount?: number | null;
+  total_tax?: number | null;
+  avg_price?: number | null;
+  min_price?: number | null;
+  max_price?: number | null;
+  order_count?: number | null;
+  _aggregated_at?: string | null;
+}
+
+// mv_agg_sales_overview_daily
+export interface SalesOverviewDailyRow {
+  date?: string | null;
+  website_id?: string | null;
+  total_orders?: number | null;
+  unique_customers?: number | null;
+  total_revenue?: number | null;
+  subtotal?: number | null;
+  total_tax?: number | null;
+  total_shipping?: number | null;
+  total_discounts?: number | null;
+  total_items?: number | null;
+  orders_complete?: number | null;
+  orders_pending?: number | null;
+  orders_processing?: number | null;
+  orders_canceled?: number | null;
+  revenue_complete?: number | null;
+  revenue_pending?: number | null;
+  orders_sample?: number | null;
+  orders_not_sample?: number | null;
+  _aggregated_at?: string | null;
+}
+
+// mv_agg_sales_overview_hourly
 export interface SalesOverviewHourlyRow {
-  date: string; // YYYY-MM-DD format
-  hour: number; // 0-23
-  website_id: string;
-  total_orders: number;
-  total_revenue: number;
-  _aggregated_at: string; // TIMESTAMP
+  date?: string | null;
+  hour?: number | null;
+  website_id?: string | null;
+  total_orders?: number | null;
+  total_revenue?: number | null;
+  _aggregated_at?: string | null;
 }
 
-// Sales overview monthly aggregation (from agg_sales_overview_monthly)
+// mv_agg_sales_overview_monthly
 export interface SalesOverviewMonthlyRow {
-  year: number;
-  month: number; // 1-12
-  website_id: string;
-  total_orders: number;
-  unique_customers: number;
-  total_revenue: number;
-  subtotal: number;
-  total_tax: number;
-  total_shipping: number;
-  total_discounts: number;
-  total_items: number;
-  _aggregated_at: string; // TIMESTAMP
+  year?: number | null;
+  month?: number | null;
+  website_id?: string | null;
+  total_orders?: number | null;
+  unique_customers?: number | null;
+  total_revenue?: number | null;
+  subtotal?: number | null;
+  total_tax?: number | null;
+  total_shipping?: number | null;
+  total_discounts?: number | null;
+  total_items?: number | null;
+  _aggregated_at?: string | null;
 }
 
-// SEO performance daily aggregation (from agg_seo_performance_daily)
-export interface SEOPerformanceDailyRow {
-  date: string; // YYYY-MM-DD format
-  website_id: string;
-  query_text: string;
-  page_url?: string;
-  total_clicks: number;
-  total_impressions: number;
-  avg_ctr: number;
-  avg_position: number;
-  attributed_revenue: number;
+// mv_agg_seo_performance_daily
+export interface SeoPerformanceDailyRow {
+  date?: string | null;
+  website_id?: string | null;
+  query_text?: string | null;
+  page_url?: string | null;
+  total_clicks?: number | null;
+  total_impressions?: number | null;
+  avg_ctr?: number | null;
+  avg_position?: number | null;
+  attributed_revenue?: number | null;
 }
 
-// Website behavior data
-export interface WebsiteBehaviorRow {
-  date: string;
-  website_id: string;
-  page_path: string;
-  page_title?: string;
-  sessions: number;
-  pageviews: number;
-  unique_pageviews: number;
-  avg_time_on_page: number;
-  bounce_rate: number;
-  exit_rate: number;
-  entrances: number;
-  exits: number;
+// ============================================================================
+// Materialized Views
+// ============================================================================
+
+// mv_adobe_commerce_orders_flattened
+export interface AdobeCommerceOrdersflattenedRow {
+  entity_id?: number | null;
+  increment_id?: string | null;
+  order_date?: string | null;
+  order_created_at?: string | null;
+  website_id?: string | null;
+  customer_id?: number | null;
+  customer_email?: string | null;
+  customer_firstname?: string | null;
+  customer_lastname?: string | null;
+  customer_is_guest?: number | null;
+  status?: string | null;
+  state?: string | null;
+  grand_total?: number | null;
+  subtotal?: number | null;
+  base_grand_total?: number | null;
+  base_subtotal?: number | null;
+  tax_amount?: number | null;
+  base_tax_amount?: number | null;
+  shipping_amount?: number | null;
+  base_shipping_amount?: number | null;
+  discount_amount?: number | null;
+  base_discount_amount?: number | null;
+  total_qty_ordered?: number | null;
+  total_item_count?: number | null;
+  shipping_description?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  extension_attributes_raw?: string | null;
+  extension_attributes_json?: any | null;
+  ext_additional_itemized_taxes?: string | null;
+  ext_applied_taxes?: string | null;
+  ext_base_gift_cards_amount?: string | null;
+  ext_converting_from_quote?: string | null;
+  ext_gift_cards?: string | null;
+  ext_gift_cards_amount?: string | null;
+  ext_gw_base_price?: string | null;
+  ext_gw_card_base_price?: string | null;
+  ext_gw_card_price?: string | null;
+  ext_gw_items_base_price?: string | null;
+  ext_gw_items_price?: string | null;
+  ext_gw_price?: string | null;
+  ext_is_samples?: string | null;
+  ext_item_applied_taxes?: string | null;
+  ext_payment_additional_info?: string | null;
+  ext_shipping_assignments?: string | null;
+  ext_sources?: string | null;
+  ext_taxes?: string | null;
 }
 
-// Search insights (internal site search)
-export interface SearchInsightRow {
-  date: string;
-  website_id: string;
-  search_term: string;
-  search_count: number;
-  results_count?: number;
-  conversion_rate?: number;
+// mv_adobe_commerce_products_flattened
+export interface AdobeCommerceProductsflattenedRow {
+  sku?: string | null;
+  product_name?: string | null;
+  attr_sdb_collection_name?: string | null;
+  attr_sdb_design_name?: string | null;
+  attr_sdb_parent_title?: string | null;
+  attr_sdb_product_collection_data?: any | null;
+  attr_brand?: string | null;
+  attr_color?: string | null;
+  attr_size?: string | null;
+  attr_material?: string | null;
+  attr_pattern?: string | null;
+  attr_width?: string | null;
+  attr_length?: string | null;
+  attr_height?: string | null;
+  attr_weight?: string | null;
+  attr_price?: string | null;
+  attr_special_price?: string | null;
+  attr_cost?: string | null;
+  attr_manufacturer?: string | null;
+  attr_country_of_manufacture?: string | null;
+  attr_description?: string | null;
+  attr_short_description?: string | null;
+  attr_meta_title?: string | null;
+  attr_meta_description?: string | null;
+  attr_meta_keyword?: string | null;
+  attr_url_key?: string | null;
+  attr_url_path?: string | null;
+  attr_image?: string | null;
+  attr_small_image?: string | null;
+  attr_thumbnail?: string | null;
+  attr_status?: string | null;
+  attr_visibility?: string | null;
+  attr_tax_class_id?: string | null;
 }
 
-// Cart and checkout behavior
-export interface CartBehaviorRow {
-  date: string;
-  website_id: string;
-  add_to_cart_events: number;
-  cart_abandonment_count: number;
-  cart_abandonment_rate: number;
-  checkout_started: number;
-  checkout_completed: number;
+// mv_adobe_commerce_sales_items
+export interface AdobeCommerceSalesItemsRow {
+  order_id?: number | null;
+  order_entity_id?: number | null;
+  order_increment_id?: string | null;
+  order_date?: string | null;
+  order_created_at?: string | null;
+  website_id?: string | null;
+  item_id?: number | null;
+  sku?: string | null;
+  product_name?: string | null;
+  product_id?: string | null;
+  product_type?: string | null;
+  qty_ordered?: number | null;
+  qty_invoiced?: number | null;
+  qty_shipped?: number | null;
+  qty_canceled?: number | null;
+  qty_refunded?: number | null;
+  qty_returned?: number | null;
+  price?: number | null;
+  base_price?: number | null;
+  original_price?: number | null;
+  base_original_price?: number | null;
+  price_incl_tax?: number | null;
+  base_price_incl_tax?: number | null;
+  row_total?: number | null;
+  base_row_total?: number | null;
+  row_total_incl_tax?: number | null;
+  base_row_total_incl_tax?: number | null;
+  tax_amount?: number | null;
+  base_tax_amount?: number | null;
+  tax_percent?: number | null;
+  discount_amount?: number | null;
+  base_discount_amount?: number | null;
+  discount_percent?: number | null;
+  order_status?: string | null;
+  order_state?: string | null;
+  customer_id?: number | null;
+  customer_email?: string | null;
+  customer_is_guest?: number | null;
+  item_created_at?: string | null;
+  item_updated_at?: string | null;
+  order_created_at_full?: string | null;
+  order_updated_at?: string | null;
 }
 
-// Aggregated metrics (calculated in-app)
-export interface CalculatedMetrics {
-  aov: number; // Average Order Value = total_revenue / total_orders
-  items_per_order: number; // total_items / total_orders
-  cvr?: number; // Conversion Rate = (total_orders / total_sessions) * 100 (requires session data)
-  returnRate?: number; // Return Rate = (total_returns / total_orders) * 100 (requires return data)
-  blendedROAS?: number; // Return on Ad Spend = total_revenue / total_media_spend (requires ad spend data)
-  cpa?: number; // Cost Per Acquisition = total_media_spend / total_orders (requires ad spend data)
+// ============================================================================
+// Adobe Commerce Tables (from Airbyte Adobe Commerce connector)
+// ============================================================================
+
+// adobe_commerce_creditmemos
+export interface AdobeCommerceCreditmemosRow {
+  _airbyte_raw_id: string;
+  _airbyte_extracted_at: string;
+  _airbyte_meta: any;
+  _airbyte_generation_id?: number | null;
+  items?: any | null;
+  state?: number | null;
+  comments?: any | null;
+  order_id?: number | null;
+  store_id?: number | null;
+  subtotal?: number | null;
+  entity_id?: number | null;
+  adjustment?: number | null;
+  created_at?: string | null;
+  email_sent?: number | null;
+  invoice_id?: number | null;
+  tax_amount?: number | null;
+  updated_at?: string | null;
+  grand_total?: number | null;
+  increment_id?: string | null;
+  base_subtotal?: number | null;
+  transaction_id?: string | null;
+  base_adjustment?: number | null;
+  base_tax_amount?: number | null;
+  discount_amount?: number | null;
+  shipping_amount?: number | null;
+  base_grand_total?: number | null;
+  shipping_incl_tax?: number | null;
+  subtotal_incl_tax?: number | null;
+  base_currency_code?: string | null;
+  base_to_order_rate?: number | null;
+  billing_address_id?: number | null;
+  store_to_base_rate?: number | null;
+  adjustment_negative?: number | null;
+  adjustment_positive?: number | null;
+  base_to_global_rate?: number | null;
+  order_currency_code?: string | null;
+  shipping_tax_amount?: number | null;
+  store_currency_code?: string | null;
+  store_to_order_rate?: number | null;
+  base_discount_amount?: number | null;
+  base_shipping_amount?: number | null;
+  discount_description?: string | null;
+  global_currency_code?: string | null;
+  base_shipping_incl_tax?: number | null;
+  base_subtotal_incl_tax?: number | null;
+  base_adjustment_negative?: number | null;
+  base_adjustment_positive?: number | null;
+  base_shipping_tax_amount?: number | null;
+  discount_tax_compensation_amount?: number | null;
+  base_discount_tax_compensation_amount?: number | null;
 }
+
+// adobe_commerce_customers
+export interface AdobeCommerceCustomersRow {
+  _airbyte_raw_id: string;
+  _airbyte_extracted_at: string;
+  _airbyte_meta: any;
+  _airbyte_generation_id?: number | null;
+  id?: number | null;
+  dob?: string | null;
+  email?: string | null;
+  gender?: number | null;
+  group_id?: number | null;
+  lastname?: string | null;
+  store_id?: number | null;
+  addresses?: any | null;
+  firstname?: string | null;
+  created_at?: string | null;
+  created_in?: string | null;
+  updated_at?: string | null;
+  website_id?: number | null;
+  confirmation?: string | null;
+  default_billing?: string | null;
+  default_shipping?: string | null;
+  custom_attributes?: any | null;
+  extension_attributes?: any | null;
+  disable_auto_group_change?: number | null;
+}
+
+// adobe_commerce_invoices
+export interface AdobeCommerceInvoicesRow {
+  _airbyte_raw_id: string;
+  _airbyte_extracted_at: string;
+  _airbyte_meta: any;
+  _airbyte_generation_id?: number | null;
+  items?: any | null;
+  state?: number | null;
+  comments?: any | null;
+  order_id?: number | null;
+  store_id?: number | null;
+  subtotal?: number | null;
+  entity_id?: number | null;
+  total_qty?: number | null;
+  created_at?: string | null;
+  email_sent?: number | null;
+  tax_amount?: number | null;
+  updated_at?: string | null;
+  grand_total?: number | null;
+  increment_id?: string | null;
+  base_subtotal?: number | null;
+  transaction_id?: string | null;
+  base_tax_amount?: number | null;
+  discount_amount?: number | null;
+  shipping_amount?: number | null;
+  base_grand_total?: number | null;
+  shipping_incl_tax?: number | null;
+  subtotal_incl_tax?: number | null;
+  base_currency_code?: string | null;
+  base_to_order_rate?: number | null;
+  billing_address_id?: number | null;
+  store_to_base_rate?: number | null;
+  base_to_global_rate?: number | null;
+  order_currency_code?: string | null;
+  shipping_tax_amount?: number | null;
+  store_currency_code?: string | null;
+  store_to_order_rate?: number | null;
+  base_discount_amount?: number | null;
+  base_shipping_amount?: number | null;
+  discount_description?: string | null;
+  extension_attributes?: any | null;
+  global_currency_code?: string | null;
+  base_shipping_incl_tax?: number | null;
+  base_subtotal_incl_tax?: number | null;
+  base_shipping_tax_amount?: number | null;
+  discount_tax_compensation_amount?: number | null;
+  base_discount_tax_compensation_amount?: number | null;
+  shipping_discount_tax_compensation_amount?: number | null;
+  base_shipping_discount_tax_compensation_amnt?: number | null;
+}
+
+// adobe_commerce_orders
+export interface AdobeCommerceOrdersRow {
+  _airbyte_raw_id: string;
+  _airbyte_extracted_at: string;
+  _airbyte_meta: any;
+  _airbyte_generation_id?: number | null;
+  items?: any | null;
+  state?: string | null;
+  status?: string | null;
+  weight?: number | null;
+  payment?: any | null;
+  quote_id?: number | null;
+  store_id?: number | null;
+  subtotal?: number | null;
+  entity_id?: number | null;
+  remote_ip?: string | null;
+  total_due?: number | null;
+  created_at?: string | null;
+  email_sent?: number | null;
+  is_virtual?: number | null;
+  store_name?: string | null;
+  tax_amount?: number | null;
+  total_paid?: number | null;
+  updated_at?: string | null;
+  coupon_code?: string | null;
+  customer_id?: number | null;
+  grand_total?: number | null;
+  increment_id?: string | null;
+  protect_code?: string | null;
+  tax_canceled?: number | null;
+  tax_invoiced?: number | null;
+  base_subtotal?: number | null;
+  base_total_due?: number | null;
+  customer_email?: string | null;
+  total_canceled?: number | null;
+  total_invoiced?: number | null;
+  base_tax_amount?: number | null;
+  base_total_paid?: number | null;
+  billing_address?: any | null;
+  discount_amount?: number | null;
+  shipping_amount?: number | null;
+  applied_rule_ids?: string | null;
+  base_grand_total?: number | null;
+  status_histories?: any | null;
+  total_item_count?: number | null;
+  base_tax_canceled?: number | null;
+  base_tax_invoiced?: number | null;
+  customer_group_id?: number | null;
+  customer_is_guest?: number | null;
+  customer_lastname?: string | null;
+  discount_canceled?: number | null;
+  discount_invoiced?: number | null;
+  shipping_canceled?: number | null;
+  shipping_incl_tax?: number | null;
+  shipping_invoiced?: number | null;
+  subtotal_canceled?: number | null;
+  subtotal_incl_tax?: number | null;
+  subtotal_invoiced?: number | null;
+  total_qty_ordered?: number | null;
+  base_currency_code?: string | null;
+  base_to_order_rate?: number | null;
+  billing_address_id?: number | null;
+  customer_firstname?: string | null;
+  store_to_base_rate?: number | null;
+  base_to_global_rate?: number | null;
+  base_total_canceled?: number | null;
+  base_total_invoiced?: number | null;
+  order_currency_code?: string | null;
+  shipping_tax_amount?: number | null;
+  store_currency_code?: string | null;
+  store_to_order_rate?: number | null;
+  base_discount_amount?: number | null;
+  base_shipping_amount?: number | null;
+  customer_note_notify?: number | null;
+  discount_description?: string | null;
+  extension_attributes?: any | null;
+  global_currency_code?: string | null;
+  base_discount_canceled?: number | null;
+  base_discount_invoiced?: number | null;
+  base_shipping_canceled?: number | null;
+  base_shipping_incl_tax?: number | null;
+  base_shipping_invoiced?: number | null;
+  base_subtotal_canceled?: number | null;
+  base_subtotal_incl_tax?: number | null;
+  base_subtotal_invoiced?: number | null;
+  base_shipping_tax_amount?: number | null;
+  base_total_invoiced_cost?: number | null;
+  shipping_discount_amount?: number | null;
+  base_shipping_discount_amount?: number | null;
+  discount_tax_compensation_amount?: number | null;
+  discount_tax_compensation_invoiced?: number | null;
+  base_discount_tax_compensation_amount?: number | null;
+  base_discount_tax_compensation_invoiced?: number | null;
+  shipping_discount_tax_compensation_amount?: number | null;
+  base_shipping_discount_tax_compensation_amnt?: number | null;
+}
+
+// adobe_commerce_products
+export interface AdobeCommerceProductsRow {
+  _airbyte_raw_id: string;
+  _airbyte_extracted_at: string;
+  _airbyte_meta: any;
+  _airbyte_generation_id?: number | null;
+  id?: number | null;
+  sku?: string | null;
+  name?: string | null;
+  price?: number | null;
+  status?: number | null;
+  weight?: number | null;
+  options?: any | null;
+  type_id?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  visibility?: number | null;
+  tier_prices?: any | null;
+  product_links?: any | null;
+  attribute_set_id?: number | null;
+  custom_attributes?: any | null;
+  extension_attributes?: any | null;
+  media_gallery_entries?: any | null;
+}
+
+// adobe_commerce_shipments
+export interface AdobeCommerceShipmentsRow {
+  _airbyte_raw_id: string;
+  _airbyte_extracted_at: string;
+  _airbyte_meta: any;
+  _airbyte_generation_id?: number | null;
+  items?: any | null;
+  tracks?: any | null;
+  comments?: any | null;
+  order_id?: number | null;
+  packages?: any | null;
+  entity_id?: number | null;
+  total_qty?: number | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  increment_id?: string | null;
+  billing_address_id?: number | null;
+  extension_attributes?: any | null;
+}
+
+// adobe_commerce_transactions
+export interface AdobeCommerceTransactionsRow {
+  _airbyte_raw_id: string;
+  _airbyte_extracted_at: string;
+  _airbyte_meta: any;
+  _airbyte_generation_id?: number | null;
+  txn_id?: string | null;
+  order_id?: number | null;
+  txn_type?: string | null;
+  is_closed?: number | null;
+  parent_id?: number | null;
+  created_at?: string | null;
+  payment_id?: number | null;
+  parent_txn_id?: string | null;
+  transaction_id?: number | null;
+  child_transactions?: any | null;
+  additional_information?: any | null;
+}
+
+// ============================================================================
+// GA4 Data Models (from Airbyte GA4 connector)
+// ============================================================================
+
+// ga4_daily_active_users
+export interface Ga4DailyActiveUsersRow {
+  _airbyte_raw_id: string;
+  _airbyte_extracted_at: string;
+  _airbyte_meta: any;
+  _airbyte_generation_id?: number | null;
+  date?: string | null;
+  endDate?: string | null;
+  startDate?: string | null;
+  property_id?: string | null;
+  active1DayUsers?: number | null;
+}
+
+// ga4_devices
+export interface Ga4DevicesRow {
+  _airbyte_raw_id: string;
+  _airbyte_extracted_at: string;
+  _airbyte_meta: any;
+  _airbyte_generation_id?: number | null;
+  date?: string | null;
+  browser?: string | null;
+  endDate?: string | null;
+  newUsers?: number | null;
+  sessions?: number | null;
+  startDate?: string | null;
+  bounceRate?: number | null;
+  totalUsers?: number | null;
+  property_id?: string | null;
+  deviceCategory?: string | null;
+  operatingSystem?: string | null;
+  screenPageViews?: number | null;
+  sessionsPerUser?: number | null;
+  averageSessionDuration?: number | null;
+  screenPageViewsPerSession?: number | null;
+}
+
+// ga4_four_weekly_active_users
+export interface Ga4FourWeeklyActiveUsersRow {
+  _airbyte_raw_id: string;
+  _airbyte_extracted_at: string;
+  _airbyte_meta: any;
+  _airbyte_generation_id?: number | null;
+  date?: string | null;
+  endDate?: string | null;
+  startDate?: string | null;
+  property_id?: string | null;
+  active28DayUsers?: number | null;
+}
+
+// ga4_locations
+export interface Ga4LocationsRow {
+  _airbyte_raw_id: string;
+  _airbyte_extracted_at: string;
+  _airbyte_meta: any;
+  _airbyte_generation_id?: number | null;
+  city?: string | null;
+  date?: string | null;
+  region?: string | null;
+  country?: string | null;
+  endDate?: string | null;
+  newUsers?: number | null;
+  sessions?: number | null;
+  startDate?: string | null;
+  bounceRate?: number | null;
+  totalUsers?: number | null;
+  property_id?: string | null;
+  screenPageViews?: number | null;
+  sessionsPerUser?: number | null;
+  averageSessionDuration?: number | null;
+  screenPageViewsPerSession?: number | null;
+}
+
+// ga4_pages
+export interface Ga4PagesRow {
+  _airbyte_raw_id: string;
+  _airbyte_extracted_at: string;
+  _airbyte_meta: any;
+  _airbyte_generation_id?: number | null;
+  date?: string | null;
+  endDate?: string | null;
+  hostName?: string | null;
+  startDate?: string | null;
+  bounceRate?: number | null;
+  property_id?: string | null;
+  screenPageViews?: number | null;
+  pagePathPlusQueryString?: string | null;
+}
+
+// ga4_traffic_sources
+export interface Ga4TrafficSourcesRow {
+  _airbyte_raw_id: string;
+  _airbyte_extracted_at: string;
+  _airbyte_meta: any;
+  _airbyte_generation_id?: number | null;
+  date?: string | null;
+  endDate?: string | null;
+  newUsers?: number | null;
+  sessions?: number | null;
+  startDate?: string | null;
+  bounceRate?: number | null;
+  totalUsers?: number | null;
+  property_id?: string | null;
+  sessionMedium?: string | null;
+  sessionSource?: string | null;
+  screenPageViews?: number | null;
+  sessionsPerUser?: number | null;
+  averageSessionDuration?: number | null;
+  screenPageViewsPerSession?: number | null;
+}
+
+// ga4_website_overview
+export interface Ga4WebsiteOverviewRow {
+  _airbyte_raw_id: string;
+  _airbyte_extracted_at: string;
+  _airbyte_meta: any;
+  _airbyte_generation_id?: number | null;
+  date?: string | null;
+  endDate?: string | null;
+  newUsers?: number | null;
+  sessions?: number | null;
+  startDate?: string | null;
+  bounceRate?: number | null;
+  totalUsers?: number | null;
+  property_id?: string | null;
+  screenPageViews?: number | null;
+  sessionsPerUser?: number | null;
+  averageSessionDuration?: number | null;
+  screenPageViewsPerSession?: number | null;
+}
+
+// ga4_weekly_active_users
+export interface Ga4WeeklyActiveUsersRow {
+  _airbyte_raw_id: string;
+  _airbyte_extracted_at: string;
+  _airbyte_meta: any;
+  _airbyte_generation_id?: number | null;
+  date?: string | null;
+  endDate?: string | null;
+  startDate?: string | null;
+  property_id?: string | null;
+  active7DayUsers?: number | null;
+}
+
+// ============================================================================
+// Google Search Console Tables (from Airbyte GSC connector)
+// ============================================================================
+
+// gsc_search_analytics_all_fields
+export interface GscSearchAnalyticsAllFieldsRow {
+  _airbyte_raw_id: string;
+  _airbyte_extracted_at: string;
+  _airbyte_meta: any;
+  _airbyte_generation_id?: number | null;
+  ctr?: number | null;
+  date?: string | null;
+  page?: string | null;
+  query?: string | null;
+  clicks?: number | null;
+  device?: string | null;
+  country?: string | null;
+  position?: number | null;
+  site_url?: string | null;
+  impressions?: number | null;
+  search_type?: string | null;
+}
+
+// gsc_search_analytics_by_country
+export interface GscSearchAnalyticsByCountryRow {
+  _airbyte_raw_id: string;
+  _airbyte_extracted_at: string;
+  _airbyte_meta: any;
+  _airbyte_generation_id?: number | null;
+  ctr?: number | null;
+  date?: string | null;
+  clicks?: number | null;
+  country?: string | null;
+  position?: number | null;
+  site_url?: string | null;
+  impressions?: number | null;
+  search_type?: string | null;
+}
+
+// gsc_search_analytics_by_date
+export interface GscSearchAnalyticsByDateRow {
+  _airbyte_raw_id: string;
+  _airbyte_extracted_at: string;
+  _airbyte_meta: any;
+  _airbyte_generation_id?: number | null;
+  ctr?: number | null;
+  date?: string | null;
+  clicks?: number | null;
+  position?: number | null;
+  site_url?: string | null;
+  impressions?: number | null;
+  search_type?: string | null;
+}
+
+// gsc_search_analytics_by_device
+export interface GscSearchAnalyticsByDeviceRow {
+  _airbyte_raw_id: string;
+  _airbyte_extracted_at: string;
+  _airbyte_meta: any;
+  _airbyte_generation_id?: number | null;
+  ctr?: number | null;
+  date?: string | null;
+  clicks?: number | null;
+  device?: string | null;
+  position?: number | null;
+  site_url?: string | null;
+  impressions?: number | null;
+  search_type?: string | null;
+}
+
+// gsc_search_analytics_by_page
+export interface GscSearchAnalyticsByPageRow {
+  _airbyte_raw_id: string;
+  _airbyte_extracted_at: string;
+  _airbyte_meta: any;
+  _airbyte_generation_id?: number | null;
+  ctr?: number | null;
+  date?: string | null;
+  page?: string | null;
+  clicks?: number | null;
+  position?: number | null;
+  site_url?: string | null;
+  impressions?: number | null;
+  search_type?: string | null;
+}
+
+// gsc_search_analytics_by_query
+export interface GscSearchAnalyticsByQueryRow {
+  _airbyte_raw_id: string;
+  _airbyte_extracted_at: string;
+  _airbyte_meta: any;
+  _airbyte_generation_id?: number | null;
+  ctr?: number | null;
+  date?: string | null;
+  query?: string | null;
+  clicks?: number | null;
+  position?: number | null;
+  site_url?: string | null;
+  impressions?: number | null;
+  search_type?: string | null;
+}
+
+// gsc_search_analytics_page_report
+export interface GscSearchAnalyticsPageReportRow {
+  _airbyte_raw_id: string;
+  _airbyte_extracted_at: string;
+  _airbyte_meta: any;
+  _airbyte_generation_id?: number | null;
+  ctr?: number | null;
+  date?: string | null;
+  page?: string | null;
+  clicks?: number | null;
+  device?: string | null;
+  country?: string | null;
+  position?: number | null;
+  site_url?: string | null;
+  impressions?: number | null;
+  search_type?: string | null;
+}
+
+// gsc_search_analytics_site_report_by_page
+export interface GscSearchAnalyticsSiteReportByPageRow {
+  _airbyte_raw_id: string;
+  _airbyte_extracted_at: string;
+  _airbyte_meta: any;
+  _airbyte_generation_id?: number | null;
+  ctr?: number | null;
+  date?: string | null;
+  clicks?: number | null;
+  device?: string | null;
+  country?: string | null;
+  position?: number | null;
+  site_url?: string | null;
+  impressions?: number | null;
+  search_type?: string | null;
+}
+
+// gsc_search_analytics_site_report_by_site
+export interface GscSearchAnalyticsSiteReportBySiteRow {
+  _airbyte_raw_id: string;
+  _airbyte_extracted_at: string;
+  _airbyte_meta: any;
+  _airbyte_generation_id?: number | null;
+  ctr?: number | null;
+  date?: string | null;
+  clicks?: number | null;
+  device?: string | null;
+  country?: string | null;
+  position?: number | null;
+  site_url?: string | null;
+  impressions?: number | null;
+  search_type?: string | null;
+}
+
+// ============================================================================
+// Utility Types
+// ============================================================================
 
 // Date range filter
 export interface DateRange {
@@ -208,704 +859,12 @@ export interface ReportContext {
   comparisonPeriod: ComparisonPeriod;
 }
 
-// ============================================================================
-// GA4 Data Models (from Airbyte GA4 connector)
-// ============================================================================
-
-// GA4 Website Overview - Overall site metrics
-export interface GA4WebsiteOverviewRow {
-  property_id: string; // GA4 property ID
-  date: string; // YYYY-MM-DD format
-  activeUsers: number;
-  newUsers: number;
-  totalUsers: number;
-  sessions: number;
-  engagedSessions: number;
-  averageSessionDuration: number; // in seconds
-  screenPageViews: number;
-  screenPageViewsPerSession: number;
-  eventCount: number;
-  conversions: number;
-  totalRevenue: number;
-  engagementRate: number; // percentage
-  bounceRate: number; // percentage
-  _airbyte_extracted_at: string;
-  _airbyte_ab_id?: string;
-  _airbyte_emitted_at?: string;
-  _airbyte_normalized_at?: string;
+// Aggregated metrics (calculated in-app)
+export interface CalculatedMetrics {
+  aov: number; // Average Order Value = total_revenue / total_orders
+  items_per_order: number; // total_items / total_orders
+  cvr?: number; // Conversion Rate = (total_orders / total_sessions) * 100 (requires session data)
+  returnRate?: number; // Return Rate = (total_returns / total_orders) * 100 (requires return data)
+  blendedROAS?: number; // Return on Ad Spend = total_revenue / total_media_spend (requires ad spend data)
+  cpa?: number; // Cost Per Acquisition = total_media_spend / total_orders (requires ad spend data)
 }
-
-// GA4 Daily Active Users
-export interface GA4DailyActiveUsersRow {
-  property_id: string;
-  date: string; // YYYY-MM-DD format
-  activeUsers: number;
-  _airbyte_extracted_at: string;
-  _airbyte_ab_id?: string;
-  _airbyte_emitted_at?: string;
-  _airbyte_normalized_at?: string;
-}
-
-// GA4 Weekly Active Users
-export interface GA4WeeklyActiveUsersRow {
-  property_id: string;
-  date: string; // YYYY-MM-DD format
-  activeUsers: number;
-  _airbyte_extracted_at: string;
-  _airbyte_ab_id?: string;
-  _airbyte_emitted_at?: string;
-  _airbyte_normalized_at?: string;
-}
-
-// GA4 Four Weekly Active Users (Monthly)
-export interface GA4FourWeeklyActiveUsersRow {
-  property_id: string;
-  date: string; // YYYY-MM-DD format
-  activeUsers: number;
-  _airbyte_extracted_at: string;
-  _airbyte_ab_id?: string;
-  _airbyte_emitted_at?: string;
-  _airbyte_normalized_at?: string;
-}
-
-// GA4 Pages - Page-level metrics
-export interface GA4PagesRow {
-  property_id: string;
-  date: string;
-  hostName: string;
-  pagePath: string;
-  pageTitle?: string;
-  screenPageViews: number;
-  sessions: number;
-  engagedSessions: number;
-  averageSessionDuration: number;
-  bounceRate: number;
-  _airbyte_extracted_at: string;
-  _airbyte_ab_id?: string;
-  _airbyte_emitted_at?: string;
-  _airbyte_normalized_at?: string;
-}
-
-// GA4 Traffic Sources - Session source/medium breakdown
-export interface GA4TrafficSourcesRow {
-  property_id: string;
-  date: string;
-  sessionSource: string;
-  sessionMedium: string;
-  sessionCampaignName?: string;
-  sessions: number;
-  activeUsers: number;
-  newUsers: number;
-  engagedSessions: number;
-  averageSessionDuration: number;
-  screenPageViews: number;
-  conversions: number;
-  totalRevenue: number;
-  bounceRate: number;
-  _airbyte_extracted_at: string;
-  _airbyte_ab_id?: string;
-  _airbyte_emitted_at?: string;
-  _airbyte_normalized_at?: string;
-}
-
-// GA4 Devices - Device category breakdown
-export interface GA4DevicesRow {
-  property_id: string;
-  date: string;
-  deviceCategory: string; // 'desktop', 'mobile', 'tablet'
-  sessions: number;
-  activeUsers: number;
-  newUsers: number;
-  engagedSessions: number;
-  averageSessionDuration: number;
-  screenPageViews: number;
-  conversions: number;
-  totalRevenue: number;
-  bounceRate: number;
-  _airbyte_extracted_at: string;
-  _airbyte_ab_id?: string;
-  _airbyte_emitted_at?: string;
-  _airbyte_normalized_at?: string;
-}
-
-// GA4 Locations - Geographic breakdown
-export interface GA4LocationsRow {
-  property_id: string;
-  country: string;
-  region?: string;
-  city?: string;
-  sessions: number;
-  activeUsers: number;
-  newUsers: number;
-  engagedSessions: number;
-  averageSessionDuration: number;
-  screenPageViews: number;
-  conversions: number;
-  totalRevenue: number;
-  bounceRate: number;
-  _airbyte_extracted_at: string;
-  _airbyte_ab_id?: string;
-  _airbyte_emitted_at?: string;
-  _airbyte_normalized_at?: string;
-}
-
-// ============================================================================
-// Adobe Commerce SQL Tables (from Airbyte Adobe Commerce connector)
-// ============================================================================
-
-// Adobe Commerce Sales Order - Main order table
-export interface AdobeCommerceSalesOrderRow {
-  // Airbyte metadata fields
-  _airbyte_raw_id: string;
-  _airbyte_extracted_at: string;
-  _airbyte_meta: any; // JSON
-  _airbyte_generation_id?: number;
-
-  // Order identification
-  entity_id: number;
-  increment_id: string;
-  ext_order_id?: string;
-  original_increment_id?: string;
-  protect_code?: string;
-  relation_child_id?: string;
-  relation_parent_id?: string;
-  relation_child_real_id?: string;
-  relation_parent_real_id?: string;
-
-  // Store information
-  store_id: number;
-  store_name?: string;
-  store_currency_code?: string;
-  store_to_base_rate?: number;
-  store_to_order_rate?: number;
-
-  // Customer information
-  customer_id?: number;
-  customer_is_guest?: number;
-  customer_email?: string;
-  customer_firstname?: string;
-  customer_lastname?: string;
-  customer_middlename?: string;
-  customer_prefix?: string;
-  customer_suffix?: string;
-  customer_dob?: string; // DATETIME
-  customer_gender?: number;
-  customer_group_id?: number;
-  customer_taxvat?: string;
-  ext_customer_id?: string;
-
-  // Order status and state
-  state?: string;
-  status?: string;
-  hold_before_state?: string;
-  hold_before_status?: string;
-  dispute_status?: string;
-
-  // Pricing and totals
-  subtotal?: number;
-  base_subtotal?: number;
-  subtotal_incl_tax?: number;
-  base_subtotal_incl_tax?: number;
-  grand_total?: number;
-  base_grand_total?: number;
-  total_due?: number;
-  base_total_due?: number;
-  total_paid?: number;
-  base_total_paid?: number;
-
-  // Tax information
-  tax_amount?: number;
-  base_tax_amount?: number;
-  tax_canceled?: number;
-  base_tax_canceled?: number;
-  tax_invoiced?: number;
-  base_tax_invoiced?: number;
-  tax_refunded?: number;
-  base_tax_refunded?: number;
-
-  // Shipping information
-  shipping_amount?: number;
-  base_shipping_amount?: number;
-  shipping_incl_tax?: number;
-  base_shipping_incl_tax?: number;
-  shipping_canceled?: number;
-  base_shipping_canceled?: number;
-  shipping_invoiced?: number;
-  base_shipping_invoiced?: number;
-  shipping_refunded?: number;
-  base_shipping_refunded?: number;
-  shipping_tax_amount?: number;
-  base_shipping_tax_amount?: number;
-  shipping_tax_refunded?: number;
-  base_shipping_tax_refunded?: number;
-  shipping_method?: string;
-  shipping_description?: string;
-  shipping_discount_amount?: number;
-  base_shipping_discount_amount?: number;
-  shipping_discount_tax_compensation_amount?: number;
-  base_shipping_discount_tax_compensation_amnt?: number;
-
-  // Discount information
-  discount_amount?: number;
-  base_discount_amount?: number;
-  discount_canceled?: number;
-  base_discount_canceled?: number;
-  discount_invoiced?: number;
-  base_discount_invoiced?: number;
-  discount_refunded?: number;
-  base_discount_refunded?: number;
-  discount_description?: string;
-  discount_tax_compensation_amount?: number;
-  discount_tax_compensation_invoiced?: number;
-  discount_tax_compensation_refunded?: number;
-  base_discount_tax_compensation_amount?: number;
-  base_discount_tax_compensation_invoiced?: number;
-  base_discount_tax_compensation_refunded?: number;
-
-  // Gift cards and gift wrapping
-  gift_cards?: string;
-  gift_cards_amount?: number;
-  base_gift_cards_amount?: number;
-  gift_cards_invoiced?: number;
-  gift_cards_refunded?: number;
-  base_gift_cards_invoiced?: number;
-  base_gift_cards_refunded?: number;
-  gift_message_id?: number;
-  gw_id?: number;
-  gw_price?: number;
-  gw_base_price?: number;
-  gw_price_incl_tax?: number;
-  gw_base_price_incl_tax?: number;
-  gw_tax_amount?: number;
-  gw_base_tax_amount?: number;
-  gw_add_card?: number;
-  gw_allow_gift_receipt?: number;
-  gw_items_price?: number;
-  gw_items_base_price?: number;
-  gw_items_price_incl_tax?: number;
-  gw_items_base_price_incl_tax?: number;
-  gw_items_tax_amount?: number;
-  gw_items_base_tax_amount?: number;
-  gw_card_price?: number;
-  gw_card_base_price?: number;
-  gw_card_price_incl_tax?: number;
-  gw_card_base_price_incl_tax?: number;
-  gw_card_tax_amount?: number;
-  gw_card_base_tax_amount?: number;
-  // Gift wrapping invoiced/refunded fields
-  gw_price_invoiced?: number;
-  gw_price_refunded?: number;
-  gw_base_price_invoiced?: number;
-  gw_base_price_refunded?: number;
-  gw_tax_amount_invoiced?: number;
-  gw_tax_amount_refunded?: number;
-  gw_base_tax_amount_invoiced?: number;
-  gw_base_tax_amount_refunded?: number;
-  gw_items_price_invoiced?: number;
-  gw_items_price_refunded?: number;
-  gw_items_base_price_invoiced?: number;
-  gw_items_base_price_refunded?: number;
-  gw_items_tax_invoiced?: number;
-  gw_items_tax_refunded?: number;
-  gw_items_base_tax_invoiced?: number;
-  gw_items_base_tax_refunded?: number;
-  gw_card_price_invoiced?: number;
-  gw_card_price_refunded?: number;
-  gw_card_base_price_invoiced?: number;
-  gw_card_base_price_refunded?: number;
-  gw_card_tax_invoiced?: number;
-  gw_card_tax_refunded?: number;
-  gw_card_base_tax_invoiced?: number;
-  gw_card_base_tax_refunded?: number;
-
-  // Currency and rates
-  base_currency_code?: string;
-  order_currency_code?: string;
-  global_currency_code?: string;
-  base_to_order_rate?: number;
-  base_to_global_rate?: number;
-
-  // Order details
-  total_qty_ordered?: number;
-  base_total_qty_ordered?: number;
-  total_item_count?: number;
-  weight?: number;
-  is_virtual?: number;
-  is_samples?: number;
-  can_ship_partially?: number;
-  can_ship_partially_item?: number;
-  forced_shipment_with_invoice?: number;
-
-  // Invoiced and refunded totals
-  subtotal_invoiced?: number;
-  base_subtotal_invoiced?: number;
-  subtotal_canceled?: number;
-  base_subtotal_canceled?: number;
-  subtotal_refunded?: number;
-  base_subtotal_refunded?: number;
-  total_invoiced?: number;
-  base_total_invoiced?: number;
-  base_total_invoiced_cost?: number;
-  total_canceled?: number;
-  base_total_canceled?: number;
-  total_refunded?: number;
-  base_total_refunded?: number;
-  total_online_refunded?: number;
-  base_total_online_refunded?: number;
-  total_offline_refunded?: number;
-  base_total_offline_refunded?: number;
-
-  // Addresses
-  quote_id?: number;
-  quote_address_id?: number;
-  billing_address_id?: number;
-  shipping_address_id?: number;
-
-  // Payment information
-  payment_auth_expiration?: number;
-  payment_authorization_amount?: number;
-  stripe_payment_method_type?: string;
-  stripe_radar_risk_level?: string;
-  stripe_radar_risk_score?: number;
-  paypal_ipn_customer_notified?: number;
-
-  // Customer balance and rewards
-  customer_balance_amount?: number;
-  base_customer_balance_amount?: number;
-  customer_balance_invoiced?: number;
-  base_customer_balance_invoiced?: number;
-  customer_balance_refunded?: number;
-  base_customer_balance_refunded?: number;
-  customer_bal_total_refunded?: number;
-  bs_customer_bal_total_refunded?: number;
-  reward_points_balance?: number;
-  reward_points_balance_refund?: number;
-  reward_currency_amount?: number;
-  base_reward_currency_amount?: number;
-  rwrd_currency_amount_invoiced?: number;
-  base_rwrd_crrncy_amt_invoiced?: number;
-  rwrd_crrncy_amnt_refunded?: number;
-  base_rwrd_crrncy_amnt_refnded?: number;
-
-  // Adjustments
-  adjustment_negative?: number;
-  adjustment_positive?: number;
-  base_adjustment_negative?: number;
-  base_adjustment_positive?: number;
-
-  // Other fields
-  edit_increment?: number;
-  email_sent?: number;
-  send_email?: number;
-  customer_note?: string;
-  customer_note_notify?: number;
-  applied_rule_ids?: string;
-  coupon_code?: string;
-  coupon_rule_name?: string;
-  remote_ip?: string;
-  x_forwarded_for?: string;
-  additional_emails?: string;
-  hubspot_user_token?: string;
-  mertex_order_reference?: string;
-  mertex_tariff_amount?: number;
-
-  // Timestamps
-  created_at?: string; // TIMESTAMP
-  updated_at?: string; // TIMESTAMP
-}
-
-// Adobe Commerce Sales Order Grid - Optimized order table for reporting
-export interface AdobeCommerceSalesOrderGridRow {
-  // Airbyte metadata fields
-  _airbyte_raw_id: string;
-  _airbyte_extracted_at: string;
-  _airbyte_meta: any; // JSON
-  _airbyte_generation_id?: number;
-
-  // Order identification
-  entity_id: number;
-  increment_id: string;
-  status?: string;
-
-  // Store information
-  store_id: number;
-  store_name?: string;
-
-  // Customer information
-  customer_id?: number;
-  customer_name?: string;
-  customer_email?: string;
-  customer_group?: string;
-
-  // Billing and shipping addresses (formatted strings)
-  billing_name?: string;
-  billing_address?: string;
-  shipping_name?: string;
-  shipping_address?: string;
-  shipping_information?: string;
-
-  // Pricing and totals
-  subtotal?: number;
-  grand_total?: number;
-  base_grand_total?: number;
-  total_paid?: number;
-  base_total_paid?: number;
-  total_refunded?: number;
-  refunded_to_store_credit?: number;
-
-  // Currency
-  base_currency_code?: string;
-  order_currency_code?: string;
-
-  // Payment and transaction
-  payment_method?: string;
-  transaction_source?: string;
-
-  // Shipping
-  shipping_and_handling?: number;
-  initial_fee_tax?: number;
-  base_initial_fee_tax?: number;
-  pickup_location_code?: string;
-  collection_store_name?: string;
-
-  // Risk and fraud detection
-  stripe_radar_risk_level?: string;
-  stripe_radar_risk_score?: number;
-  stripe_payment_method_type?: string;
-
-  // Order flags
-  is_samples?: number;
-
-  // Dispute status
-  dispute_status?: string;
-
-  // Timestamps
-  created_at?: string; // TIMESTAMP
-  updated_at?: string; // TIMESTAMP
-}
-
-// Adobe Commerce Sales Order Item - Order line items
-export interface AdobeCommerceSalesOrderItemRow {
-  // Airbyte metadata fields
-  _airbyte_raw_id: string;
-  _airbyte_extracted_at: string;
-  _airbyte_meta: any; // JSON
-  _airbyte_generation_id?: number;
-
-  // Item identification
-  item_id: number;
-  order_id: number;
-  parent_item_id?: number;
-  quote_item_id?: number;
-  ext_order_item_id?: string;
-
-  // Product information
-  product_id?: number;
-  product_type?: string;
-  sku?: string;
-  name?: string;
-  description?: string;
-
-  // Store information
-  store_id: number;
-
-  // Pricing
-  price?: number;
-  base_price?: number;
-  original_price?: number;
-  base_original_price?: number;
-  price_incl_tax?: number;
-  base_price_incl_tax?: number;
-
-  // Row totals
-  row_total?: number;
-  base_row_total?: number;
-  row_total_incl_tax?: number;
-  base_row_total_incl_tax?: number;
-  row_invoiced?: number;
-  base_row_invoiced?: number;
-
-  // Quantity
-  qty_ordered?: number;
-  qty_invoiced?: number;
-  qty_shipped?: number;
-  qty_canceled?: number;
-  qty_refunded?: number;
-  qty_returned?: number;
-  qty_backordered?: number;
-  is_qty_decimal?: number;
-
-  // Weight
-  weight?: number;
-  row_weight?: number;
-
-  // Tax information
-  tax_amount?: number;
-  base_tax_amount?: number;
-  tax_percent?: number;
-  tax_canceled?: number;
-  tax_invoiced?: number;
-  tax_refunded?: number;
-  tax_before_discount?: number;
-  base_tax_before_discount?: number;
-  ava_vatcode?: string;
-
-  // Discount information
-  discount_amount?: number;
-  base_discount_amount?: number;
-  discount_percent?: number;
-  discount_invoiced?: number;
-  base_discount_invoiced?: number;
-  discount_refunded?: number;
-  base_discount_refunded?: number;
-  no_discount?: number;
-  discount_tax_compensation_amount?: number;
-  discount_tax_compensation_canceled?: number;
-  discount_tax_compensation_invoiced?: number;
-  discount_tax_compensation_refunded?: number;
-  base_discount_tax_compensation_amount?: number;
-  base_discount_tax_compensation_invoiced?: number;
-  base_discount_tax_compensation_refunded?: number;
-
-  // Refund information
-  amount_refunded?: number;
-  base_amount_refunded?: number;
-
-  // Gift wrapping
-  gw_id?: number;
-  gw_price?: number;
-  gw_base_price?: number;
-  gw_tax_amount?: number;
-  gw_base_tax_amount?: number;
-  gw_price_invoiced?: number;
-  gw_price_refunded?: number;
-  gw_base_price_invoiced?: number;
-  gw_base_price_refunded?: number;
-  gw_tax_amount_invoiced?: number;
-  gw_tax_amount_refunded?: number;
-  gw_base_tax_amount_invoiced?: number;
-  gw_base_tax_amount_refunded?: number;
-
-  // Gift wrapping items
-  gw_items_price?: number;
-  gw_items_base_price?: number;
-  gw_items_tax_amount?: number;
-  gw_items_base_tax_amount?: number;
-  gw_items_price_invoiced?: number;
-  gw_items_price_refunded?: number;
-  gw_items_base_price_invoiced?: number;
-  gw_items_base_price_refunded?: number;
-  gw_items_tax_invoiced?: number;
-  gw_items_tax_refunded?: number;
-  gw_items_base_tax_invoiced?: number;
-  gw_items_base_tax_refunded?: number;
-
-  // Initial fee
-  initial_fee?: number;
-  base_initial_fee?: number;
-  initial_fee_tax?: number;
-  base_initial_fee_tax?: number;
-
-  // Product options and additional data
-  product_options?: string;
-  additional_data?: string;
-
-  // WEEE (Waste Electrical and Electronic Equipment) tax
-  weee_tax_applied?: string;
-  weee_tax_applied_amount?: number;
-  base_weee_tax_applied_amount?: number;
-  weee_tax_applied_row_amount?: number;
-  base_weee_tax_applied_row_amnt?: number;
-  weee_tax_disposition?: number;
-  weee_tax_row_disposition?: number;
-  base_weee_tax_disposition?: number;
-  base_weee_tax_row_disposition?: number;
-
-  // Applied rules
-  applied_rule_ids?: string;
-
-  // Flags
-  is_virtual?: number;
-  free_shipping?: number;
-  locked_do_ship?: number;
-  locked_do_invoice?: number;
-  gift_message_id?: number;
-  gift_message_available?: number;
-  giftregistry_item_id?: number;
-  event_id?: number;
-
-  // Cost
-  base_cost?: number;
-
-  // Mertex integration
-  mertex_order_id?: string;
-  mertex_basket_id?: string;
-
-  // Stripe subscription
-  stripe_original_subscription_price?: number;
-  stripe_base_original_subscription_price?: number;
-
-  // Timestamps
-  created_at?: string; // TIMESTAMP
-  updated_at?: string; // TIMESTAMP
-}
-
-// Adobe Commerce Store Website - Website/store configuration
-export interface AdobeCommerceStoreWebsiteRow {
-  // Airbyte metadata fields
-  _airbyte_raw_id: string;
-  _airbyte_extracted_at: string;
-  _airbyte_meta: any; // JSON
-  _airbyte_generation_id?: number;
-
-  // Website identification
-  website_id: number;
-  code?: string;
-  name?: string;
-  default_group_id?: number;
-  is_default?: number;
-  sort_order?: number;
-}
-
-// ============================================================================
-// Google Search Console Tables (from Airbyte GSC connector)
-// ============================================================================
-
-// GSC Search Analytics by Query - Query-level search performance
-export interface GSCSearchAnalyticsByQueryRow {
-  // Airbyte metadata fields
-  _airbyte_raw_id: string;
-  _airbyte_extracted_at: string;
-  _airbyte_meta: any; // JSON
-  _airbyte_generation_id?: number;
-
-  // Search metrics
-  date?: string; // DATE
-  query?: string;
-  site_url?: string;
-  search_type?: string;
-  clicks?: number;
-  impressions?: number;
-  ctr?: number; // NUMERIC
-  position?: number; // NUMERIC
-}
-
-// GSC Search Analytics by Page - Page-level search performance
-export interface GSCSearchAnalyticsByPageRow {
-  // Airbyte metadata fields
-  _airbyte_raw_id: string;
-  _airbyte_extracted_at: string;
-  _airbyte_meta: any; // JSON
-  _airbyte_generation_id?: number;
-
-  // Search metrics
-  date?: string; // DATE
-  page?: string;
-  site_url?: string;
-  search_type?: string;
-  clicks?: number;
-  impressions?: number;
-  ctr?: number; // NUMERIC
-  position?: number; // NUMERIC
-}
-

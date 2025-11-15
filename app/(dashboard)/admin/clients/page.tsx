@@ -20,6 +20,7 @@ import { SyncStoresDialog } from '@/components/admin/sync-stores-dialog';
 import { Client, Website } from '@/types/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { auth } from '@/lib/firebase/config';
+import { PageHeader } from '@/components/dashboard/page-header';
 
 // Extended Client type with website count
 type ClientWithCount = Client & { websiteCount: number };
@@ -137,18 +138,16 @@ export default function AdminClientsPage() {
   return (
     <ProtectedRoute requireAdmin>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Client Management</h1>
-            <p className="mt-2 text-gray-600">
-              Manage all clients and their websites
-            </p>
-          </div>
-          <Button onClick={() => setClientDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            New Client
-          </Button>
-        </div>
+        <PageHeader
+          title="Client Management"
+          description="Manage all clients and their websites"
+          actions={
+            <Button onClick={() => setClientDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              New Client
+            </Button>
+          }
+        />
 
         <Card>
           {loading ? (
@@ -325,6 +324,43 @@ export default function AdminClientsPage() {
                                             </>
                                           )}
                                         </div>
+                                        {!website.isGrouped && (
+                                          <div className="flex flex-wrap gap-x-2 gap-y-1">
+                                            {website.storeCurrencyCode && (
+                                              <span>
+                                                Store currency:{' '}
+                                                <span className="font-mono uppercase">
+                                                  {website.storeCurrencyCode}
+                                                </span>
+                                              </span>
+                                            )}
+                                            {website.baseCurrencyCode && (
+                                              <span>
+                                                Base currency:{' '}
+                                                <span className="font-mono uppercase">
+                                                  {website.baseCurrencyCode}
+                                                </span>
+                                              </span>
+                                            )}
+                                            {website.displayCurrencyCode &&
+                                              website.displayCurrencyCode !== website.storeCurrencyCode && (
+                                                <span>
+                                                  Display currency:{' '}
+                                                  <span className="font-mono uppercase">
+                                                    {website.displayCurrencyCode}
+                                                  </span>
+                                                </span>
+                                              )}
+                                            {!website.storeCurrencyCode &&
+                                              !website.baseCurrencyCode &&
+                                              !website.displayCurrencyCode && (
+                                                <span className="text-yellow-600 flex items-center gap-1">
+                                                  <AlertCircle className="h-3 w-3" />
+                                                  <span>Currency data not synced yet</span>
+                                                </span>
+                                              )}
+                                          </div>
+                                        )}
                                         {website.url ? (
                                           <div className="flex items-center gap-1 text-blue-600">
                                             <ExternalLink className="h-3 w-3" />

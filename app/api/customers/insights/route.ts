@@ -3,7 +3,7 @@ import { requireAuth } from '@/lib/auth/middleware';
 import { bigquery } from '@/lib/bigquery/client';
 import { ApiResponse } from '@/types';
 import {
-  GA4WebsiteOverviewRow,
+  Ga4WebsiteOverviewRow,
   GA4DailyActiveUsersRow,
   GA4WeeklyActiveUsersRow,
   GA4FourWeeklyActiveUsersRow,

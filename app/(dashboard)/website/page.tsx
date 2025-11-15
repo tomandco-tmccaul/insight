@@ -20,6 +20,7 @@ import { ChartTooltip } from '@/components/ui/chart-tooltip';
 import { Globe, Users, Eye, Clock, PieChart, Smartphone } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ReportAnnotations } from '@/components/dashboard/report-annotations';
+import { PageHeader } from '@/components/dashboard/page-header';
 
 interface WebsiteData {
   metrics: {
@@ -152,12 +153,10 @@ export default function WebsitePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Website Behaviour</h1>
-        <p className="mt-2 text-gray-600">
-          Understand how visitors interact with your website
-        </p>
-      </div>
+      <PageHeader
+        title="Website Behaviour"
+        description="Understand how visitors interact with your website"
+      />
 
       <ReportAnnotations />
 

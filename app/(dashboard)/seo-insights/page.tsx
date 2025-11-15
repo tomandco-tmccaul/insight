@@ -20,6 +20,7 @@ import { ChartTooltip } from '@/components/ui/chart-tooltip';
 import { Search, TrendingUp, Globe, BarChart3, Target } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ReportAnnotations } from '@/components/dashboard/report-annotations';
+import { PageHeader } from '@/components/dashboard/page-header';
 
 interface SEOOverview {
   total_clicks: number;
@@ -193,12 +194,10 @@ export default function SEOInsightsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">SEO Insights</h1>
-        <p className="mt-2 text-gray-600">
-          Google Search Console performance metrics and search query analytics
-        </p>
-      </div>
+      <PageHeader
+        title="SEO Insights"
+        description="Google Search Console performance metrics and search query analytics"
+      />
 
       <ReportAnnotations />
 

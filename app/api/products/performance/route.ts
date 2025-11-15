@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/middleware';
 import { queryBigQuery } from '@/lib/bigquery/client';
-import { ProductPerformanceRow } from '@/types/bigquery';
+import { ProductPerformanceDailyRow } from '@/types/bigquery';
 
 export async function GET(request: NextRequest) {
   return requireAuth(request, async (req, user) => {
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
           SUM(total_revenue) as total_revenue,
           AVG(avg_price) as avg_price,
           SUM(total_qty_refunded) as total_qty_refunded
-        FROM \`${process.env.GOOGLE_CLOUD_PROJECT}.${process.env.BIGQUERY_DATASET_ID}.agg_product_performance_daily\`
+        FROM \`${process.env.GOOGLE_CLOUD_PROJECT}.${process.env.BIGQUERY_DATASET_ID}.mv_agg_product_performance_daily\`
         WHERE date BETWEEN @startDate AND @endDate
           AND website_id = @websiteId
         GROUP BY product_id, product_name, sku
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
       };
 
       // Execute query
-      const rows = await queryBigQuery<ProductPerformanceRow>(query, params);
+      const rows = await queryBigQuery<ProductPerformanceDailyRow>(query, params);
 
       // Calculate return rates
       const productsWithMetrics = rows.map((row) => ({

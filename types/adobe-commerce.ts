@@ -10,6 +10,17 @@ export interface AdobeCommerceStoreView {
   is_active: number; // 1 = active, 0 = inactive
 }
 
+export interface AdobeCommerceStoreConfig {
+  id: number; // Store view ID
+  code: string;
+  name: string;
+  website_id: number;
+  locale?: string;
+  base_currency_code?: string;
+  default_display_currency_code?: string;
+  timezone?: string;
+}
+
 export interface AdobeCommerceWebsite {
   id: number; // Website ID
   code: string; // Website code (e.g., "base", "harlequin")
@@ -46,6 +57,10 @@ export interface SyncStoresResponse {
     websiteName: string;
     storeId: string;
     adobeCommerceData: AdobeCommerceStoreView;
+    currency?: {
+      baseCurrencyCode?: string;
+      displayCurrencyCode?: string;
+    };
   }>;
   error?: string;
 }

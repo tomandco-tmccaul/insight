@@ -1,16 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/middleware';
-import { bigquery } from '@/lib/bigquery/client';
 import { ApiResponse } from '@/types';
-import { resolveWebsiteToBigQueryIds } from '@/lib/utils/website-resolver';
-
-interface HourlySalesRow {
-  date: string;
-  hour: number;
-  website_id: string;
-  total_orders: number;
-  total_revenue: number;
-}
+import { getHourlySales } from '@/lib/data-layer/hourly-sales';
 
 export async function GET(request: NextRequest) {
   return requireAuth(request, async (req, user) => {
@@ -29,98 +20,26 @@ export async function GET(request: NextRequest) {
           { status: 400 }
         );
       }
-      
-      // Resolve website ID to BigQuery website IDs (handles grouped websites)
-      let bigQueryWebsiteIds: string[] | null = null;
-      if (websiteId && websiteId !== 'all_combined' && clientId) {
-        bigQueryWebsiteIds = await resolveWebsiteToBigQueryIds(clientId, websiteId);
-        if (!bigQueryWebsiteIds) {
-          bigQueryWebsiteIds = [websiteId];
-        }
-      } else if (websiteId && websiteId !== 'all_combined') {
-        bigQueryWebsiteIds = [websiteId];
+
+      if (!clientId) {
+        return NextResponse.json(
+          { success: false, error: 'client_id is required' },
+          { status: 400 }
+        );
       }
-      
-      let query = `
-        SELECT 
-          date,
-          hour,
-          website_id,
-          total_orders,
-          total_revenue
-        FROM \`${bigquery.projectId}.${datasetId}.agg_sales_overview_hourly\`
-        WHERE date BETWEEN @start_date AND @end_date
-      `;
-      
-      // Add website filter - use IN clause for grouped websites, = for single websites
-      if (bigQueryWebsiteIds && bigQueryWebsiteIds.length > 0) {
-        if (bigQueryWebsiteIds.length === 1) {
-          query += ` AND website_id = @website_id`;
-        } else {
-          const placeholders = bigQueryWebsiteIds.map((_, i) => `@website_id${i}`).join(', ');
-          query += ` AND website_id IN (${placeholders})`;
-        }
-      }
-      
-      query += ` ORDER BY date DESC, hour DESC`;
-      
-      const queryOptions: any = {
-        query,
-        params: {
-          start_date: startDate,
-          end_date: endDate,
-        },
-      };
-      
-      // Add website ID(s) to params
-      if (bigQueryWebsiteIds && bigQueryWebsiteIds.length > 0) {
-        if (bigQueryWebsiteIds.length === 1) {
-          queryOptions.params.website_id = bigQueryWebsiteIds[0];
-        } else {
-          bigQueryWebsiteIds.forEach((id, i) => {
-            queryOptions.params[`website_id${i}`] = id;
-          });
-        }
-      }
-      
-      const [rows] = await bigquery.query(queryOptions);
-      
-      // Aggregate by hour across all days
-      const hourlyAggregates = Array.from({ length: 24 }, (_, hour) => {
-        const hourData = rows.filter((row: HourlySalesRow) => row.hour === hour);
-        const totalOrders = hourData.reduce((sum: number, row: HourlySalesRow) => sum + (row.total_orders || 0), 0);
-        const totalRevenue = hourData.reduce((sum: number, row: HourlySalesRow) => sum + (row.total_revenue || 0), 0);
-        
-        return {
-          hour,
-          total_orders: totalOrders,
-          total_revenue: totalRevenue,
-          avg_orders_per_day: hourData.length > 0 ? totalOrders / hourData.length : 0,
-          avg_revenue_per_day: hourData.length > 0 ? totalRevenue / hourData.length : 0,
-        };
+
+      // Fetch data using data layer
+      const data = await getHourlySales({
+        datasetId,
+        clientId,
+        websiteId: websiteId || null,
+        startDate,
+        endDate,
       });
-      
-      // Find peak hours
-      const peakOrdersHour = hourlyAggregates.reduce((max, curr) => 
-        curr.total_orders > max.total_orders ? curr : max
-      );
-      
-      const peakRevenueHour = hourlyAggregates.reduce((max, curr) => 
-        curr.total_revenue > max.total_revenue ? curr : max
-      );
-      
-      return NextResponse.json<ApiResponse<{ 
-        hourly: typeof hourlyAggregates; 
-        peaks: { orders: typeof peakOrdersHour; revenue: typeof peakRevenueHour }
-      }>>({
+
+      return NextResponse.json<ApiResponse<typeof data>>({
         success: true,
-        data: {
-          hourly: hourlyAggregates,
-          peaks: {
-            orders: peakOrdersHour,
-            revenue: peakRevenueHour,
-          },
-        },
+        data,
       });
     } catch (error: any) {
       console.error('Error fetching hourly sales:', error);

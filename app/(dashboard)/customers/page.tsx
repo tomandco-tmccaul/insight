@@ -20,6 +20,7 @@ import { ChartTooltip } from '@/components/ui/chart-tooltip';
 import { Users, UserPlus, UserCheck, Activity, PieChart, BarChart3, Smartphone } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ReportAnnotations } from '@/components/dashboard/report-annotations';
+import { PageHeader } from '@/components/dashboard/page-header';
 
 interface CustomerInsightsData {
   activeUsers: {
@@ -163,12 +164,10 @@ export default function CustomersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Customer Insights</h1>
-        <p className="mt-2 text-gray-600">
-          Analyze customer behavior, demographics, and engagement
-        </p>
-      </div>
+      <PageHeader
+        title="Customer Insights"
+        description="Analyze customer behavior, demographics, and engagement"
+      />
 
       <ReportAnnotations />
 

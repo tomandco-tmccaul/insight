@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { LineChart, DonutChart } from '@tremor/react';
+import { PageHeader } from '@/components/dashboard/page-header';
 
 const container = {
   hidden: { opacity: 1 },
@@ -92,6 +93,7 @@ export default function OverviewPage() {
   const [websiteBehavior, setWebsiteBehavior] = useState<WebsiteBehavior | null>(null);
   const [datasetId, setDatasetId] = useState<string | null>(null);
   const [storeId, setStoreId] = useState<string | null>(null);
+  const [isGroupedWebsite, setIsGroupedWebsite] = useState<boolean>(false);
 
   // Fetch client data to get dataset ID
   useEffect(() => {
@@ -129,19 +131,27 @@ export default function OverviewPage() {
     async function fetchWebsiteData() {
       if (!selectedClientId || !selectedWebsiteId || selectedWebsiteId === 'all_combined') {
         setStoreId(null);
+        setIsGroupedWebsite(false);
         return;
       }
 
       try {
         const idToken = await getIdToken();
-        const response = await apiRequest<{ id: string; websiteName: string; storeId: string }>(
+        const response = await apiRequest<{ id: string; websiteName: string; storeId: string; isGrouped?: boolean }>(
           `/api/admin/clients/${selectedClientId}/websites/${selectedWebsiteId}`,
           {},
           idToken || undefined
         );
 
         if (response.success && response.data) {
-          setStoreId(response.data.storeId);
+          // Grouped websites don't need a storeId - they aggregate data from multiple websites
+          if (response.data.isGrouped) {
+            setStoreId(null); // Grouped websites don't use storeId
+            setIsGroupedWebsite(true);
+          } else {
+            setStoreId(response.data.storeId);
+            setIsGroupedWebsite(false);
+          }
         }
       } catch (err: any) {
         console.error('Error fetching website data:', err);
@@ -164,9 +174,8 @@ export default function OverviewPage() {
 
       try {
         const idToken = await getIdToken();
-        const websiteFilter = selectedWebsiteId === 'all_combined' || !storeId
-          ? 'all_combined'
-          : storeId;
+        // Always use selectedWebsiteId - the data layer will resolve it to BigQuery website IDs
+        const websiteFilter = selectedWebsiteId === 'all_combined' ? 'all_combined' : selectedWebsiteId || 'all_combined';
 
         const queryParams = buildQueryString({
           dataset_id: datasetId,
@@ -256,18 +265,10 @@ export default function OverviewPage() {
     <ProtectedRoute>
       <div className="space-y-6">
         {/* Page Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-        >
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent">
-            Overview
-          </h1>
-          <p className="mt-2 text-gray-600 text-lg">
-            High-level performance across all stores and data sources
-          </p>
-        </motion.div>
+        <PageHeader
+          title="Overview"
+          description="High-level performance across all stores and data sources"
+        />
 
         {/* Error Message */}
         {error && (

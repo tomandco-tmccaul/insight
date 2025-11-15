@@ -1,0 +1,4 @@
+---
+alwaysApply: true
+---
+this is a firebase app using firestore, firebase auth, and genkit.  alawys look up the documtaiton to ensure you developer features in the correct way for firebase.

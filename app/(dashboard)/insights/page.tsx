@@ -14,6 +14,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { InsightsLoading } from '@/components/insights/insights-loading';
 import { ReportAnnotations } from '@/components/dashboard/report-annotations';
+import { PageHeader } from '@/components/dashboard/page-header';
 
 interface InsightsData {
   insights: string;
@@ -421,9 +422,11 @@ export default function InsightsPage() {
         className="space-y-6"
       >
       {/* Header */}
-      <motion.div variants={item} className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
+      <motion.div variants={item}>
+        <PageHeader
+          title="AI Insights"
+          description={`Analysis for ${formatDate(insightsData.period.startDate)} - ${formatDate(insightsData.period.endDate)}`}
+          badge={
             <motion.div
               animate={{
                 rotate: [0, 10, -10, 0],
@@ -437,21 +440,19 @@ export default function InsightsPage() {
             >
               <Brain className="h-8 w-8 text-indigo-600" />
             </motion.div>
-            <h1 className="text-3xl font-bold text-gray-900">AI Insights</h1>
-          </div>
-          <p className="text-gray-600">
-            Analysis for {formatDate(insightsData.period.startDate)} - {formatDate(insightsData.period.endDate)}
-          </p>
-        </div>
-        <Button
-          onClick={fetchInsights}
-          disabled={loading || refreshing}
-          variant="outline"
-          className="gap-2"
-        >
-          <RefreshCw className={`h-4 w-4 ${(loading || refreshing) ? 'animate-spin' : ''}`} />
-          Refresh Insights
-        </Button>
+          }
+          actions={
+            <Button
+              onClick={fetchInsights}
+              disabled={loading || refreshing}
+              variant="outline"
+              className="gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${(loading || refreshing) ? 'animate-spin' : ''}`} />
+              Refresh Insights
+            </Button>
+          }
+        />
       </motion.div>
 
       <ReportAnnotations />

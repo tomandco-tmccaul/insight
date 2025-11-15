@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/middleware';
 import { queryBigQuery } from '@/lib/bigquery/client';
-import { SEOPerformanceRow } from '@/types/bigquery';
+import { SeoPerformanceDailyRow } from '@/types/bigquery';
 import { adminDb } from '@/lib/firebase/admin';
 import { resolveWebsiteToBigQueryIds } from '@/lib/utils/website-resolver';
 
@@ -51,8 +51,8 @@ export async function GET(request: NextRequest) {
 
       const projectId = process.env.GOOGLE_CLOUD_PROJECT || 'insight-dashboard-1761555293';
       
-      // Use aggregated SEO performance table for better performance
-      const aggregatedTable = `${projectId}.${datasetId}.agg_seo_performance_daily`;
+      // Use aggregated SEO performance materialized view for better performance
+      const aggregatedTable = `${projectId}.${datasetId}.mv_agg_seo_performance_daily`;
       const pageTable = `${projectId}.${datasetId}.gsc_search_analytics_by_page`; // Still use raw table for page-level data
 
       // Handle websiteId filter

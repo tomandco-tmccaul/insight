@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
           
           try {
             // Get Firebase Auth user metadata
-            const firebaseUser = await auth.getUser(uid);
+            const firebaseUser = await auth!.getUser(uid);
             
             // Sync lastSignInTime from Firebase Auth if available
             if (firebaseUser.metadata.lastSignInTime) {
@@ -57,8 +57,8 @@ export async function GET(request: NextRequest) {
           }
           
           return {
-            uid,
             ...userData,
+            id: uid,
           } as AppUser;
         })
       );

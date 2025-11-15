@@ -35,12 +35,18 @@ export function ClientDialog({
   const [isEditingLink, setIsEditingLink] = useState<string | null>(null);
   const [editingLinkData, setEditingLinkData] = useState<{ name: string; url: string } | null>(null);
   const [newLink, setNewLink] = useState({ name: '', url: '', sortOrder: 0 });
+  const defaultCurrencySettings: NonNullable<Client['currencySettings']> = {
+    baseCurrency: 'GBP',
+    monthlyRates: {},
+  };
+
   const [formData, setFormData] = useState({
     id: '',
     clientName: '',
     bigQueryDatasetId: '',
     adobeCommerceEndpoint: '',
     adobeCommerceAccessToken: '',
+    currencySettings: defaultCurrencySettings,
   });
 
   const isEdit = !!client;
@@ -87,6 +93,7 @@ export function ClientDialog({
         bigQueryDatasetId: client.bigQueryDatasetId || '',
         adobeCommerceEndpoint: client.adobeCommerceEndpoint || '',
         adobeCommerceAccessToken: client.adobeCommerceAccessToken || '',
+        currencySettings: client.currencySettings || defaultCurrencySettings,
       });
     } else if (open && !client) {
       // Reset form for new client
@@ -96,6 +103,7 @@ export function ClientDialog({
         bigQueryDatasetId: '',
         adobeCommerceEndpoint: '',
         adobeCommerceAccessToken: '',
+        currencySettings: defaultCurrencySettings,
       });
       setCustomLinks([]);
     }
@@ -134,6 +142,7 @@ export function ClientDialog({
             bigQueryDatasetId: formData.bigQueryDatasetId,
             adobeCommerceEndpoint: formData.adobeCommerceEndpoint,
             adobeCommerceAccessToken: formData.adobeCommerceAccessToken,
+            currencySettings: formData.currencySettings,
           }
         : formData;
 
@@ -162,6 +171,7 @@ export function ClientDialog({
         bigQueryDatasetId: '',
         adobeCommerceEndpoint: '',
         adobeCommerceAccessToken: '',
+        currencySettings: defaultCurrencySettings,
       });
     } catch (err: any) {
       setError(err.message);
@@ -389,6 +399,34 @@ export function ClientDialog({
               </div>
             </div>
 
+            <div className="space-y-3 border-t pt-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-base font-semibold">
+                  Currency Settings
+                </Label>
+              </div>
+              <p className="text-xs text-gray-500">
+                Manage monthly conversion rates from GBP to other currencies. These rates will be used to convert all reports to GBP.
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Base Currency</Label>
+                  <Input value={formData.currencySettings.baseCurrency} disabled />
+                  <p className="text-xs text-gray-500">
+                    Base currency is fixed to GBP for reporting.
+                  </p>
+                </div>
+              </div>
+
+              <CurrencyRatesEditor
+                currencySettings={formData.currencySettings}
+                onChange={(currencySettings) =>
+                  setFormData((prev) => ({ ...prev, currencySettings }))
+                }
+              />
+            </div>
+
             {/* Custom Links Section - Only show when editing */}
             {isEdit && (
               <div className="space-y-3 border-t pt-4">
@@ -536,6 +574,219 @@ export function ClientDialog({
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+interface CurrencyRatesEditorProps {
+  currencySettings: NonNullable<Client['currencySettings']>;
+  onChange: (settings: NonNullable<Client['currencySettings']>) => void;
+}
+
+function CurrencyRatesEditor({ currencySettings, onChange }: CurrencyRatesEditorProps) {
+  const [newCurrency, setNewCurrency] = useState('');
+  const [newMonth, setNewMonth] = useState('');
+  const [newRate, setNewRate] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const handleAddRate = () => {
+    const currencyCode = newCurrency.trim().toUpperCase();
+    if (!currencyCode || currencyCode === currencySettings.baseCurrency) {
+      setError('Enter a currency code different from the base currency.');
+      return;
+    }
+
+    if (!/^[A-Z]{3}$/.test(currencyCode)) {
+      setError('Currency code must be a 3-letter ISO code (e.g. USD).');
+      return;
+    }
+
+    if (!newMonth) {
+      setError('Select a month.');
+      return;
+    }
+
+    const rateValue = parseFloat(newRate);
+    if (!Number.isFinite(rateValue) || rateValue <= 0) {
+      setError('Enter a valid conversion rate greater than 0.');
+      return;
+    }
+
+    const updatedSettings: NonNullable<Client['currencySettings']> = {
+      ...currencySettings,
+      monthlyRates: {
+        ...currencySettings.monthlyRates,
+        [currencyCode]: {
+          ...(currencySettings.monthlyRates[currencyCode] || {}),
+          [newMonth]: rateValue,
+        },
+      },
+    };
+
+    onChange(updatedSettings);
+    setNewCurrency('');
+    setNewMonth('');
+    setNewRate('');
+    setError(null);
+  };
+
+  const handleUpdateRate = (currencyCode: string, month: string, value: string) => {
+    const rateValue = parseFloat(value);
+    if (!Number.isFinite(rateValue) || rateValue <= 0) {
+      return;
+    }
+
+    onChange({
+      ...currencySettings,
+      monthlyRates: {
+        ...currencySettings.monthlyRates,
+        [currencyCode]: {
+          ...(currencySettings.monthlyRates[currencyCode] || {}),
+          [month]: rateValue,
+        },
+      },
+    });
+  };
+
+  const handleRemoveRate = (currencyCode: string, month: string) => {
+    const updatedMonthlyRates = {
+      ...currencySettings.monthlyRates,
+    };
+
+    if (!updatedMonthlyRates[currencyCode]) {
+      return;
+    }
+
+    const { [month]: _removed, ...restMonthRates } = updatedMonthlyRates[currencyCode];
+
+    if (Object.keys(restMonthRates).length === 0) {
+      const { [currencyCode]: _removedCurrency, ...restCurrencies } = updatedMonthlyRates;
+      onChange({
+        ...currencySettings,
+        monthlyRates: restCurrencies,
+      });
+    } else {
+      updatedMonthlyRates[currencyCode] = restMonthRates;
+      onChange({
+        ...currencySettings,
+        monthlyRates: updatedMonthlyRates,
+      });
+    }
+  };
+
+  const currencyEntries = Object.entries(currencySettings.monthlyRates).sort(([a], [b]) =>
+    a.localeCompare(b)
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2 rounded-md border p-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div>
+            <Label htmlFor="newCurrency">Currency Code</Label>
+            <Input
+              id="newCurrency"
+              placeholder="USD"
+              value={newCurrency}
+              onChange={(e) => setNewCurrency(e.target.value)}
+            />
+          </div>
+          <div>
+            <Label htmlFor="newMonth">Month</Label>
+            <Input
+              id="newMonth"
+              type="month"
+              value={newMonth}
+              onChange={(e) => setNewMonth(e.target.value)}
+            />
+          </div>
+          <div>
+            <Label htmlFor="newRate">GBP → Currency Rate</Label>
+            <Input
+              id="newRate"
+              type="number"
+              step="0.0001"
+              min="0"
+              placeholder="1.2500"
+              value={newRate}
+              onChange={(e) => setNewRate(e.target.value)}
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Example: If 1 GBP = 1.25 USD, enter 1.25.
+            </p>
+          </div>
+          <div className="flex items-end">
+            <Button type="button" className="w-full" onClick={handleAddRate}>
+              Add Rate
+            </Button>
+          </div>
+        </div>
+        {error && (
+          <p className="text-sm text-red-600">
+            {error}
+          </p>
+        )}
+      </div>
+
+      {currencyEntries.length === 0 ? (
+        <p className="text-sm text-gray-500">
+          No additional currency rates configured. Reports will use GBP values only.
+        </p>
+      ) : (
+        <div className="space-y-3">
+          {currencyEntries.map(([currencyCode, monthRates]) => {
+            const monthEntries = Object.entries(monthRates).sort(([a], [b]) =>
+              a.localeCompare(b)
+            );
+
+            return (
+              <div key={currencyCode} className="rounded-md border p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold">{currencyCode}</p>
+                    <p className="text-xs text-gray-500">
+                      Conversion from {currencySettings.baseCurrency} to {currencyCode}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  {monthEntries.map(([month, rate]) => (
+                    <div
+                      key={`${currencyCode}-${month}`}
+                      className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 border rounded-md p-3"
+                    >
+                      <div className="text-sm font-medium min-w-[120px]">
+                        {month}
+                      </div>
+                      <div className="flex-1">
+                        <Label className="sr-only">Conversion rate</Label>
+                        <Input
+                          type="number"
+                          step="0.0001"
+                          min="0"
+                          value={rate}
+                          onChange={(e) =>
+                            handleUpdateRate(currencyCode, month, e.target.value)
+                          }
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleRemoveRate(currencyCode, month)}
+                      >
+                        <Trash2 className="h-4 w-4 text-red-600" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 

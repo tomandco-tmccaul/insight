@@ -1,0 +1,6 @@
+---
+alwaysApply: true
+---
+all reporting data is indexed into bigquery.  you should always ensure you take data from bigquery.  you can create aggregated tables to help improve speed but you must add the ability in the admin to create these aggregated tables so they don't need to be manually set up.
+
+bigquery is in gcp account insight-dashboard-1761555293

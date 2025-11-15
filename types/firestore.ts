@@ -23,6 +23,18 @@ export interface Client {
   adobeCommerceEndpoint?: string; // "https://example.com" (base URL without /rest/V1)
   adobeCommerceAccessToken?: string; // Bearer token for API authentication
 
+  // Currency configuration
+  currencySettings?: {
+    baseCurrency: string; // e.g. "GBP"
+    monthlyRates: Record<
+      string, // Currency code, e.g. "USD"
+      Record<
+        string, // YYYY-MM (month key)
+        number // Conversion rate: 1 GBP = rate in target currency
+      >
+    >;
+  };
+
   createdAt?: string;
   updatedAt?: string;
 }
@@ -35,6 +47,9 @@ export interface Website {
 
   // Adobe Commerce Configuration
   storeId: string; // "1" or "9" or "10" (The store_id in Adobe Commerce - maps to website)
+  storeCurrencyCode?: string; // Currency code configured for the store (e.g. "USD")
+  baseCurrencyCode?: string; // Base currency code (e.g. "GBP")
+  displayCurrencyCode?: string; // Default display currency (e.g. "USD")
 
   // Website URL (for linking data sources)
   url?: string; // "https://www.harlequin.com" (Base URL for the website/store - used to link data across sources)

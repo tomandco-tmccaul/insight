@@ -4,6 +4,7 @@ import {
   AdobeCommerceWebsite,
   AdobeCommerceStoreGroup,
   AdobeCommerceApiConfig,
+  AdobeCommerceStoreConfig,
 } from '@/types/adobe-commerce';
 
 export class AdobeCommerceClient {
@@ -62,6 +63,14 @@ export class AdobeCommerceClient {
    */
   async getStoreGroups(): Promise<AdobeCommerceStoreGroup[]> {
     return this.get<AdobeCommerceStoreGroup[]>('/store/storeGroups');
+  }
+
+  /**
+   * Get store configuration (includes currency codes)
+   * Endpoint: GET /rest/V1/store/storeConfigs
+   */
+  async getStoreConfigs(): Promise<AdobeCommerceStoreConfig[]> {
+    return this.get<AdobeCommerceStoreConfig[]>('/store/storeConfigs');
   }
 
   /**

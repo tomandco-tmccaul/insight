@@ -70,8 +70,14 @@ export async function POST(
         );
       }
 
-      // Fetch store views from Adobe Commerce
-      const storeViews = await adobeClient.getStoreViews();
+      // Fetch store views and configuration from Adobe Commerce
+      const [storeViews, storeConfigs] = await Promise.all([
+        adobeClient.getStoreViews(),
+        adobeClient.getStoreConfigs().catch((error) => {
+          console.warn('Failed to fetch store configs from Adobe Commerce:', error);
+          return [];
+        }),
+      ]);
 
       // Filter out inactive stores
       const activeStores = storeViews.filter((store) => store.is_active === 1);
@@ -86,6 +92,21 @@ export async function POST(
         );
       }
 
+      const currencyByStoreId = new Map<
+        number,
+        {
+          baseCurrencyCode?: string;
+          displayCurrencyCode?: string;
+        }
+      >();
+
+      storeConfigs.forEach((config) => {
+        currencyByStoreId.set(config.id, {
+          baseCurrencyCode: config.base_currency_code,
+          displayCurrencyCode: config.default_display_currency_code,
+        });
+      });
+
       // Create website documents in Firestore
       const websitesRef = db.collection('clients').doc(clientId).collection('websites');
       const createdWebsites: SyncStoresResponse['websites'] = [];
@@ -98,12 +119,20 @@ export async function POST(
         const existingDoc = await websitesRef.doc(websiteId).get();
         const existingData = existingDoc.exists ? (existingDoc.data() as Website) : null;
 
+        const currencyInfo = currencyByStoreId.get(store.id) || {};
+        const storeCurrencyCode =
+          currencyInfo.displayCurrencyCode || existingData?.storeCurrencyCode;
+        const baseCurrencyCode =
+          currencyInfo.baseCurrencyCode || existingData?.baseCurrencyCode;
+        const displayCurrencyCode =
+          currencyInfo.displayCurrencyCode || existingData?.displayCurrencyCode;
+        const url = existingData?.url;
+
         // Prepare website data - preserve existing fields when updating
         const websiteData: Omit<Website, 'id'> = {
           websiteName: store.name, // Always update name from Adobe Commerce
           bigQueryWebsiteId: existingData?.bigQueryWebsiteId || websiteId, // Preserve existing or use websiteId
           storeId: store.id.toString(), // Always update storeId from Adobe Commerce (this is critical!)
-          url: existingData?.url || undefined, // Preserve existing URL if set
           bigQueryTablePrefixes: existingData?.bigQueryTablePrefixes || {
             adobeCommerce: 'adobe_commerce_',
             googleAds: 'google_ads_',
@@ -115,6 +144,22 @@ export async function POST(
           createdAt: existingData?.createdAt || new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
+
+        if (storeCurrencyCode) {
+          websiteData.storeCurrencyCode = storeCurrencyCode;
+        }
+
+        if (baseCurrencyCode) {
+          websiteData.baseCurrencyCode = baseCurrencyCode;
+        }
+
+        if (displayCurrencyCode) {
+          websiteData.displayCurrencyCode = displayCurrencyCode;
+        }
+
+        if (url) {
+          websiteData.url = url;
+        }
 
         if (existingDoc.exists) {
           // Update existing website - especially important for missing storeId
@@ -131,6 +176,7 @@ export async function POST(
           websiteName: store.name,
           storeId: store.id.toString(),
           adobeCommerceData: store,
+          currency: currencyInfo,
         });
       }
 

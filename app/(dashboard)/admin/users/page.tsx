@@ -18,6 +18,7 @@ import { AppUser, Client } from '@/types/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { auth } from '@/lib/firebase/config';
+import { PageHeader } from '@/components/dashboard/page-header';
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AppUser[]>([]);
@@ -94,18 +95,16 @@ export default function AdminUsersPage() {
   return (
     <ProtectedRoute requireAdmin>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
-            <p className="mt-2 text-gray-600">
-              Manage user accounts and permissions
-            </p>
-          </div>
-          <Button onClick={() => setUserDialogOpen(true)}>
-            <UserPlus className="mr-2 h-4 w-4" />
-            Invite User
-          </Button>
-        </div>
+        <PageHeader
+          title="User Management"
+          description="Manage user accounts and permissions"
+          actions={
+            <Button onClick={() => setUserDialogOpen(true)}>
+              <UserPlus className="mr-2 h-4 w-4" />
+              Invite User
+            </Button>
+          }
+        />
 
         <Card>
           {loading ? (

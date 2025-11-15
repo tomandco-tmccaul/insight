@@ -14,6 +14,7 @@ import { useIdToken } from '@/lib/auth/hooks';
 import { apiRequest, buildQueryString } from '@/lib/utils/api';
 import { formatDate } from '@/lib/utils/date';
 import { Annotation, AnnotationType, CreateAnnotation } from '@/types/firestore';
+import { PageHeader } from '@/components/dashboard/page-header';
 
 export default function AnnotationsPage() {
   const { selectedClientId } = useDashboard();
@@ -179,21 +180,22 @@ export default function AnnotationsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Annotations</h1>
-          <p className="mt-2 text-gray-600">
-            Manage events, insights, and notes for your reports
-          </p>
-        </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => setEditingAnnotation(null)}>
-              <Plus className="mr-2 h-4 w-4" />
-              New Annotation
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+      <PageHeader
+        title="Annotations"
+        description="Manage events, insights, and notes for your reports"
+        actions={
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={() => setEditingAnnotation(null)}>
+                <Plus className="mr-2 h-4 w-4" />
+                New Annotation
+              </Button>
+            </DialogTrigger>
+          </Dialog>
+        }
+      />
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>
                 {editingAnnotation ? 'Edit Annotation' : 'Create New Annotation'}
@@ -206,7 +208,6 @@ export default function AnnotationsPage() {
             />
           </DialogContent>
         </Dialog>
-      </div>
 
       {annotations.length === 0 ? (
         <Card className="p-12">

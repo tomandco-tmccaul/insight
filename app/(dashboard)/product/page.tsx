@@ -18,6 +18,7 @@ import { apiRequest, buildQueryString } from '@/lib/utils/api';
 import { formatCurrency, formatNumber } from '@/lib/utils/date';
 import { TrendingUp, TrendingDown, Package } from 'lucide-react';
 import { ReportAnnotations } from '@/components/dashboard/report-annotations';
+import { PageHeader } from '@/components/dashboard/page-header';
 
 interface ProductData {
   product_id: string;
@@ -92,10 +93,8 @@ export default function ProductPage() {
       try {
         const idToken = await getIdToken();
         
-        // Use storeId if a specific website is selected, otherwise pass 'all_combined'
-        const websiteFilter = selectedWebsiteId === 'all_combined' || !storeId
-          ? 'all_combined'
-          : storeId;
+        // Always use selectedWebsiteId - the data layer will resolve it to BigQuery website IDs
+        const websiteFilter = selectedWebsiteId === 'all_combined' ? 'all_combined' : selectedWebsiteId || 'all_combined';
 
         const queryString = buildQueryString({
           websiteId: websiteFilter,
@@ -123,7 +122,7 @@ export default function ProductPage() {
     }
 
     fetchData();
-  }, [selectedWebsiteId, storeId, dateRange, getIdToken]);
+  }, [selectedWebsiteId, dateRange, getIdToken]);
 
   if (!selectedWebsiteId) {
     return (
@@ -166,12 +165,10 @@ export default function ProductPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Product Performance</h1>
-        <p className="mt-2 text-gray-600">
-          Analyze product sales, inventory, and returns
-        </p>
-      </div>
+      <PageHeader
+        title="Product Performance"
+        description="Analyze product sales, inventory, and returns"
+      />
 
       <ReportAnnotations />
 

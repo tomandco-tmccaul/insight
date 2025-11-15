@@ -39,6 +39,7 @@ export async function resolveWebsiteToBigQueryIds(
       websiteId,
       isGrouped: websiteData.isGrouped,
       groupedWebsiteIds: websiteData.groupedWebsiteIds,
+      storeId: websiteData.storeId,
       bigQueryWebsiteId: websiteData.bigQueryWebsiteId,
     });
 
@@ -60,11 +61,12 @@ export async function resolveWebsiteToBigQueryIds(
 
         if (groupedWebsiteDoc.exists) {
           const groupedWebsiteData = groupedWebsiteDoc.data() as Website;
-          if (groupedWebsiteData.bigQueryWebsiteId) {
-            bigQueryIds.push(groupedWebsiteData.bigQueryWebsiteId);
-            console.log('[Website Resolver] Added BigQuery ID:', groupedWebsiteData.bigQueryWebsiteId, 'from website:', groupedWebsiteId);
+          // Materialized views use CAST(store_id AS STRING) as website_id, so we need to use storeId
+          if (groupedWebsiteData.storeId) {
+            bigQueryIds.push(groupedWebsiteData.storeId);
+            console.log('[Website Resolver] Added store ID:', groupedWebsiteData.storeId, 'from website:', groupedWebsiteId);
           } else {
-            console.warn('[Website Resolver] Website', groupedWebsiteId, 'missing bigQueryWebsiteId');
+            console.warn('[Website Resolver] Website', groupedWebsiteId, 'missing storeId');
           }
         } else {
           console.warn('[Website Resolver] Grouped website', groupedWebsiteId, 'not found');
@@ -75,9 +77,10 @@ export async function resolveWebsiteToBigQueryIds(
       return bigQueryIds.length > 0 ? bigQueryIds : null;
     }
 
-    // For non-grouped websites, return the single BigQuery website ID
-    return websiteData.bigQueryWebsiteId
-      ? [websiteData.bigQueryWebsiteId]
+    // For non-grouped websites, return the store ID (which is used as website_id in materialized views)
+    // Materialized views use CAST(store_id AS STRING) as website_id, so we need to use storeId
+    return websiteData.storeId
+      ? [websiteData.storeId]
       : null;
   } catch (error) {
     console.error('Error resolving website to BigQuery IDs:', error);
