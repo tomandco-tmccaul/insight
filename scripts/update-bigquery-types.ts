@@ -195,18 +195,25 @@ async function processDataset(datasetId: string) {
     const dataset = bigquery.dataset(datasetId);
     const [tables] = await dataset.getTables();
 
-    // Filter out adobe_commerce_sql_ tables
-    const filteredTables = tables.filter(
-      (table) => !table.id.includes('adobe_commerce_sql_')
-    );
+    // Filter out adobe_commerce_sql_ tables (handle tables with missing id safely)
+    const filteredTables = tables.filter((table) => {
+      const tableId = table.id ?? '';
+      return !tableId.includes('adobe_commerce_sql_');
+    });
 
     console.log(`Found ${filteredTables.length} tables (excluding adobe_commerce_sql_ tables)`);
 
     const schemas: TableSchema[] = [];
 
     for (const table of filteredTables) {
-      console.log(`  Fetching schema for: ${table.id}...`);
-      const schema = await getTableSchema(table.id);
+      const tableId = table.id ?? '';
+      if (!tableId) {
+        console.warn('Skipping table with missing id');
+        continue;
+      }
+
+      console.log(`  Fetching schema for: ${tableId}...`);
+      const schema = await getTableSchema(tableId);
       if (schema) {
         schemas.push(schema);
       }

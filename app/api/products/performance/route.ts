@@ -49,10 +49,15 @@ export async function GET(request: NextRequest) {
       const rows = await queryBigQuery<ProductPerformanceDailyRow>(query, params);
 
       // Calculate return rates
-      const productsWithMetrics = rows.map((row) => ({
-        ...row,
-        return_rate: row.total_qty_ordered > 0 ? ((row.total_qty_refunded || 0) / row.total_qty_ordered) * 100 : 0,
-      }));
+      const productsWithMetrics = rows.map((row) => {
+        const totalOrdered = row.total_qty_ordered ?? 0;
+        const totalRefunded = row.total_qty_refunded ?? 0;
+
+        return {
+          ...row,
+          return_rate: totalOrdered > 0 ? (totalRefunded / totalOrdered) * 100 : 0,
+        };
+      });
 
       return NextResponse.json({
         success: true,

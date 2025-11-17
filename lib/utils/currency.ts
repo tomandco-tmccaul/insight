@@ -189,7 +189,8 @@ export function convertMonetaryFields<T extends Record<string, any>>(
       updatedRow = { ...row };
     }
 
-    updatedRow[config.field] = convertedValue;
+    // TypeScript 5.6+: generic indexed write requires a cast
+    (updatedRow as any)[config.field] = convertedValue;
   });
 
   return updatedRow;
@@ -254,8 +255,8 @@ export function aggregateGroupedWebsiteData<T extends Record<string, any>>(
 
     // Sum fields
     for (const field of sumFields) {
-      aggregatedRow[field] = groupRows.reduce((sum, row) => {
-        const value = typeof row[field] === 'number' ? row[field] : 0;
+      (aggregatedRow as any)[field] = groupRows.reduce((sum, row) => {
+        const value = typeof (row as any)[field] === 'number' ? (row as any)[field] : 0;
         return sum + (value || 0);
       }, 0);
     }
@@ -263,9 +264,9 @@ export function aggregateGroupedWebsiteData<T extends Record<string, any>>(
     // Max fields (for fields that should take the maximum value rather than sum)
     // Note: unique_customers should typically be summed, not maxed, but this is here for flexibility
     for (const field of maxFields) {
-      aggregatedRow[field] = Math.max(
+      (aggregatedRow as any)[field] = Math.max(
         ...groupRows.map((row) => {
-          const value = typeof row[field] === 'number' ? row[field] : 0;
+          const value = typeof (row as any)[field] === 'number' ? (row as any)[field] : 0;
           return value || 0;
         })
       );

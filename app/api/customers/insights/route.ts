@@ -4,11 +4,11 @@ import { bigquery } from '@/lib/bigquery/client';
 import { ApiResponse } from '@/types';
 import {
   Ga4WebsiteOverviewRow,
-  GA4DailyActiveUsersRow,
-  GA4WeeklyActiveUsersRow,
-  GA4FourWeeklyActiveUsersRow,
-  GA4LocationsRow,
-  GA4DevicesRow,
+  Ga4DailyActiveUsersRow,
+  Ga4WeeklyActiveUsersRow,
+  Ga4FourWeeklyActiveUsersRow,
+  Ga4LocationsRow,
+  Ga4DevicesRow,
 } from '@/types/bigquery';
 
 interface CustomerInsightsData {
@@ -176,9 +176,9 @@ export async function GET(request: NextRequest) {
         ]);
 
       // Extract results
-      const dau = (dauResults[0][0] as GA4DailyActiveUsersRow)?.activeUsers || 0;
-      const wau = (wauResults[0][0] as GA4WeeklyActiveUsersRow)?.activeUsers || 0;
-      const mau = (mauResults[0][0] as GA4FourWeeklyActiveUsersRow)?.activeUsers || 0;
+      const dau = (dauResults[0][0] as Ga4DailyActiveUsersRow)?.active1DayUsers || 0;
+      const wau = (wauResults[0][0] as Ga4WeeklyActiveUsersRow)?.active7DayUsers || 0;
+      const mau = (mauResults[0][0] as Ga4FourWeeklyActiveUsersRow)?.active28DayUsers || 0;
 
       const overview = overviewResults[0][0] as any;
       const totalUsers = overview?.totalUsers || 0;

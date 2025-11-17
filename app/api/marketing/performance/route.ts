@@ -84,8 +84,18 @@ export async function GET(request: NextRequest) {
           },
           currencyContext,
           [
-            { field: 'spend', websiteField: 'website_id', dateField: 'date', fallbackMonth },
-            { field: 'revenue', websiteField: 'website_id', dateField: 'date', fallbackMonth },
+            {
+              field: 'spend',
+              websiteField: 'website_id',
+              dateField: 'date',
+              fallbackMonth: fallbackMonth || undefined,
+            },
+            {
+              field: 'revenue',
+              websiteField: 'website_id',
+              dateField: 'date',
+              fallbackMonth: fallbackMonth || undefined,
+            },
           ]
         )
       );
