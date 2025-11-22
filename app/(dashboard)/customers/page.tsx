@@ -13,14 +13,16 @@ import {
 } from '@/components/ui/table';
 import { DonutChart, BarChart } from '@tremor/react';
 import { useDashboard } from '@/lib/context/dashboard-context';
+import { useUrlSync } from '@/lib/hooks/use-url-sync';
 import { useIdToken } from '@/lib/auth/hooks';
 import { apiRequest, buildQueryString } from '@/lib/utils/api';
 import { formatNumber, formatCurrency } from '@/lib/utils/date';
 import { ChartTooltip } from '@/components/ui/chart-tooltip';
-import { Users, UserPlus, UserCheck, Activity, PieChart, BarChart3, Smartphone } from 'lucide-react';
+import { Users, UserPlus, UserCheck, UserCircle, Activity, PieChart, BarChart3, Smartphone } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ReportAnnotations } from '@/components/dashboard/report-annotations';
 import { PageHeader } from '@/components/dashboard/page-header';
+import { CHART_COLORS, CHART_COLORS_EXTENDED } from '@/lib/constants/colors';
 
 interface CustomerInsightsData {
   activeUsers: {
@@ -62,6 +64,9 @@ interface CustomerInsightsData {
 export default function CustomersPage() {
   const { selectedClientId, selectedWebsiteId, dateRange } = useDashboard();
   const getIdToken = useIdToken();
+
+  // Sync URL parameters with dashboard context
+  useUrlSync();
   const [data, setData] = useState<CustomerInsightsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -217,8 +222,8 @@ export default function CustomersPage() {
 
         <Card className="p-6 h-full flex flex-col">
           <div className="flex items-center gap-3 flex-1">
-            <div className="rounded-lg bg-orange-100 p-3">
-              <Users className="h-6 w-6 text-orange-600" />
+            <div className="p-2 bg-blue-50 rounded-lg">
+              <UserCircle className="h-5 w-5 text-blue-600" />
             </div>
             <div>
               <div className="text-sm font-medium text-gray-600">Total Users</div>
@@ -269,7 +274,7 @@ export default function CustomersPage() {
                   category="value"
                   index="name"
                   valueFormatter={(value) => formatNumber(value)}
-                  colors={['#6366f1', '#8b5cf6', '#d946ef', '#10b981', '#f59e0b', '#06b6d4']}
+                  colors={CHART_COLORS_EXTENDED}
                   showAnimation={true}
                   animationDuration={1000}
                   customTooltip={(props) => (
@@ -366,7 +371,7 @@ export default function CustomersPage() {
                   data={deviceChart}
                   index="name"
                   categories={['Users']}
-                  colors={['#06b6d4']}
+                  colors={['fuchsia']}
                   valueFormatter={(value) => formatNumber(value)}
                   showAnimation={false}
                   customTooltip={(props) => (

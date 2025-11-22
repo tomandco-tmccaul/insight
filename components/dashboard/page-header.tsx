@@ -28,10 +28,10 @@ export function PageHeader({
     >
       {/* Decorative background gradient */}
       <div className="absolute -left-6 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-500 via-purple-500 to-indigo-500 rounded-full opacity-60" />
-      
+
       {/* Subtle background glow */}
       <div className="absolute inset-0 -z-10 bg-gradient-to-r from-indigo-50/30 via-purple-50/20 to-transparent rounded-lg blur-xl opacity-50" />
-      
+
       <div className="flex items-start justify-between gap-6 pl-6">
         <div className="flex-1 space-y-4">
           <div className="flex items-center gap-4 flex-wrap">
@@ -40,12 +40,12 @@ export function PageHeader({
               initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.1, type: 'spring', stiffness: 200 }}
-              className="h-2 w-2 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/50"
+              className="h-2 w-2 rounded-full bg-gradient-to-br from-blue-500 to-cyan-600 shadow-lg shadow-blue-500/50"
             />
-            
+
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-                <span className="bg-gradient-to-r from-gray-900 via-indigo-700 to-purple-700 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-gray-900 via-blue-700 to-cyan-700 bg-clip-text text-transparent">
                   {title}
                 </span>
               </h1>
@@ -60,7 +60,7 @@ export function PageHeader({
               )}
             </div>
           </div>
-          
+
           {description && (
             <motion.div
               initial={{ opacity: 0, y: 5 }}
@@ -76,7 +76,7 @@ export function PageHeader({
             </motion.div>
           )}
         </div>
-        
+
         {actions && (
           <motion.div
             initial={{ opacity: 0, x: 10 }}
@@ -88,7 +88,7 @@ export function PageHeader({
           </motion.div>
         )}
       </div>
-      
+
       {/* Bottom border accent */}
       <motion.div
         initial={{ scaleX: 0 }}

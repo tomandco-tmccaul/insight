@@ -39,7 +39,7 @@ export async function getCollectionsPerformance(
     SELECT 
       item.order_date,
       item.website_id as store_id,
-      COALESCE(p.attr_sdb_collection_name, 'Unknown') as collection,
+      COALESCE(JSON_VALUE(p.attributes, '$.sdb_collection_name'), 'Unknown') as collection,
       SUM(CAST(item.row_total AS FLOAT64)) as total_revenue,
       SUM(CAST(item.qty_ordered AS FLOAT64)) as total_qty,
       COUNT(DISTINCT item.order_entity_id) as order_count

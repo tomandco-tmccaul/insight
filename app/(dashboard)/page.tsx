@@ -5,26 +5,22 @@ import { ProtectedRoute } from '@/components/auth/protected-route';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDashboard } from '@/lib/context/dashboard-context';
+import { useUrlSync } from '@/lib/hooks/use-url-sync';
 import { useIdToken } from '@/lib/auth/hooks';
 import { apiRequest, buildQueryString } from '@/lib/utils/api';
-import { formatCurrency, formatNumber, formatPercentage, calculatePercentageChange, formatChartDate } from '@/lib/utils/date';
-import { ChartTooltip } from '@/components/ui/chart-tooltip';
+import { formatCurrency, formatNumber, formatPercentage } from '@/lib/utils/date';
 import {
   ShoppingCart,
-  TrendingUp,
-  Users,
-  MousePointerClick,
   DollarSign,
+  TrendingUp,
   Target,
   Package,
-  Eye,
-  Clock,
-  Percent,
   AlertCircle
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { LineChart, DonutChart } from '@tremor/react';
 import { PageHeader } from '@/components/dashboard/page-header';
+import { WebsiteSwimlane } from '@/components/dashboard/website-swimlane';
+import { Website } from '@/types/firestore';
 
 const container = {
   hidden: { opacity: 1 },
@@ -32,11 +28,6 @@ const container = {
     opacity: 1,
     transition: { staggerChildren: 0.08, delayChildren: 0.05 },
   },
-};
-
-const item = {
-  hidden: { opacity: 0, y: 12 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.25 } },
 };
 
 interface SalesData {
@@ -55,45 +46,25 @@ interface SalesData {
   }>;
 }
 
-interface TopProducts {
-  sku: string;
-  product_name: string;
-  total_revenue: number;
-  total_qty_ordered: number;
-}
-
-interface CustomerMetrics {
-  summary: {
-    total_unique_customers: number;
-    total_registered_customers: number;
-    total_guest_customers: number;
-    avg_revenue_per_customer: number;
-  };
-}
-
-interface WebsiteBehavior {
-  metrics: {
-    total_sessions: number;
-    total_pageviews: number;
-    total_users: number;
-    avg_session_duration: number;
-    bounce_rate: number;
-  };
+interface WebsiteData {
+  website: Website;
+  salesData: SalesData | null;
+  loading: boolean;
+  error: string | null;
 }
 
 export default function OverviewPage() {
-  const { selectedClientId, selectedWebsiteId, dateRange } = useDashboard();
+  const { selectedClientId, dateRange } = useDashboard();
   const getIdToken = useIdToken();
+
+  // Sync URL parameters with dashboard context
+  useUrlSync();
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  const [salesData, setSalesData] = useState<SalesData | null>(null);
-  const [topProducts, setTopProducts] = useState<TopProducts[]>([]);
-  const [customerMetrics, setCustomerMetrics] = useState<CustomerMetrics | null>(null);
-  const [websiteBehavior, setWebsiteBehavior] = useState<WebsiteBehavior | null>(null);
   const [datasetId, setDatasetId] = useState<string | null>(null);
-  const [storeId, setStoreId] = useState<string | null>(null);
-  const [isGroupedWebsite, setIsGroupedWebsite] = useState<boolean>(false);
+  const [websitesData, setWebsitesData] = useState<WebsiteData[]>([]);
+  const [aggregatedData, setAggregatedData] = useState<SalesData | null>(null);
 
   // Fetch client data to get dataset ID
   useEffect(() => {
@@ -112,12 +83,21 @@ export default function OverviewPage() {
         );
 
         if (clientResponse.success && clientResponse.data) {
-          setDatasetId(clientResponse.data.bigQueryDatasetId);
+          console.log('Client data fetched:', clientResponse.data);
+          if (clientResponse.data.bigQueryDatasetId) {
+            setDatasetId(clientResponse.data.bigQueryDatasetId);
+          } else {
+            console.error('Client missing bigQueryDatasetId');
+            setError('Client configuration error: Missing BigQuery Dataset ID');
+            setLoading(false);
+          }
         } else {
+          console.error('Failed to fetch client data:', clientResponse);
           setError('Failed to fetch client data');
           setLoading(false);
         }
       } catch (err: any) {
+        console.error('Error in fetchClientData:', err);
         setError(err.message || 'An error occurred');
         setLoading(false);
       }
@@ -126,93 +106,66 @@ export default function OverviewPage() {
     fetchClientData();
   }, [selectedClientId, getIdToken]);
 
-  // Fetch website's store ID when selection changes
+  // Fetch websites and their data
   useEffect(() => {
-    async function fetchWebsiteData() {
-      if (!selectedClientId || !selectedWebsiteId || selectedWebsiteId === 'all_combined') {
-        setStoreId(null);
-        setIsGroupedWebsite(false);
-        return;
-      }
-
-      try {
-        const idToken = await getIdToken();
-        const response = await apiRequest<{ id: string; websiteName: string; storeId: string; isGrouped?: boolean }>(
-          `/api/admin/clients/${selectedClientId}/websites/${selectedWebsiteId}`,
-          {},
-          idToken || undefined
-        );
-
-        if (response.success && response.data) {
-          // Grouped websites don't need a storeId - they aggregate data from multiple websites
-          if (response.data.isGrouped) {
-            setStoreId(null); // Grouped websites don't use storeId
-            setIsGroupedWebsite(true);
-          } else {
-            setStoreId(response.data.storeId);
-            setIsGroupedWebsite(false);
-          }
-        }
-      } catch (err: any) {
-        console.error('Error fetching website data:', err);
-      }
-    }
-
-    fetchWebsiteData();
-  }, [selectedClientId, selectedWebsiteId, getIdToken]);
-
-  // Fetch all overview data
-  useEffect(() => {
-    async function fetchData() {
-      if (!selectedClientId || !datasetId) {
-        setLoading(false);
-        return;
-      }
+    async function fetchWebsitesAndData() {
+      if (!selectedClientId || !datasetId) return;
 
       setLoading(true);
       setError(null);
 
       try {
         const idToken = await getIdToken();
-        // Always use selectedWebsiteId - the data layer will resolve it to BigQuery website IDs
-        const websiteFilter = selectedWebsiteId === 'all_combined' ? 'all_combined' : selectedWebsiteId || 'all_combined';
 
-        const queryParams = buildQueryString({
+        // 1. Fetch all websites for the client
+        console.log('Fetching websites for client:', selectedClientId);
+        const websitesResponse = await apiRequest<Website[]>(
+          `/api/admin/clients/${selectedClientId}/websites`,
+          {},
+          idToken || undefined
+        );
+
+        console.log('Websites response:', websitesResponse);
+
+        if (!websitesResponse.success || !websitesResponse.data) {
+          throw new Error('Failed to fetch websites');
+        }
+
+        const websites = websitesResponse.data;
+        console.log('Websites found:', websites.length);
+
+        // Initialize websites data state
+        setWebsitesData(websites.map(website => ({
+          website,
+          salesData: null,
+          loading: true,
+          error: null
+        })));
+
+        // 2. Fetch aggregated data (all_combined)
+        const aggregatedQueryParams = buildQueryString({
           dataset_id: datasetId,
-          website_id: websiteFilter,
+          client_id: selectedClientId,
+          website_id: 'all_combined',
           start_date: dateRange.startDate,
           end_date: dateRange.endDate,
+          exclude_sample_orders: 'true',
         });
 
-        // Fetch all data in parallel
-        const [salesResponse, productsResponse, customerResponse, websiteResponse] = await Promise.all([
-          apiRequest<{ daily: any[]; summary: any }>(
-            `/api/reports/sales-overview${queryParams}`,
-            {},
-            idToken || undefined
-          ),
-          apiRequest<TopProducts[]>(
-            `/api/reports/top-products${queryParams}&limit=5&sort_by=revenue`,
-            {},
-            idToken || undefined
-          ),
-          apiRequest<{ daily: any[]; summary: any }>(
-            `/api/reports/customer-metrics${queryParams}`,
-            {},
-            idToken || undefined
-          ),
-          // Website behavior - may fail if GA4 data not available
-          apiRequest<WebsiteBehavior>(
-            `/api/website/behavior?websiteId=${websiteFilter}&startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`,
-            {},
-            idToken || undefined
-          ).catch(() => ({ success: false, data: null })),
-        ]);
+        console.log('Fetching aggregated data with params:', aggregatedQueryParams);
 
-        if (salesResponse.success && salesResponse.data) {
-          setSalesData({
-            summary: salesResponse.data.summary,
-            daily: salesResponse.data.daily.map((d: any) => ({
+        const aggregatedResponse = await apiRequest<{ daily: any[]; summary: any }>(
+          `/api/reports/sales-overview${aggregatedQueryParams}`,
+          {},
+          idToken || undefined
+        );
+
+        console.log('Aggregated response:', aggregatedResponse);
+
+        if (aggregatedResponse.success && aggregatedResponse.data) {
+          setAggregatedData({
+            summary: aggregatedResponse.data.summary,
+            daily: aggregatedResponse.data.daily.map((d: any) => ({
               date: d.date,
               total_revenue: d.total_revenue || 0,
               total_orders: d.total_orders || 0,
@@ -220,19 +173,63 @@ export default function OverviewPage() {
           });
         }
 
-        if (productsResponse.success && productsResponse.data) {
-          setTopProducts(productsResponse.data);
-        }
+        // 3. Fetch data for each website in parallel
+        const websiteDataPromises = websites.map(async (website) => {
+          try {
+            const queryParams = buildQueryString({
+              dataset_id: datasetId,
+              client_id: selectedClientId,
+              website_id: website.id,
+              start_date: dateRange.startDate,
+              end_date: dateRange.endDate,
+              exclude_sample_orders: 'true',
+            });
 
-        if (customerResponse.success && customerResponse.data) {
-          setCustomerMetrics({
-            summary: customerResponse.data.summary,
-          });
-        }
+            console.log(`Fetching data for website ${website.id} with params:`, queryParams);
 
-        if (websiteResponse.success && websiteResponse.data) {
-          setWebsiteBehavior(websiteResponse.data);
-        }
+            const response = await apiRequest<{ daily: any[]; summary: any }>(
+              `/api/reports/sales-overview${queryParams}`,
+              {},
+              idToken || undefined
+            );
+
+            console.log(`Response for website ${website.id}:`, response);
+
+            if (response.success && response.data) {
+              return {
+                website,
+                salesData: {
+                  summary: response.data.summary,
+                  daily: response.data.daily.map((d: any) => ({
+                    date: d.date,
+                    total_revenue: d.total_revenue || 0,
+                    total_orders: d.total_orders || 0,
+                  })),
+                },
+                loading: false,
+                error: null
+              };
+            } else {
+              return {
+                website,
+                salesData: null,
+                loading: false,
+                error: 'Failed to fetch data'
+              };
+            }
+          } catch (err: any) {
+            return {
+              website,
+              salesData: null,
+              loading: false,
+              error: err.message
+            };
+          }
+        });
+
+        const results = await Promise.all(websiteDataPromises);
+        setWebsitesData(results);
+        setLoading(false);
       } catch (err: any) {
         setError(err.message || 'An error occurred');
       } finally {
@@ -240,8 +237,8 @@ export default function OverviewPage() {
       }
     }
 
-    fetchData();
-  }, [selectedClientId, selectedWebsiteId, dateRange, datasetId, storeId, getIdToken]);
+    fetchWebsitesAndData();
+  }, [selectedClientId, datasetId, dateRange, getIdToken]);
 
   if (!selectedClientId) {
     return (
@@ -256,18 +253,13 @@ export default function OverviewPage() {
     );
   }
 
-  // Calculate conversion rate if we have both sales and website data
-  const conversionRate = websiteBehavior && salesData && websiteBehavior.metrics.total_sessions > 0
-    ? (salesData.summary.total_orders / websiteBehavior.metrics.total_sessions) * 100
-    : null;
-
   return (
     <ProtectedRoute>
-      <div className="space-y-6">
+      <div className="space-y-8 pb-12">
         {/* Page Header */}
         <PageHeader
           title="Overview"
-          description="High-level performance across all stores and data sources"
+          description="Performance by website"
         />
 
         {/* Error Message */}
@@ -280,325 +272,118 @@ export default function OverviewPage() {
           </Card>
         )}
 
-        {/* Key Metrics Grid */}
-        {loading ? (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {[...Array(4)].map((_, i) => (
-              <Card key={i} className="p-6">
-                <Skeleton className="h-20" />
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <motion.div variants={container} initial="hidden" animate="show" className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {/* Total Revenue */}
-            <motion.div variants={item} whileHover={{ scale: 1.02 }}>
-              <Card className="p-6 group relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-green-50/50 to-emerald-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        {/* Website Swimlanes */}
+        <motion.div variants={container} initial="hidden" animate="show">
+          {loading && websitesData.length === 0 ? (
+            // Initial loading skeleton
+            [...Array(2)].map((_, i) => (
+              <WebsiteSwimlane
+                key={i}
+                websiteName="Loading..."
+                salesData={null}
+                loading={true}
+              />
+            ))
+          ) : websitesData.length === 0 ? (
+            <Card className="p-8 text-center text-muted-foreground">
+              <p>No websites found for this client.</p>
+            </Card>
+          ) : (
+            websitesData.map((data) => (
+              <WebsiteSwimlane
+                key={data.website.id}
+                websiteName={data.website.websiteName}
+                salesData={data.salesData}
+                loading={data.loading}
+                error={data.error}
+              />
+            ))
+          )}
+        </motion.div>
+
+        {/* Aggregated Totals */}
+        {!loading && aggregatedData && (
+          <div className="mt-12 pt-8 border-t border-border">
+            <h2 className="text-2xl font-bold mb-6">All Websites Combined</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {/* Total Revenue */}
+              <Card className="p-6 group relative overflow-hidden glass-card">
+                <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 <div className="relative">
                   <div className="flex items-center gap-3 mb-4">
-                    <motion.div
-                      whileHover={{ rotate: [0, -10, 10, 0], scale: 1.1 }}
-                      transition={{ duration: 0.3 }}
-                      className="rounded-lg bg-gradient-to-br from-green-400 to-emerald-500 p-2.5 shadow-md"
-                    >
+                    <div className="rounded-lg bg-gradient-to-br from-green-400 to-emerald-500 p-2.5 shadow-md">
                       <DollarSign className="h-5 w-5 text-white" />
-                    </motion.div>
+                    </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900">Total Revenue</h3>
-                      <p className="text-xs text-gray-500">Adobe Commerce</p>
+                      <h3 className="font-semibold text-foreground">Total Revenue</h3>
+                      <p className="text-xs text-muted-foreground">All Stores</p>
                     </div>
                   </div>
-                  <div className="text-3xl font-bold text-gray-900">
-                    {salesData ? formatCurrency(salesData.summary.total_revenue) : '—'}
+                  <div className="text-3xl font-bold text-foreground">
+                    {formatCurrency(aggregatedData.summary.total_revenue)}
                   </div>
-                  {salesData && salesData.summary.total_orders > 0 && (
-                    <p className="text-sm text-gray-600 mt-2">
-                      {formatNumber(salesData.summary.total_orders)} orders
-                    </p>
-                  )}
                 </div>
               </Card>
-            </motion.div>
 
-            {/* Average Order Value */}
-            <motion.div variants={item} whileHover={{ scale: 1.02 }}>
-              <Card className="p-6 group relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 to-cyan-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              {/* Total Orders */}
+              <Card className="p-6 group relative overflow-hidden glass-card">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 <div className="relative">
                   <div className="flex items-center gap-3 mb-4">
-                    <motion.div
-                      whileHover={{ rotate: [0, -10, 10, 0], scale: 1.1 }}
-                      transition={{ duration: 0.3 }}
-                      className="rounded-lg bg-gradient-to-br from-blue-400 to-cyan-500 p-2.5 shadow-md"
-                    >
+                    <div className="rounded-lg bg-gradient-to-br from-blue-400 to-cyan-500 p-2.5 shadow-md">
                       <ShoppingCart className="h-5 w-5 text-white" />
-                    </motion.div>
+                    </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900">Average Order Value</h3>
-                      <p className="text-xs text-gray-500">AOV</p>
+                      <h3 className="font-semibold text-foreground">Total Orders</h3>
+                      <p className="text-xs text-muted-foreground">All Stores</p>
                     </div>
                   </div>
-                  <div className="text-3xl font-bold text-gray-900">
-                    {salesData ? formatCurrency(salesData.summary.aov) : '—'}
+                  <div className="text-3xl font-bold text-foreground">
+                    {formatNumber(aggregatedData.summary.total_orders)}
                   </div>
-                  {salesData && (
-                    <p className="text-sm text-gray-600 mt-2">
-                      {formatNumber(salesData.summary.items_per_order, 1)} items per order
-                    </p>
-                  )}
                 </div>
               </Card>
-            </motion.div>
 
-            {/* Total Sessions / Users */}
-            <motion.div variants={item} whileHover={{ scale: 1.02 }}>
-              <Card className="p-6 group relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-50/50 to-pink-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              {/* AOV */}
+              <Card className="p-6 group relative overflow-hidden glass-card">
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-pink-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 <div className="relative">
                   <div className="flex items-center gap-3 mb-4">
-                    <motion.div
-                      whileHover={{ rotate: [0, -10, 10, 0], scale: 1.1 }}
-                      transition={{ duration: 0.3 }}
-                      className="rounded-lg bg-gradient-to-br from-purple-400 to-pink-500 p-2.5 shadow-md"
-                    >
-                      <Eye className="h-5 w-5 text-white" />
-                    </motion.div>
+                    <div className="rounded-lg bg-gradient-to-br from-purple-400 to-pink-500 p-2.5 shadow-md">
+                      <TrendingUp className="h-5 w-5 text-white" />
+                    </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900">Total Sessions</h3>
-                      <p className="text-xs text-gray-500">GA4</p>
+                      <h3 className="font-semibold text-foreground">Average Order Value</h3>
+                      <p className="text-xs text-muted-foreground">All Stores</p>
                     </div>
                   </div>
-                  <div className="text-3xl font-bold text-gray-900">
-                    {websiteBehavior ? formatNumber(websiteBehavior.metrics.total_sessions) : '—'}
+                  <div className="text-3xl font-bold text-foreground">
+                    {formatCurrency(aggregatedData.summary.aov)}
                   </div>
-                  {websiteBehavior && (
-                    <p className="text-sm text-gray-600 mt-2">
-                      {formatNumber(websiteBehavior.metrics.total_users)} users
-                    </p>
-                  )}
                 </div>
               </Card>
-            </motion.div>
 
-            {/* Conversion Rate */}
-            <motion.div variants={item} whileHover={{ scale: 1.02 }}>
-              <Card className="p-6 group relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-orange-50/50 to-amber-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              {/* Items per Order */}
+              <Card className="p-6 group relative overflow-hidden glass-card">
+                <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-amber-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 <div className="relative">
                   <div className="flex items-center gap-3 mb-4">
-                    <motion.div
-                      whileHover={{ rotate: [0, -10, 10, 0], scale: 1.1 }}
-                      transition={{ duration: 0.3 }}
-                      className="rounded-lg bg-gradient-to-br from-orange-400 to-amber-500 p-2.5 shadow-md"
-                    >
-                      <Target className="h-5 w-5 text-white" />
-                    </motion.div>
+                    <div className="rounded-lg bg-gradient-to-br from-orange-400 to-amber-500 p-2.5 shadow-md">
+                      <Package className="h-5 w-5 text-white" />
+                    </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900">Conversion Rate</h3>
-                      <p className="text-xs text-gray-500">Orders / Sessions</p>
+                      <h3 className="font-semibold text-foreground">Items per Order</h3>
+                      <p className="text-xs text-muted-foreground">All Stores</p>
                     </div>
                   </div>
-                  <div className="text-3xl font-bold text-gray-900">
-                    {conversionRate !== null ? formatPercentage(conversionRate, 2) : '—'}
+                  <div className="text-3xl font-bold text-foreground">
+                    {formatNumber(aggregatedData.summary.items_per_order, 1)}
                   </div>
-                  {websiteBehavior && (
-                    <p className="text-sm text-gray-600 mt-2">
-                      Bounce rate: {formatPercentage(websiteBehavior.metrics.bounce_rate, 1)}
-                    </p>
-                  )}
                 </div>
               </Card>
-            </motion.div>
-          </motion.div>
-        )}
-
-        {/* Charts and Detailed Metrics */}
-        {!loading && (
-          <motion.div variants={container} initial="hidden" animate="show" className="grid gap-6 md:grid-cols-2">
-            {/* Sales Trends Chart */}
-            <motion.div variants={item}>
-              <Card className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Sales Trends</h3>
-                {salesData && salesData.daily.length > 0 ? (
-                  <LineChart
-                    className="h-80"
-                    data={salesData.daily.map(d => ({
-                      date: formatChartDate(d.date),
-                      Revenue: d.total_revenue,
-                      Orders: d.total_orders,
-                    }))}
-                    index="date"
-                    categories={['Revenue', 'Orders']}
-                    colors={['emerald', 'blue']}
-                    yAxisWidth={60}
-                    valueFormatter={(value) => formatCurrency(value)}
-                    customTooltip={(props) => (
-                      <ChartTooltip
-                        {...props}
-                        valueFormatter={(value) => formatCurrency(value)}
-                      />
-                    )}
-                  />
-                ) : (
-                  <div className="bg-gray-50 rounded-lg p-8 text-center">
-                    <p className="text-gray-500">No sales data available for this period</p>
-                  </div>
-                )}
-              </Card>
-            </motion.div>
-
-            {/* Top Products */}
-            <motion.div variants={item}>
-              <Card className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Products</h3>
-                {topProducts.length > 0 ? (
-                  <div className="space-y-3">
-                    {topProducts.slice(0, 5).map((product, idx) => (
-                      <div key={product.sku || idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div className="flex-1">
-                          <p className="font-medium text-gray-900 truncate">{product.product_name || product.sku}</p>
-                          <p className="text-sm text-gray-500">SKU: {product.sku}</p>
-                        </div>
-                        <div className="text-right ml-4">
-                          <p className="font-semibold text-gray-900">{formatCurrency(product.total_revenue)}</p>
-                          <p className="text-xs text-gray-500">{formatNumber(product.total_qty_ordered)} sold</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="bg-gray-50 rounded-lg p-8 text-center">
-                    <p className="text-gray-500">No product data available</p>
-                  </div>
-                )}
-              </Card>
-            </motion.div>
-
-            {/* Customer Metrics */}
-            {customerMetrics && (
-              <motion.div variants={item}>
-                <Card className="p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Customer Metrics</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <p className="text-sm text-gray-600 mb-1">Unique Customers</p>
-                      <p className="text-2xl font-bold text-gray-900">
-                        {formatNumber(customerMetrics.summary.total_unique_customers)}
-                      </p>
-                    </div>
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <p className="text-sm text-gray-600 mb-1">Registered</p>
-                      <p className="text-2xl font-bold text-gray-900">
-                        {formatNumber(customerMetrics.summary.total_registered_customers)}
-                      </p>
-                    </div>
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <p className="text-sm text-gray-600 mb-1">Guest</p>
-                      <p className="text-2xl font-bold text-gray-900">
-                        {formatNumber(customerMetrics.summary.total_guest_customers)}
-                      </p>
-                    </div>
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <p className="text-sm text-gray-600 mb-1">Avg Revenue/Customer</p>
-                      <p className="text-2xl font-bold text-gray-900">
-                        {formatCurrency(customerMetrics.summary.avg_revenue_per_customer)}
-                      </p>
-                    </div>
-                  </div>
-                </Card>
-              </motion.div>
-            )}
-
-            {/* Website Behavior */}
-            {websiteBehavior && (
-              <motion.div variants={item}>
-                <Card className="p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Website Behavior</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <p className="text-sm text-gray-600 mb-1">Pageviews</p>
-                      <p className="text-2xl font-bold text-gray-900">
-                        {formatNumber(websiteBehavior.metrics.total_pageviews)}
-                      </p>
-                    </div>
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <p className="text-sm text-gray-600 mb-1">Avg Session Duration</p>
-                      <p className="text-2xl font-bold text-gray-900">
-                        {formatNumber(websiteBehavior.metrics.avg_session_duration, 1)}s
-                      </p>
-                    </div>
-                    <div className="p-4 bg-gray-50 rounded-lg col-span-2">
-                      <p className="text-sm text-gray-600 mb-1">Bounce Rate</p>
-                      <p className="text-2xl font-bold text-gray-900">
-                        {formatPercentage(websiteBehavior.metrics.bounce_rate, 1)}
-                      </p>
-                    </div>
-                  </div>
-                </Card>
-              </motion.div>
-            )}
-          </motion.div>
-        )}
-
-        {/* Data Sources & Status */}
-        <Card className="p-6 bg-gray-50">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Data Sources</h3>
-          <div className="grid gap-4 md:grid-cols-3">
-            <div>
-              <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
-                <Package className="h-4 w-4 text-green-600" />
-                E-Commerce
-              </h4>
-              <ul className="space-y-1 text-sm text-gray-600">
-                <li className="flex items-center gap-2">
-                  <span className="text-green-600">✓</span>
-                  <span>Adobe Commerce (Magento)</span>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
-                <Eye className="h-4 w-4 text-blue-600" />
-                Analytics
-              </h4>
-              <ul className="space-y-1 text-sm text-gray-600">
-                <li className="flex items-center gap-2">
-                  {websiteBehavior ? (
-                    <span className="text-green-600">✓</span>
-                  ) : (
-                    <span className="text-gray-400">○</span>
-                  )}
-                  <span>Google Analytics 4</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-gray-400">○</span>
-                  <span>Google Search Console</span>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
-                <MousePointerClick className="h-4 w-4 text-purple-600" />
-                Advertising
-              </h4>
-              <ul className="space-y-1 text-sm text-gray-600">
-                <li className="flex items-center gap-2">
-                  <span className="text-gray-400">○</span>
-                  <span>Google Ads (Not Available)</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-gray-400">○</span>
-                  <span>Facebook/META Ads</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="text-gray-400">○</span>
-                  <span>Pinterest Ads</span>
-                </li>
-              </ul>
             </div>
           </div>
-        </Card>
+        )}
       </div>
     </ProtectedRoute>
   );

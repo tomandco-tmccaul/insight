@@ -1,17 +1,23 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AreaChart, BarChart, DonutChart, LineChart } from '@tremor/react';
 import { useDashboard } from '@/lib/context/dashboard-context';
 import { useIdToken } from '@/lib/auth/hooks';
+import { useUrlSync } from '@/lib/hooks/use-url-sync';
 import { apiRequest, buildQueryString } from '@/lib/utils/api';
-import { formatCurrency, formatCurrencyNoDecimals, formatNumber, formatPercentage, calculatePercentageChange, formatChartDate } from '@/lib/utils/date';
+import { formatCurrency, formatCurrencyNoDecimals, formatNumber, formatPercentage, calculatePercentageChange, formatChartDate, getComparisonDateRange, formatPercentageValue } from '@/lib/utils/date';
 import { ChartTooltip } from '@/components/ui/chart-tooltip';
-import { TrendingUp, TrendingDown, Users, ShoppingBag, Clock, Percent, Package, PieChart, BarChart3, DollarSign } from 'lucide-react';
+import { TrendingUp, TrendingDown, Users, ShoppingBag, Clock, Percent, Package, PieChart, BarChart3, DollarSign, ShoppingCart } from 'lucide-react';
 import { Target } from '@/types/firestore';
 import { ReportAnnotations } from '@/components/dashboard/report-annotations';
+import { KPICard } from '@/components/dashboard/kpi-card';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
+import { Zap } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -39,81 +45,11 @@ const motionItem = {
   show: { opacity: 1, y: 0, transition: { duration: 0.25 } },
 };
 
-// Helper function to calculate comparison date range
-function calculateComparisonDates(
-  startDate: string,
-  endDate: string,
-  comparisonPeriod: 'previous_period' | 'previous_year'
-): { startDate: string; endDate: string } {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  const daysDiff = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
 
-  if (comparisonPeriod === 'previous_period') {
-    // Go back by the same number of days
-    const comparisonEnd = new Date(start);
-    comparisonEnd.setDate(comparisonEnd.getDate() - 1);
-    const comparisonStart = new Date(comparisonEnd);
-    comparisonStart.setDate(comparisonStart.getDate() - daysDiff);
 
-    return {
-      startDate: comparisonStart.toISOString().split('T')[0],
-      endDate: comparisonEnd.toISOString().split('T')[0],
-    };
-  } else {
-    // Previous year - same dates, one year back
-    const comparisonStart = new Date(start);
-    comparisonStart.setFullYear(comparisonStart.getFullYear() - 1);
-    const comparisonEnd = new Date(end);
-    comparisonEnd.setFullYear(comparisonEnd.getFullYear() - 1);
+import { SalesData } from '@/types/bigquery';
+import { CHART_COLORS, CHART_COLORS_EXTENDED } from '@/lib/constants/colors';
 
-    return {
-      startDate: comparisonStart.toISOString().split('T')[0],
-      endDate: comparisonEnd.toISOString().split('T')[0],
-    };
-  }
-}
-
-interface SalesData {
-  daily: Array<{
-    date: string;
-    website_id: string;
-    total_orders: number;
-    total_revenue: number;
-    unique_customers: number;
-    total_items: number;
-    subtotal: number;
-    total_tax: number;
-    total_shipping: number;
-    total_discounts: number;
-    orders_complete?: number;
-    orders_pending?: number;
-    orders_processing?: number;
-    orders_canceled?: number;
-    revenue_complete?: number;
-    revenue_pending?: number;
-    orders_sample?: number;
-    orders_not_sample?: number;
-  }>;
-  summary: {
-    total_orders: number;
-    total_revenue: number;
-    total_items: number;
-    unique_customers: number;
-    aov: number;
-    items_per_order: number;
-    subtotal?: number;
-    total_tax?: number;
-    total_shipping?: number;
-    total_discounts?: number;
-    orders_complete?: number;
-    orders_pending?: number;
-    orders_processing?: number;
-    orders_canceled?: number;
-    orders_sample?: number;
-    orders_not_sample?: number;
-  };
-}
 
 interface CustomerMetrics {
   daily: Array<{
@@ -154,6 +90,13 @@ interface HourlySales {
 export default function SalesPerformancePage() {
   const { selectedClientId, selectedWebsiteId, dateRange, comparisonPeriod } = useDashboard();
   const getIdToken = useIdToken();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Sync URL parameters with dashboard context
+  useUrlSync();
+
   const [data, setData] = useState<SalesData | null>(null);
   const [comparisonData, setComparisonData] = useState<SalesData | null>(null);
   const [customerMetrics, setCustomerMetrics] = useState<CustomerMetrics | null>(null);
@@ -177,7 +120,16 @@ export default function SalesPerformancePage() {
   const [sampleOrdersDaily, setSampleOrdersDaily] = useState<{ daily: Array<{ date: string; total_orders: number; total_revenue: number; total_items: number }>; summary: { total_orders: number; total_revenue: number; total_items: number; items_per_order: number } } | null>(null);
   const [comparisonSampleOrdersDaily, setComparisonSampleOrdersDaily] = useState<{ daily: Array<{ date: string; total_orders: number; total_revenue: number; total_items: number }>; summary: { total_orders: number; total_revenue: number; total_items: number; items_per_order: number } } | null>(null);
   const [sampleOrdersHourly, setSampleOrdersHourly] = useState<HourlySales | null>(null);
-  const [activeTab, setActiveTab] = useState<'orders' | 'samples'>('orders');
+
+  // Get tab from URL or default to orders
+  const activeTab = (searchParams.get('tab') || 'orders') as 'orders' | 'samples';
+
+  // Update tab in URL when it changes
+  const handleTabChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', value);
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  };
 
   // Fetch client's BigQuery dataset ID
   useEffect(() => {
@@ -242,7 +194,7 @@ export default function SalesPerformancePage() {
               websiteData: response.data,
               allFields: Object.keys(response.data),
             });
-            
+
             if (!fetchedStoreId) {
               console.error('[Sales] Missing storeId for website:', {
                 websiteId: selectedWebsiteId,
@@ -364,30 +316,31 @@ export default function SalesPerformancePage() {
 
         // Fetch comparison data if comparison period is selected
         if (comparisonPeriod !== 'none') {
-          const comparisonDates = calculateComparisonDates(
-            dateRange.startDate,
-            dateRange.endDate,
+          const comparisonDates = getComparisonDateRange(
+            dateRange,
             comparisonPeriod
           );
 
-          const comparisonQueryString = buildQueryString({
-            dataset_id: datasetId,
-            client_id: selectedClientId,
-            website_id: websiteFilter,
-            start_date: comparisonDates.startDate,
-            end_date: comparisonDates.endDate,
-          });
+          if (comparisonDates) {
+            const comparisonQueryString = buildQueryString({
+              dataset_id: datasetId,
+              client_id: selectedClientId,
+              website_id: websiteFilter,
+              start_date: comparisonDates.startDate,
+              end_date: comparisonDates.endDate,
+            });
 
-          const comparisonResponse = await apiRequest<any>(
-            `/api/reports/sample-orders-summary${comparisonQueryString}`,
-            {},
-            idToken || undefined
-          );
+            const comparisonResponse = await apiRequest<any>(
+              `/api/reports/sample-orders-summary${comparisonQueryString}`,
+              {},
+              idToken || undefined
+            );
 
-          if (comparisonResponse.success && comparisonResponse.data) {
-            setComparisonSampleOrdersSummary(comparisonResponse.data);
-          } else {
-            setComparisonSampleOrdersSummary(null);
+            if (comparisonResponse.success && comparisonResponse.data) {
+              setComparisonSampleOrdersSummary(comparisonResponse.data);
+            } else {
+              setComparisonSampleOrdersSummary(null);
+            }
           }
         } else {
           setComparisonSampleOrdersSummary(null);
@@ -688,30 +641,31 @@ export default function SalesPerformancePage() {
 
         // Fetch comparison data if comparison period is selected
         if (comparisonPeriod !== 'none') {
-          const comparisonDates = calculateComparisonDates(
-            dateRange.startDate,
-            dateRange.endDate,
+          const comparisonDates = getComparisonDateRange(
+            dateRange,
             comparisonPeriod
           );
 
-          const comparisonQueryString = buildQueryString({
-            dataset_id: datasetId,
-            client_id: selectedClientId,
-            website_id: websiteFilter,
-            start_date: comparisonDates.startDate,
-            end_date: comparisonDates.endDate,
-          });
+          if (comparisonDates) {
+            const comparisonQueryString = buildQueryString({
+              dataset_id: datasetId,
+              client_id: selectedClientId,
+              website_id: websiteFilter,
+              start_date: comparisonDates.startDate,
+              end_date: comparisonDates.endDate,
+            });
 
-          const comparisonResponse = await apiRequest<{ daily: Array<{ date: string; total_orders: number; total_revenue: number; total_items: number }>; summary: { total_orders: number; total_revenue: number; total_items: number; items_per_order: number } }>(
-            `/api/reports/sample-orders-daily${comparisonQueryString}`,
-            {},
-            idToken || undefined
-          );
+            const comparisonResponse = await apiRequest<{ daily: Array<{ date: string; total_orders: number; total_revenue: number; total_items: number }>; summary: { total_orders: number; total_revenue: number; total_items: number; items_per_order: number } }>(
+              `/api/reports/sample-orders-daily${comparisonQueryString}`,
+              {},
+              idToken || undefined
+            );
 
-          if (comparisonResponse.success && comparisonResponse.data) {
-            setComparisonSampleOrdersDaily(comparisonResponse.data);
-          } else {
-            setComparisonSampleOrdersDaily(null);
+            if (comparisonResponse.success && comparisonResponse.data) {
+              setComparisonSampleOrdersDaily(comparisonResponse.data);
+            } else {
+              setComparisonSampleOrdersDaily(null);
+            }
           }
         } else {
           setComparisonSampleOrdersDaily(null);
@@ -762,8 +716,12 @@ export default function SalesPerformancePage() {
   // Fetch sales data
   useEffect(() => {
     async function fetchData() {
-      if (!selectedClientId || !datasetId) {
+      if (!selectedClientId) {
         setLoading(false);
+        return;
+      }
+
+      if (!datasetId) {
         return;
       }
 
@@ -807,29 +765,30 @@ export default function SalesPerformancePage() {
 
         // Fetch comparison data if comparison period is selected
         if (comparisonPeriod !== 'none') {
-          const comparisonDates = calculateComparisonDates(
-            dateRange.startDate,
-            dateRange.endDate,
+          const comparisonDates = getComparisonDateRange(
+            dateRange,
             comparisonPeriod
           );
 
-          const comparisonQueryString = buildQueryString({
-            dataset_id: datasetId,
-            client_id: selectedClientId,
-            website_id: websiteFilter,
-            start_date: comparisonDates.startDate,
-            end_date: comparisonDates.endDate,
-            exclude_sample_orders: 'true',
-          });
+          if (comparisonDates) {
+            const comparisonQueryString = buildQueryString({
+              dataset_id: datasetId,
+              client_id: selectedClientId,
+              website_id: websiteFilter,
+              start_date: comparisonDates.startDate,
+              end_date: comparisonDates.endDate,
+              exclude_sample_orders: 'true',
+            });
 
-          const comparisonResponse = await apiRequest<SalesData>(
-            `/api/reports/sales-overview${comparisonQueryString}`,
-            {},
-            idToken || undefined
-          );
+            const comparisonResponse = await apiRequest<SalesData>(
+              `/api/reports/sales-overview${comparisonQueryString}`,
+              {},
+              idToken || undefined
+            );
 
-          if (comparisonResponse.success && comparisonResponse.data) {
-            setComparisonData(comparisonResponse.data);
+            if (comparisonResponse.success && comparisonResponse.data) {
+              setComparisonData(comparisonResponse.data);
+            }
           }
         } else {
           setComparisonData(null);
@@ -969,24 +928,24 @@ export default function SalesPerformancePage() {
 
   // Calculate percentage changes
   const revenueChange = comparisonData
-    ? calculatePercentageChange(comparisonData.summary.total_revenue, data.summary.total_revenue)
+    ? calculatePercentageChange(data.summary.total_revenue, comparisonData.summary.total_revenue)
     : null;
   const ordersChange = comparisonData
-    ? calculatePercentageChange(comparisonData.summary.total_orders, data.summary.total_orders)
+    ? calculatePercentageChange(data.summary.total_orders, comparisonData.summary.total_orders)
     : null;
   const aovChange = comparisonData
-    ? calculatePercentageChange(comparisonData.summary.aov, data.summary.aov)
+    ? calculatePercentageChange(data.summary.aov, comparisonData.summary.aov)
     : null;
   const customersChange = comparisonData
-    ? calculatePercentageChange(comparisonData.summary.unique_customers, data.summary.unique_customers)
+    ? calculatePercentageChange(data.summary.unique_customers, comparisonData.summary.unique_customers)
     : null;
 
   // Prepare chart data with comparison values
   // Sort daily data by date ascending (oldest to newest) for proper graph display
-  const sortedDaily = [...data.daily].sort((a, b) => 
+  const sortedDaily = [...data.daily].sort((a, b) =>
     new Date(a.date).getTime() - new Date(b.date).getTime()
   );
-  
+
   const chartData = sortedDaily.map((row) => {
     const comparisonRow = comparisonData?.daily.find((d) => d.date === row.date);
     const date = new Date(row.date);
@@ -1012,7 +971,7 @@ export default function SalesPerformancePage() {
     dayOfWeekTotals[row.dayOfWeek].orders += row.Orders;
     dayOfWeekTotals[row.dayOfWeek].revenue += row.Revenue;
   });
-  
+
   const bestDayOfWeek = Object.entries(dayOfWeekTotals).reduce((best, [day, totals]) => {
     return totals.orders > best.totals.orders ? { day, totals } : best;
   }, { day: 'Unknown', totals: { orders: 0, revenue: 0 } });
@@ -1022,11 +981,19 @@ export default function SalesPerformancePage() {
       <PageHeader
         title="Sales Performance"
         description="Detailed sales analysis from Adobe Commerce"
+        actions={
+          <Link href="/sales/realtime">
+            <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-2">
+              <Zap className="h-4 w-4" />
+              Realtime View
+            </Button>
+          </Link>
+        }
       />
 
       <ReportAnnotations />
 
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'orders' | 'samples')} className="mt-8">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="mt-8">
         <TabsList>
           <TabsTrigger value="orders">Orders</TabsTrigger>
           <TabsTrigger value="samples">Samples</TabsTrigger>
@@ -1037,471 +1004,471 @@ export default function SalesPerformancePage() {
           <div>
             {/* Primary KPI Cards */}
             <motion.div variants={motionContainer} initial="hidden" animate="show" className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-          <motion.div variants={motionItem} className="h-full">
-          <KPICard
-            label="Total Revenue"
-            value={formatCurrency(data.summary.total_revenue)}
-            change={revenueChange}
-            icon={<ShoppingBag className="h-5 w-5" />}
-          />
-        </motion.div>
-        <motion.div variants={motionItem} className="h-full">
-          <KPICard
-            label="Orders"
-            value={formatNumber(data.summary.total_orders)}
-            change={ordersChange}
-            icon={<Package className="h-5 w-5" />}
-          />
-        </motion.div>
-        <motion.div variants={motionItem} className="h-full">
-          <KPICard
-            label="AOV"
-            value={formatCurrency(data.summary.aov)}
-            change={aovChange}
-            icon={<TrendingUp className="h-5 w-5" />}
-          />
-        </motion.div>
-        <motion.div variants={motionItem} className="h-full">
-          <KPICard
-            label="Customers"
-            value={formatNumber(data.summary.unique_customers)}
-            change={customersChange}
-            icon={<Users className="h-5 w-5" />}
-          />
-          </motion.div>
-        </motion.div>
-
-        {/* Secondary Metrics */}
-        <motion.div variants={motionContainer} initial="hidden" animate="show" className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-          <motion.div variants={motionItem} className="h-full">
-            <Card className="p-4 h-full flex flex-col">
-              <div className="flex items-center justify-between flex-1">
-                <div className="flex-1">
-                  <p className="text-sm text-gray-600">Items per Order</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {data.summary.items_per_order.toFixed(2)}
-                  </p>
-                  {/* Spacer to maintain consistent height */}
-                  <p className="text-xs text-transparent mt-1">placeholder</p>
-                </div>
-                <div className="rounded-lg bg-blue-100 p-2">
-                  <Package className="h-5 w-5 text-blue-600" />
-                </div>
-              </div>
-            </Card>
-          </motion.div>
-
-          {data.summary.total_discounts !== undefined && (
-            <motion.div variants={motionItem} className="h-full">
-              <Card className="p-4 h-full flex flex-col">
-                <div className="flex items-center justify-between flex-1">
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-600">Total Discounts</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {formatCurrency(data.summary.total_discounts)}
-                    </p>
-                    {data.summary.total_revenue > 0 ? (
-                      <p className="text-xs text-gray-500 mt-1">
-                        {formatPercentage((data.summary.total_discounts / data.summary.total_revenue) * 100)} of revenue
-                      </p>
-                    ) : (
-                      <p className="text-xs text-transparent mt-1">placeholder</p>
-                    )}
-                  </div>
-                  <div className="rounded-lg bg-orange-100 p-2">
-                    <Percent className="h-5 w-5 text-orange-600" />
-                  </div>
-                </div>
-              </Card>
+              <motion.div variants={motionItem} className="h-full">
+                <KPICard
+                  label="Total Revenue"
+                  value={formatCurrency(data.summary.total_revenue)}
+                  change={revenueChange}
+                  icon={<ShoppingBag className="h-5 w-5" />}
+                />
+              </motion.div>
+              <motion.div variants={motionItem} className="h-full">
+                <KPICard
+                  label="Orders"
+                  value={formatNumber(data.summary.total_orders)}
+                  change={ordersChange}
+                  icon={<Package className="h-5 w-5" />}
+                />
+              </motion.div>
+              <motion.div variants={motionItem} className="h-full">
+                <KPICard
+                  label="AOV"
+                  value={formatCurrency(data.summary.aov)}
+                  change={aovChange}
+                  icon={<TrendingUp className="h-5 w-5" />}
+                />
+              </motion.div>
+              <motion.div variants={motionItem} className="h-full">
+                <KPICard
+                  label="Customers"
+                  value={formatNumber(data.summary.unique_customers)}
+                  change={customersChange}
+                  icon={<Users className="h-5 w-5" />}
+                />
+              </motion.div>
             </motion.div>
-          )}
 
-          {data.summary.total_shipping !== undefined && (
-            <motion.div variants={motionItem} className="h-full">
-              <Card className="p-4 h-full flex flex-col">
-                <div className="flex items-center justify-between flex-1">
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-600">Shipping Revenue</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {formatCurrency(data.summary.total_shipping)}
-                    </p>
-                    {/* Spacer to maintain consistent height */}
-                    <p className="text-xs text-transparent mt-1">placeholder</p>
+            {/* Secondary Metrics */}
+            <motion.div variants={motionContainer} initial="hidden" animate="show" className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+              <motion.div variants={motionItem} className="h-full">
+                <Card className="p-4 h-full flex flex-col">
+                  <div className="flex items-center justify-between flex-1">
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-600">Items per Order</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {data.summary.items_per_order.toFixed(2)}
+                      </p>
+                      {/* Spacer to maintain consistent height */}
+                      <p className="text-xs text-transparent mt-1">placeholder</p>
+                    </div>
+                    <div className="p-2 bg-blue-50 rounded-lg">
+                      <ShoppingCart className="h-5 w-5 text-blue-600" />
+                    </div>
                   </div>
-                  <div className="rounded-lg bg-purple-100 p-2">
-                    <TrendingUp className="h-5 w-5 text-purple-600" />
-                  </div>
-                </div>
-              </Card>
-          </motion.div>
-          )}
-
-          {data.summary.total_tax !== undefined && (
-            <motion.div variants={motionItem} className="h-full">
-              <Card className="p-4 h-full flex flex-col">
-                <div className="flex items-center justify-between flex-1">
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-600">Tax Collected</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {formatCurrency(data.summary.total_tax)}
-                    </p>
-                    {/* Spacer to maintain consistent height */}
-                    <p className="text-xs text-transparent mt-1">placeholder</p>
-                  </div>
-                  <div className="rounded-lg bg-green-100 p-2">
-                    <TrendingUp className="h-5 w-5 text-green-600" />
-                  </div>
-                </div>
-              </Card>
-          </motion.div>
-          )}
-        </motion.div>
-
-        {/* Charts */}
-        <motion.div
-          variants={motionContainer}
-          initial="hidden"
-          animate="show"
-          className="grid gap-6 lg:grid-cols-2 mb-6"
-        >
-          <motion.div variants={motionItem} whileHover={{ scale: 1.01 }} className="group">
-            <Card className="p-6 relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/50 to-green-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="relative">
-                <div className="flex items-center gap-3 mb-4">
-                <motion.div
-                  animate={{
-                    rotate: [0, 5, -5, 0],
-                  }}
-                  transition={{
-                    duration: 4,
-                    repeat: Infinity,
-                    repeatDelay: 2,
-                  }}
-                  className="rounded-lg bg-gradient-to-br from-emerald-400 to-green-500 p-2 shadow-md"
-                >
-                  <TrendingUp className="h-5 w-5 text-white" />
-                </motion.div>
-                <h3 className="text-lg font-semibold text-gray-900">Revenue Trend</h3>
-              </div>
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.2, duration: 0.4 }}
-                className="mt-4"
-              >
-                <LineChart
-                  className="h-64"
-                  data={chartData}
-                  index="date"
-                  categories={['Revenue']}
-                  colors={['#10b981']}
-                  valueFormatter={(value) => formatCurrencyNoDecimals(value)}
-                  yAxisWidth={80}
-                  rotateLabelX={{ angle: 0 }}
-                  showLegend={false}
-                  showAnimation={true}
-                  animationDuration={1000}
-                  customTooltip={(props) => (
-                    <ChartTooltip
-                      {...props}
-                      valueFormatter={(value) => formatCurrencyNoDecimals(value)}
-                      comparisonKey="_comparisonRevenue"
-                      comparisonLabel={comparisonPeriod === 'previous_year' ? 'Same period last year' : 'Previous period'}
-                    />
-                  )}
-                />
+                </Card>
               </motion.div>
-            </div>
-          </Card>
-        </motion.div>
 
-        <motion.div variants={motionItem} whileHover={{ scale: 1.01 }} className="group">
-          <Card className="p-6 relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/50 to-green-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            <div className="relative">
-              <div className="flex items-center gap-3 mb-4">
-                <motion.div
-                  animate={{
-                    rotate: [0, 5, -5, 0],
-                  }}
-                  transition={{
-                    duration: 4,
-                    repeat: Infinity,
-                    repeatDelay: 2,
-                  }}
-                  className="rounded-lg bg-gradient-to-br from-emerald-400 to-green-500 p-2 shadow-md"
-                >
-                  <ShoppingBag className="h-5 w-5 text-white" />
-                </motion.div>
-                <h3 className="text-lg font-semibold text-gray-900">Orders Trend</h3>
-              </div>
-              {bestDayOfWeek.day !== 'Unknown' && (
-                <p className="text-sm text-gray-600 mb-2">
-                  Best performing day: <span className="font-semibold">{bestDayOfWeek.day}</span> ({formatNumber(bestDayOfWeek.totals.orders)} orders)
-                </p>
-              )}
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.25, duration: 0.4 }}
-                className="mt-4"
-              >
-                <BarChart
-                  className="h-64"
-                  data={chartData}
-                  index="date"
-                  categories={['Orders']}
-                  colors={['#8b5cf6']}
-                  valueFormatter={(value) => formatNumber(value)}
-                  showLegend={false}
-                  showAnimation={false}
-                  customTooltip={(props) => (
-                    <ChartTooltip
-                      {...props}
-                      valueFormatter={(value) => formatNumber(value)}
-                      comparisonKey="_comparisonOrders"
-                      comparisonLabel={comparisonPeriod === 'previous_year' ? 'Same period last year' : 'Previous period'}
-                    />
-                  )}
-                />
-              </motion.div>
-            </div>
-          </Card>
-          </motion.div>
-        </motion.div>
-
-        {/* Category Split & Collections Performance */}
-        <motion.div
-          variants={motionContainer}
-          initial="hidden"
-          animate="show"
-          className="grid gap-6 lg:grid-cols-2 mb-6"
-        >
-          {/* Category Split */}
-          {categoryBreakdown.length > 0 && (
-          <motion.div variants={motionItem} whileHover={{ scale: 1.01 }} className="group">
-            <Card className="p-6 relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/50 to-purple-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="relative">
-                <div className="flex items-center gap-3 mb-4">
-                  <motion.div
-                    animate={{
-                      rotate: [0, 360],
-                    }}
-                    transition={{
-                      duration: 20,
-                      repeat: Infinity,
-                      ease: "linear",
-                    }}
-                    className="rounded-lg bg-gradient-to-br from-indigo-400 to-purple-500 p-2 shadow-md"
-                  >
-                    <PieChart className="h-5 w-5 text-white" />
-                  </motion.div>
-                  <h3 className="text-lg font-semibold text-gray-900">Category Split</h3>
-                </div>
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.2, duration: 0.4 }}
-                >
-                  <DonutChart
-                    className="h-64"
-                    data={categoryBreakdown.map(cat => ({
-                      name: cat.category_group || 'Unknown',
-                      value: cat.total_revenue,
-                    }))}
-                    category="value"
-                    index="name"
-                    colors={['#6366f1', '#8b5cf6', '#10b981', '#f59e0b', '#06b6d4', '#d946ef', '#a855f7', '#ec4899']}
-                    valueFormatter={(value) => formatCurrency(value)}
-                    showAnimation={true}
-                    animationDuration={1000}
-                    customTooltip={(props) => (
-                      <ChartTooltip
-                        {...props}
-                        valueFormatter={(value) => formatCurrency(value)}
-                      />
-                    )}
-                  />
-                </motion.div>
-                <div className="mt-4 space-y-2">
-                  {categoryBreakdown.map((cat) => (
-                    <div key={cat.category_group} className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">{cat.category_group || 'Unknown'}</span>
-                      <div className="text-right">
-                        <span className="text-sm font-semibold text-gray-900">
-                          {formatCurrency(cat.total_revenue)}
-                        </span>
-                        <span className="text-xs text-gray-500 ml-2">
-                          ({formatPercentage(cat.percentage)})
-                        </span>
+              {data.summary.total_discounts !== undefined && (
+                <motion.div variants={motionItem} className="h-full">
+                  <Card className="p-4 h-full flex flex-col">
+                    <div className="flex items-center justify-between flex-1">
+                      <div className="flex-1">
+                        <p className="text-sm text-gray-600">Total Discounts</p>
+                        <p className="text-2xl font-bold text-gray-900">
+                          {formatCurrency(data.summary.total_discounts)}
+                        </p>
+                        {data.summary.total_revenue > 0 ? (
+                          <p className="text-xs text-gray-500 mt-1">
+                            {formatPercentage((data.summary.total_discounts / data.summary.total_revenue) * 100)} of revenue
+                          </p>
+                        ) : (
+                          <p className="text-xs text-transparent mt-1">placeholder</p>
+                        )}
+                      </div>
+                      <div className="rounded-lg bg-orange-100 p-2">
+                        <Percent className="h-5 w-5 text-orange-600" />
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            </Card>
-          </motion.div>
-          )}
-
-          {/* Collections Performance */}
-          {collectionsPerformance.length > 0 && (
-          <motion.div variants={motionItem} whileHover={{ scale: 1.01 }} className="group">
-            <Card className="p-6 relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 to-indigo-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="relative">
-                <div className="flex items-center gap-3 mb-4">
-                  <motion.div
-                    animate={{
-                      rotate: [0, 360],
-                    }}
-                    transition={{
-                      duration: 20,
-                      repeat: Infinity,
-                      ease: "linear",
-                    }}
-                    className="rounded-lg bg-gradient-to-br from-blue-400 to-indigo-500 p-2 shadow-md"
-                  >
-                    <BarChart3 className="h-5 w-5 text-white" />
-                  </motion.div>
-                  <h3 className="text-lg font-semibold text-gray-900">Top Collections by Revenue</h3>
-                </div>
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.25, duration: 0.4 }}
-                >
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-12">#</TableHead>
-                          <TableHead>Collection</TableHead>
-                          <TableHead className="text-right">Revenue</TableHead>
-                          <TableHead className="text-right">Quantity</TableHead>
-                          <TableHead className="text-right">Orders</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {collectionsPerformance.map((col, index) => (
-                          <TableRow key={col.collection || `unknown-${index}`}>
-                            <TableCell className="text-gray-400">#{index + 1}</TableCell>
-                            <TableCell className="font-medium">{col.collection || 'Unknown'}</TableCell>
-                            <TableCell className="text-right font-semibold">
-                              {formatCurrency(col.total_revenue)}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {formatNumber(col.total_qty)}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {formatNumber(col.order_count)}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                  </Card>
                 </motion.div>
-              </div>
-            </Card>
-          </motion.div>
-          )}
-        </motion.div>
+              )}
 
-        {/* Revenue Breakdown */}
-        {data.summary.subtotal !== undefined && (
-        <motion.div
-          variants={motionContainer}
-          initial="hidden"
-          animate="show"
-          className="grid gap-6 lg:grid-cols-1"
-        >
-          {/* Revenue Breakdown */}
-          <motion.div variants={motionItem} whileHover={{ scale: 1.01 }} className="group">
-            <Card className="p-6 relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/50 to-purple-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="relative">
-                <div className="flex items-center gap-3 mb-4">
-                  <motion.div
-                    animate={{
-                      rotate: [0, 360],
-                    }}
-                    transition={{
-                      duration: 20,
-                      repeat: Infinity,
-                      ease: "linear",
-                    }}
-                    className="rounded-lg bg-gradient-to-br from-indigo-400 to-purple-500 p-2 shadow-md"
-                  >
-                    <DollarSign className="h-5 w-5 text-white" />
-                  </motion.div>
-                  <h3 className="text-lg font-semibold text-gray-900">Revenue Breakdown</h3>
-                </div>
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.25, duration: 0.4 }}
-                >
-                  <DonutChart
-                    className="h-64"
-                    data={[
-                      { name: 'Subtotal', value: data.summary.subtotal || 0 },
-                      { name: 'Shipping', value: data.summary.total_shipping || 0 },
-                      { name: 'Tax', value: data.summary.total_tax || 0 },
-                      { name: 'Discounts', value: -(data.summary.total_discounts || 0) },
-                    ].filter(item => Math.abs(item.value) > 0)}
-                    category="value"
-                    index="name"
-                    colors={['#6366f1', '#8b5cf6', '#10b981', '#f59e0b', '#06b6d4', '#d946ef', '#a855f7', '#ec4899']}
-                    valueFormatter={(value) => formatCurrency(Math.abs(value))}
-                    showAnimation={true}
-                    animationDuration={1000}
-                    customTooltip={(props) => (
-                      <ChartTooltip
-                        {...props}
-                        valueFormatter={(value) => formatCurrency(Math.abs(value))}
+              {data.summary.total_shipping !== undefined && (
+                <motion.div variants={motionItem} className="h-full">
+                  <Card className="p-4 h-full flex flex-col">
+                    <div className="flex items-center justify-between flex-1">
+                      <div className="flex-1">
+                        <p className="text-sm text-gray-600">Shipping Revenue</p>
+                        <p className="text-2xl font-bold text-gray-900">
+                          {formatCurrency(data.summary.total_shipping)}
+                        </p>
+                        {/* Spacer to maintain consistent height */}
+                        <p className="text-xs text-transparent mt-1">placeholder</p>
+                      </div>
+                      <div className="rounded-lg bg-purple-100 p-2">
+                        <TrendingUp className="h-5 w-5 text-purple-600" />
+                      </div>
+                    </div>
+                  </Card>
+                </motion.div>
+              )}
+
+              {data.summary.total_tax !== undefined && (
+                <motion.div variants={motionItem} className="h-full">
+                  <Card className="p-4 h-full flex flex-col">
+                    <div className="flex items-center justify-between flex-1">
+                      <div className="flex-1">
+                        <p className="text-sm text-gray-600">Tax Collected</p>
+                        <p className="text-2xl font-bold text-gray-900">
+                          {formatCurrency(data.summary.total_tax)}
+                        </p>
+                        {/* Spacer to maintain consistent height */}
+                        <p className="text-xs text-transparent mt-1">placeholder</p>
+                      </div>
+                      <div className="rounded-lg bg-green-100 p-2">
+                        <TrendingUp className="h-5 w-5 text-green-600" />
+                      </div>
+                    </div>
+                  </Card>
+                </motion.div>
+              )}
+            </motion.div>
+
+            {/* Charts */}
+            <motion.div
+              variants={motionContainer}
+              initial="hidden"
+              animate="show"
+              className="grid gap-6 lg:grid-cols-2 mb-6"
+            >
+              <motion.div variants={motionItem} whileHover={{ scale: 1.01 }} className="group">
+                <Card className="p-6 relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/50 to-green-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-4">
+                      <motion.div
+                        animate={{
+                          rotate: [0, 5, -5, 0],
+                        }}
+                        transition={{
+                          duration: 4,
+                          repeat: Infinity,
+                          repeatDelay: 2,
+                        }}
+                        className="rounded-lg bg-gradient-to-br from-emerald-400 to-green-500 p-2 shadow-md"
+                      >
+                        <TrendingUp className="h-5 w-5 text-white" />
+                      </motion.div>
+                      <h3 className="text-lg font-semibold text-gray-900">Revenue Trend</h3>
+                    </div>
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.2, duration: 0.4 }}
+                      className="mt-4"
+                    >
+                      <LineChart
+                        className="h-64"
+                        data={chartData}
+                        index="date"
+                        categories={['Revenue']}
+                        colors={[CHART_COLORS[3]]}
+                        valueFormatter={(value) => formatCurrencyNoDecimals(value)}
+                        yAxisWidth={80}
+                        rotateLabelX={{ angle: 0 }}
+                        showLegend={false}
+                        showAnimation={true}
+                        animationDuration={1000}
+                        customTooltip={(props) => (
+                          <ChartTooltip
+                            {...props}
+                            valueFormatter={(value) => formatCurrencyNoDecimals(value)}
+                            comparisonKey="_comparisonRevenue"
+                            comparisonLabel={comparisonPeriod === 'previous_year' ? 'Same period last year' : 'Previous period'}
+                          />
+                        )}
                       />
+                    </motion.div>
+                  </div>
+                </Card>
+              </motion.div>
+
+              <motion.div variants={motionItem} whileHover={{ scale: 1.01 }} className="group">
+                <Card className="p-6 relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/50 to-green-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-4">
+                      <motion.div
+                        animate={{
+                          rotate: [0, 5, -5, 0],
+                        }}
+                        transition={{
+                          duration: 4,
+                          repeat: Infinity,
+                          repeatDelay: 2,
+                        }}
+                        className="rounded-lg bg-gradient-to-br from-emerald-400 to-green-500 p-2 shadow-md"
+                      >
+                        <ShoppingBag className="h-5 w-5 text-white" />
+                      </motion.div>
+                      <h3 className="text-lg font-semibold text-gray-900">Orders Trend</h3>
+                    </div>
+                    {bestDayOfWeek.day !== 'Unknown' && (
+                      <p className="text-sm text-gray-600 mb-2">
+                        Best performing day: <span className="font-semibold">{bestDayOfWeek.day}</span> ({formatNumber(bestDayOfWeek.totals.orders)} orders)
+                      </p>
                     )}
-                  />
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.25, duration: 0.4 }}
+                      className="mt-4"
+                    >
+                      <BarChart
+                        className="h-64"
+                        data={chartData}
+                        index="date"
+                        categories={['Orders']}
+                        colors={['cyan']}
+                        valueFormatter={(value) => formatNumber(value)}
+                        showLegend={false}
+                        showAnimation={false}
+                        customTooltip={(props) => (
+                          <ChartTooltip
+                            {...props}
+                            valueFormatter={(value) => formatNumber(value)}
+                            comparisonKey="_comparisonOrders"
+                            comparisonLabel={comparisonPeriod === 'previous_year' ? 'Same period last year' : 'Previous period'}
+                          />
+                        )}
+                      />
+                    </motion.div>
+                  </div>
+                </Card>
+              </motion.div>
+            </motion.div>
+
+            {/* Category Split & Collections Performance */}
+            <motion.div
+              variants={motionContainer}
+              initial="hidden"
+              animate="show"
+              className="grid gap-6 lg:grid-cols-2 mb-6"
+            >
+              {/* Category Split */}
+              {categoryBreakdown.length > 0 && (
+                <motion.div variants={motionItem} whileHover={{ scale: 1.01 }} className="group">
+                  <Card className="p-6 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/50 to-purple-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <div className="relative">
+                      <div className="flex items-center gap-3 mb-4">
+                        <motion.div
+                          animate={{
+                            rotate: [0, 360],
+                          }}
+                          transition={{
+                            duration: 20,
+                            repeat: Infinity,
+                            ease: "linear",
+                          }}
+                          className="rounded-lg bg-gradient-to-br from-indigo-400 to-purple-500 p-2 shadow-md"
+                        >
+                          <PieChart className="h-5 w-5 text-white" />
+                        </motion.div>
+                        <h3 className="text-lg font-semibold text-gray-900">Product Group Split</h3>
+                      </div>
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.2, duration: 0.4 }}
+                      >
+                        <DonutChart
+                          className="h-64"
+                          data={categoryBreakdown.map(cat => ({
+                            name: cat.product_group || 'Unknown',
+                            value: cat.total_revenue,
+                          }))}
+                          category="value"
+                          index="name"
+                          colors={CHART_COLORS_EXTENDED}
+                          valueFormatter={(value) => formatCurrency(value)}
+                          showAnimation={true}
+                          animationDuration={1000}
+                          customTooltip={(props) => (
+                            <ChartTooltip
+                              {...props}
+                              valueFormatter={(value) => formatCurrency(value)}
+                            />
+                          )}
+                        />
+                      </motion.div>
+                      <div className="mt-4 space-y-2">
+                        {categoryBreakdown.map((cat) => (
+                          <div key={cat.product_group} className="flex justify-between items-center">
+                            <span className="text-sm text-gray-600">{cat.product_group || 'Unknown'}</span>
+                            <div className="text-right">
+                              <span className="text-sm font-semibold text-gray-900">
+                                {formatCurrency(cat.total_revenue)}
+                              </span>
+                              <span className="text-xs text-gray-500 ml-2">
+                                ({formatPercentage(cat.percentage)})
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </Card>
                 </motion.div>
-            <div className="mt-4 space-y-2">
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Subtotal</span>
-                <span className="text-sm font-semibold text-gray-900">
-                  {formatCurrency(data.summary.subtotal || 0)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600">+ Shipping</span>
-                <span className="text-sm font-semibold text-gray-900">
-                  {formatCurrency(data.summary.total_shipping || 0)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600">+ Tax</span>
-                <span className="text-sm font-semibold text-gray-900">
-                  {formatCurrency(data.summary.total_tax || 0)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600">- Discounts</span>
-                <span className="text-sm font-semibold text-orange-600">
-                  {formatCurrency(data.summary.total_discounts || 0)}
-                </span>
-              </div>
-              <div className="flex justify-between pt-2 border-t border-gray-200">
-                <span className="text-sm font-semibold text-gray-900">Total Revenue</span>
-                <span className="text-sm font-bold text-gray-900">
-                  {formatCurrency(data.summary.total_revenue)}
-                </span>
-              </div>
-            </div>
-            </div>
-          </Card>
-          </motion.div>
-        </motion.div>
-          )}
+              )}
+
+              {/* Collections Performance */}
+              {collectionsPerformance.length > 0 && (
+                <motion.div variants={motionItem} whileHover={{ scale: 1.01 }} className="group">
+                  <Card className="p-6 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 to-indigo-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <div className="relative">
+                      <div className="flex items-center gap-3 mb-4">
+                        <motion.div
+                          animate={{
+                            rotate: [0, 360],
+                          }}
+                          transition={{
+                            duration: 20,
+                            repeat: Infinity,
+                            ease: "linear",
+                          }}
+                          className="rounded-lg bg-gradient-to-br from-blue-400 to-indigo-500 p-2 shadow-md"
+                        >
+                          <BarChart3 className="h-5 w-5 text-white" />
+                        </motion.div>
+                        <h3 className="text-lg font-semibold text-gray-900">Top Collections by Revenue</h3>
+                      </div>
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.25, duration: 0.4 }}
+                      >
+                        <div className="overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="w-12">#</TableHead>
+                                <TableHead>Collection</TableHead>
+                                <TableHead className="text-right">Revenue</TableHead>
+                                <TableHead className="text-right">Quantity</TableHead>
+                                <TableHead className="text-right">Orders</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {collectionsPerformance.map((col, index) => (
+                                <TableRow key={col.collection || `unknown-${index}`}>
+                                  <TableCell className="text-gray-400">#{index + 1}</TableCell>
+                                  <TableCell className="font-medium">{col.collection || 'Unknown'}</TableCell>
+                                  <TableCell className="text-right font-semibold">
+                                    {formatCurrency(col.total_revenue)}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    {formatNumber(col.total_qty)}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    {formatNumber(col.order_count)}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </motion.div>
+                    </div>
+                  </Card>
+                </motion.div>
+              )}
+            </motion.div>
+
+            {/* Revenue Breakdown */}
+            {data.summary.subtotal !== undefined && (
+              <motion.div
+                variants={motionContainer}
+                initial="hidden"
+                animate="show"
+                className="grid gap-6 lg:grid-cols-1"
+              >
+                {/* Revenue Breakdown */}
+                <motion.div variants={motionItem} whileHover={{ scale: 1.01 }} className="group">
+                  <Card className="p-6 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/50 to-purple-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <div className="relative">
+                      <div className="flex items-center gap-3 mb-4">
+                        <motion.div
+                          animate={{
+                            rotate: [0, 360],
+                          }}
+                          transition={{
+                            duration: 20,
+                            repeat: Infinity,
+                            ease: "linear",
+                          }}
+                          className="rounded-lg bg-gradient-to-br from-indigo-400 to-purple-500 p-2 shadow-md"
+                        >
+                          <DollarSign className="h-5 w-5 text-white" />
+                        </motion.div>
+                        <h3 className="text-lg font-semibold text-gray-900">Revenue Breakdown</h3>
+                      </div>
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.25, duration: 0.4 }}
+                      >
+                        <DonutChart
+                          className="h-64"
+                          data={[
+                            { name: 'Subtotal', value: data.summary.subtotal || 0 },
+                            { name: 'Shipping', value: data.summary.total_shipping || 0 },
+                            { name: 'Tax', value: data.summary.total_tax || 0 },
+                            { name: 'Discounts', value: -(data.summary.total_discounts || 0) },
+                          ].filter(item => Math.abs(item.value) > 0)}
+                          category="value"
+                          index="name"
+                          colors={CHART_COLORS_EXTENDED}
+                          valueFormatter={(value) => formatCurrency(Math.abs(value))}
+                          showAnimation={true}
+                          animationDuration={1000}
+                          customTooltip={(props) => (
+                            <ChartTooltip
+                              {...props}
+                              valueFormatter={(value) => formatCurrency(Math.abs(value))}
+                            />
+                          )}
+                        />
+                      </motion.div>
+                      <div className="mt-4 space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">Subtotal</span>
+                          <span className="text-sm font-semibold text-gray-900">
+                            {formatCurrency(data.summary.subtotal || 0)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">+ Shipping</span>
+                          <span className="text-sm font-semibold text-gray-900">
+                            {formatCurrency(data.summary.total_shipping || 0)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">+ Tax</span>
+                          <span className="text-sm font-semibold text-gray-900">
+                            {formatCurrency(data.summary.total_tax || 0)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">- Discounts</span>
+                          <span className="text-sm font-semibold text-orange-600">
+                            {formatCurrency(data.summary.total_discounts || 0)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between pt-2 border-t border-gray-200">
+                          <span className="text-sm font-semibold text-gray-900">Total Revenue</span>
+                          <span className="text-sm font-bold text-gray-900">
+                            {formatCurrency(data.summary.total_revenue)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                </motion.div>
+              </motion.div>
+            )}
           </div>
 
           {/* Customer Metrics */}
@@ -1610,7 +1577,7 @@ export default function SalesPerformancePage() {
                   }))}
                   index="hour"
                   categories={['Orders', 'Revenue']}
-                  colors={['#6366f1', '#8b5cf6']}
+                  colors={['blue', 'cyan']}
                   valueFormatter={(value) => formatNumber(value)}
                   yAxisWidth={60}
                   customTooltip={(props) => (
@@ -1651,21 +1618,19 @@ export default function SalesPerformancePage() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => setTopProductsSortBy('revenue')}
-                      className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                        topProductsSortBy === 'revenue'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
+                      className={`px-3 py-1 text-sm rounded-md transition-colors ${topProductsSortBy === 'revenue'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
                     >
                       Revenue
                     </button>
                     <button
                       onClick={() => setTopProductsSortBy('quantity')}
-                      className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                        topProductsSortBy === 'quantity'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
+                      className={`px-3 py-1 text-sm rounded-md transition-colors ${topProductsSortBy === 'quantity'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
                     >
                       Quantity
                     </button>
@@ -1724,16 +1689,16 @@ export default function SalesPerformancePage() {
             {sampleOrdersSummary && (() => {
               // Calculate percentage changes
               const ordersChange = comparisonSampleOrdersSummary
-                ? calculatePercentageChange(comparisonSampleOrdersSummary.total_sample_orders, sampleOrdersSummary.total_sample_orders)
+                ? calculatePercentageChange(sampleOrdersSummary.total_sample_orders, comparisonSampleOrdersSummary.total_sample_orders)
                 : null;
               const qtyChange = comparisonSampleOrdersSummary
-                ? calculatePercentageChange(comparisonSampleOrdersSummary.total_sample_qty, sampleOrdersSummary.total_sample_qty)
+                ? calculatePercentageChange(sampleOrdersSummary.total_quantity, comparisonSampleOrdersSummary.total_quantity)
                 : null;
               const revenueChange = comparisonSampleOrdersSummary
-                ? calculatePercentageChange(comparisonSampleOrdersSummary.total_sample_revenue, sampleOrdersSummary.total_sample_revenue)
+                ? calculatePercentageChange(sampleOrdersSummary.total_sample_revenue, comparisonSampleOrdersSummary.total_sample_revenue)
                 : null;
-              const itemsPerOrderChange = comparisonSampleOrdersDaily?.summary?.items_per_order && sampleOrdersDaily?.summary?.items_per_order
-                ? calculatePercentageChange(comparisonSampleOrdersDaily.summary.items_per_order, sampleOrdersDaily.summary.items_per_order)
+              const itemsPerOrderChange = comparisonSampleOrdersDaily?.summary && sampleOrdersDaily?.summary
+                ? calculatePercentageChange(sampleOrdersDaily.summary.items_per_order, comparisonSampleOrdersDaily.summary.items_per_order)
                 : null;
 
               return (
@@ -1788,297 +1753,297 @@ export default function SalesPerformancePage() {
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Top 10 Products from Sample Orders</h3>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-gray-200">
-                        <th className="pb-3 text-left font-medium text-gray-600">Product</th>
-                        <th className="pb-3 text-left font-medium text-gray-600">SKU</th>
-                        <th className="pb-3 text-right font-medium text-gray-600">Qty</th>
-                        <th className="pb-3 text-right font-medium text-gray-600">Revenue</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {topSampleProducts.slice(0, 10).map((product, index) => (
-                        <tr key={product.sku} className="border-b border-gray-100 transition-colors hover:bg-gray-50">
-                          <td className="py-3 text-gray-900">
-                            <div className="flex items-center gap-2">
-                              <span className="text-gray-400">#{index + 1}</span>
-                              <span className="font-medium">{product.product_name}</span>
-                            </div>
-                          </td>
-                          <td className="py-3 text-gray-600">{product.sku}</td>
-                          <td className="py-3 text-right text-gray-900">
-                            {formatNumber(product.total_qty_ordered)}
-                          </td>
-                          <td className="py-3 text-right font-medium text-gray-900">
-                            {formatCurrency(product.total_revenue)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
-            </motion.div>
-          )}
-
-          {/* Items Ordered by Collection */}
-          <motion.div variants={motionItem}>
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Items Ordered by Collection (Sample Orders)</h3>
-              {sampleOrdersByCollection.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-12">#</TableHead>
-                        <TableHead>Collection</TableHead>
-                        <TableHead className="text-right">Items Ordered</TableHead>
-                        <TableHead className="text-right">Orders</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {[...sampleOrdersByCollection]
-                        .sort((a, b) => (b.total_items || 0) - (a.total_items || 0))
-                        .map((col, index) => (
-                          <TableRow key={col.collection || `unknown-${index}`}>
-                            <TableCell className="text-gray-400">#{index + 1}</TableCell>
-                            <TableCell className="font-medium">{col.collection || 'Unknown'}</TableCell>
-                            <TableCell className="text-right font-semibold">
-                              {formatNumber(col.total_items)}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {formatNumber(col.total_orders)}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : (
-                <div className="h-64 flex items-center justify-center text-gray-500">
-                  <p>No collection data available</p>
-                </div>
+                        <thead>
+                          <tr className="border-b border-gray-200">
+                            <th className="pb-3 text-left font-medium text-gray-600">Product</th>
+                            <th className="pb-3 text-left font-medium text-gray-600">SKU</th>
+                            <th className="pb-3 text-right font-medium text-gray-600">Qty</th>
+                            <th className="pb-3 text-right font-medium text-gray-600">Revenue</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {topSampleProducts.slice(0, 10).map((product, index) => (
+                            <tr key={product.sku} className="border-b border-gray-100 transition-colors hover:bg-gray-50">
+                              <td className="py-3 text-gray-900">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-gray-400">#{index + 1}</span>
+                                  <span className="font-medium">{product.product_name}</span>
+                                </div>
+                              </td>
+                              <td className="py-3 text-gray-600">{product.sku}</td>
+                              <td className="py-3 text-right text-gray-900">
+                                {formatNumber(product.total_qty_ordered)}
+                              </td>
+                              <td className="py-3 text-right font-medium text-gray-900">
+                                {formatCurrency(product.total_revenue)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </Card>
+                </motion.div>
               )}
-            </Card>
-          </motion.div>
 
-          {/* Sample Orders Category Split */}
-          {sampleCategoryBreakdown.length > 0 && (
-            <motion.div variants={motionItem} whileHover={{ scale: 1.01 }} className="group">
-              <Card className="p-6 relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-50/50 to-pink-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="relative">
-                  <div className="flex items-center gap-3 mb-4">
-                    <motion.div
-                      animate={{
-                        rotate: [0, 360],
-                      }}
-                      transition={{
-                        duration: 20,
-                        repeat: Infinity,
-                        ease: "linear",
-                      }}
-                      className="rounded-lg bg-gradient-to-br from-purple-400 to-pink-500 p-2 shadow-md"
-                    >
-                      <PieChart className="h-5 w-5 text-white" />
-                    </motion.div>
-                    <h3 className="text-lg font-semibold text-gray-900">Sample Orders Category Split</h3>
-                  </div>
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.2, duration: 0.4 }}
-                  >
-                    <DonutChart
-                      className="h-64"
-                      data={sampleCategoryBreakdown.map(cat => ({
-                        name: cat.category_group || 'Unknown',
-                        value: cat.total_revenue,
-                      }))}
-                      category="value"
-                      index="name"
-                      colors={['#a855f7', '#ec4899', '#f59e0b', '#10b981', '#06b6d4', '#6366f1', '#8b5cf6', '#d946ef']}
-                      valueFormatter={(value) => formatCurrency(value)}
-                      showAnimation={true}
-                      animationDuration={1000}
-                      customTooltip={(props) => (
-                        <ChartTooltip
-                          {...props}
-                          valueFormatter={(value) => formatCurrency(value)}
-                        />
-                      )}
-                    />
-                  </motion.div>
-                  <div className="mt-4 space-y-2">
-                    {sampleCategoryBreakdown.map((cat) => (
-                      <div key={cat.category_group} className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">{cat.category_group || 'Unknown'}</span>
-                        <div className="text-right">
-                          <span className="text-sm font-semibold text-gray-900">
-                            {formatCurrency(cat.total_revenue)}
-                          </span>
-                          <span className="text-xs text-gray-500 ml-2">
-                            ({formatPercentage(cat.percentage)})
-                          </span>
-                        </div>
+              {/* Items Ordered by Collection */}
+              <motion.div variants={motionItem}>
+                <Card className="p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Items Ordered by Collection (Sample Orders)</h3>
+                  {sampleOrdersByCollection.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-12">#</TableHead>
+                            <TableHead>Collection</TableHead>
+                            <TableHead className="text-right">Items Ordered</TableHead>
+                            <TableHead className="text-right">Orders</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {[...sampleOrdersByCollection]
+                            .sort((a, b) => (b.total_items || 0) - (a.total_items || 0))
+                            .map((col, index) => (
+                              <TableRow key={col.collection || `unknown-${index}`}>
+                                <TableCell className="text-gray-400">#{index + 1}</TableCell>
+                                <TableCell className="font-medium">{col.collection || 'Unknown'}</TableCell>
+                                <TableCell className="text-right font-semibold">
+                                  {formatNumber(col.total_items)}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {formatNumber(col.total_orders)}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <div className="h-64 flex items-center justify-center text-gray-500">
+                      <p>No collection data available</p>
+                    </div>
+                  )}
+                </Card>
+              </motion.div>
+
+              {/* Sample Orders Category Split */}
+              {sampleCategoryBreakdown.length > 0 && (
+                <motion.div variants={motionItem} whileHover={{ scale: 1.01 }} className="group">
+                  <Card className="p-6 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-50/50 to-pink-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <div className="relative">
+                      <div className="flex items-center gap-3 mb-4">
+                        <motion.div
+                          animate={{
+                            rotate: [0, 360],
+                          }}
+                          transition={{
+                            duration: 20,
+                            repeat: Infinity,
+                            ease: "linear",
+                          }}
+                          className="rounded-lg bg-gradient-to-br from-purple-400 to-pink-500 p-2 shadow-md"
+                        >
+                          <PieChart className="h-5 w-5 text-white" />
+                        </motion.div>
+                        <h3 className="text-lg font-semibold text-gray-900">Sample Orders Category Split</h3>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              </Card>
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.2, duration: 0.4 }}
+                      >
+                        <DonutChart
+                          className="h-64"
+                          data={sampleCategoryBreakdown.map(cat => ({
+                            name: cat.category_group || 'Unknown',
+                            value: cat.total_revenue,
+                          }))}
+                          category="value"
+                          index="name"
+                          colors={['violet', 'fuchsia', 'amber', 'emerald', 'cyan', 'indigo', 'sky', 'rose']}
+                          valueFormatter={(value) => formatCurrency(value)}
+                          showAnimation={true}
+                          animationDuration={1000}
+                          customTooltip={(props) => (
+                            <ChartTooltip
+                              {...props}
+                              valueFormatter={(value) => formatCurrency(value)}
+                            />
+                          )}
+                        />
+                      </motion.div>
+                      <div className="mt-4 space-y-2">
+                        {sampleCategoryBreakdown.map((cat) => (
+                          <div key={cat.category_group} className="flex justify-between items-center">
+                            <span className="text-sm text-gray-600">{cat.category_group || 'Unknown'}</span>
+                            <div className="text-right">
+                              <span className="text-sm font-semibold text-gray-900">
+                                {formatCurrency(cat.total_revenue)}
+                              </span>
+                              <span className="text-xs text-gray-500 ml-2">
+                                ({formatPercentage(cat.percentage)})
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </Card>
+                </motion.div>
+              )}
             </motion.div>
-          )}
-        </motion.div>
 
-        {/* Sample Orders Collections Performance */}
-        {sampleCollectionsPerformance.length > 0 && (
-          <motion.div variants={motionItem}>
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Collections by Quantity (Sample Orders)</h3>
-              <BarChart
-                className="h-64"
-                data={sampleCollectionsPerformance.slice(0, 10).map(col => ({
-                  collection: col.collection || 'Unknown',
-                  Quantity: col.total_qty,
-                }))}
-                index="collection"
-                categories={['Quantity']}
-                colors={['#ec4899']}
-                valueFormatter={(value) => formatNumber(value)}
-                showLegend={false}
-                showAnimation={false}
-                customTooltip={(props) => (
-                  <ChartTooltip
-                    {...props}
+            {/* Sample Orders Collections Performance */}
+            {sampleCollectionsPerformance.length > 0 && (
+              <motion.div variants={motionItem}>
+                <Card className="p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Collections by Quantity (Sample Orders)</h3>
+                  <BarChart
+                    className="h-64"
+                    data={sampleCollectionsPerformance.slice(0, 10).map(col => ({
+                      collection: col.collection || 'Unknown',
+                      Quantity: col.total_qty,
+                    }))}
+                    index="collection"
+                    categories={['Quantity']}
+                    colors={['fuchsia']}
                     valueFormatter={(value) => formatNumber(value)}
-                  />
-                )}
-              />
-            </Card>
-          </motion.div>
-          )}
-
-          {/* Items per Order, Order Trend, and Hourly Performance */}
-          <motion.div
-            variants={motionContainer}
-            initial="hidden"
-            animate="show"
-            className="grid gap-6 lg:grid-cols-2 mb-6 mt-6"
-          >
-            {/* Order Trend */}
-            {sampleOrdersDaily && sampleOrdersDaily.daily.length > 0 && (
-              <motion.div variants={motionItem} whileHover={{ scale: 1.01 }} className="group">
-                <Card className="p-6 relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-br from-purple-50/50 to-pink-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <div className="relative">
-                    <div className="flex items-center gap-3 mb-4">
-                      <motion.div
-                        animate={{
-                          rotate: [0, 5, -5, 0],
-                        }}
-                        transition={{
-                          duration: 4,
-                          repeat: Infinity,
-                          repeatDelay: 2,
-                        }}
-                        className="rounded-lg bg-gradient-to-br from-purple-400 to-pink-500 p-2 shadow-md"
-                      >
-                        <ShoppingBag className="h-5 w-5 text-white" />
-                      </motion.div>
-                      <h3 className="text-lg font-semibold text-gray-900">Order Trend</h3>
-                    </div>
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: 0.2, duration: 0.4 }}
-                      className="mt-4"
-                    >
-                      <BarChart
-                        className="h-64"
-                        data={[...sampleOrdersDaily.daily].sort((a, b) => 
-                          new Date(a.date).getTime() - new Date(b.date).getTime()
-                        ).map(row => ({
-                          date: formatChartDate(row.date),
-                          Orders: row.total_orders,
-                        }))}
-                        index="date"
-                        categories={['Orders']}
-                        colors={['#ec4899']}
+                    showLegend={false}
+                    showAnimation={false}
+                    customTooltip={(props) => (
+                      <ChartTooltip
+                        {...props}
                         valueFormatter={(value) => formatNumber(value)}
-                        showLegend={false}
-                        showAnimation={false}
-                        customTooltip={(props) => (
-                          <ChartTooltip
-                            {...props}
-                            valueFormatter={(value) => formatNumber(value)}
-                          />
-                        )}
                       />
-                    </motion.div>
-                  </div>
-                </Card>
-              </motion.div>
-            )}
-
-            {/* Hourly Performance */}
-            {sampleOrdersHourly && (
-              <motion.div variants={motionItem} whileHover={{ scale: 1.01 }} className="group">
-                <Card className="p-6 relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-br from-purple-50/50 to-pink-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <div className="relative">
-                    <div className="flex items-center gap-3 mb-4">
-                      <motion.div
-                        animate={{
-                          rotate: [0, 5, -5, 0],
-                        }}
-                        transition={{
-                          duration: 4,
-                          repeat: Infinity,
-                          repeatDelay: 2,
-                        }}
-                        className="rounded-lg bg-gradient-to-br from-purple-400 to-pink-500 p-2 shadow-md"
-                      >
-                        <Clock className="h-5 w-5 text-white" />
-                      </motion.div>
-                      <h3 className="text-lg font-semibold text-gray-900">Hourly Performance</h3>
-                    </div>
-                    {sampleOrdersHourly.peaks && (
-                      <p className="text-sm text-gray-600 mb-2">
-                        Peak orders: {sampleOrdersHourly.peaks.orders.hour}:00 ({formatNumber(sampleOrdersHourly.peaks.orders.total_orders)} orders) •
-                        Peak revenue: {sampleOrdersHourly.peaks.revenue.hour}:00 ({formatCurrency(sampleOrdersHourly.peaks.revenue.total_revenue)})
-                      </p>
                     )}
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: 0.25, duration: 0.4 }}
-                      className="mt-4"
-                    >
-                      <LineChart
-                        className="h-64"
-                        data={sampleOrdersHourly.hourly.map(h => ({
-                          hour: `${h.hour}:00`,
-                          Orders: h.total_orders,
-                          Revenue: h.total_revenue,
-                        }))}
-                        index="hour"
-                        categories={['Orders', 'Revenue']}
-                        colors={['#ec4899', '#a855f7']}
-                        valueFormatter={(value) => formatNumber(value)}
-                        yAxisWidth={60}
-                        customTooltip={(props) => (
-                          <ChartTooltip
-                            {...props}
-                            valueFormatter={(value) => formatNumber(value)}
-                          />
-                        )}
-                      />
-                    </motion.div>
-                  </div>
+                  />
                 </Card>
               </motion.div>
             )}
-          </motion.div>
+
+            {/* Items per Order, Order Trend, and Hourly Performance */}
+            <motion.div
+              variants={motionContainer}
+              initial="hidden"
+              animate="show"
+              className="grid gap-6 lg:grid-cols-2 mb-6 mt-6"
+            >
+              {/* Order Trend */}
+              {sampleOrdersDaily && sampleOrdersDaily.daily.length > 0 && (
+                <motion.div variants={motionItem} whileHover={{ scale: 1.01 }} className="group">
+                  <Card className="p-6 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-50/50 to-pink-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <div className="relative">
+                      <div className="flex items-center gap-3 mb-4">
+                        <motion.div
+                          animate={{
+                            rotate: [0, 5, -5, 0],
+                          }}
+                          transition={{
+                            duration: 4,
+                            repeat: Infinity,
+                            repeatDelay: 2,
+                          }}
+                          className="rounded-lg bg-gradient-to-br from-purple-400 to-pink-500 p-2 shadow-md"
+                        >
+                          <ShoppingBag className="h-5 w-5 text-white" />
+                        </motion.div>
+                        <h3 className="text-lg font-semibold text-gray-900">Order Trend</h3>
+                      </div>
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.2, duration: 0.4 }}
+                        className="mt-4"
+                      >
+                        <BarChart
+                          className="h-64"
+                          data={[...sampleOrdersDaily.daily].sort((a, b) =>
+                            new Date(a.date).getTime() - new Date(b.date).getTime()
+                          ).map(row => ({
+                            date: formatChartDate(row.date),
+                            Orders: row.total_orders,
+                          }))}
+                          index="date"
+                          categories={['Orders']}
+                          colors={['cyan']}
+                          valueFormatter={(value) => formatNumber(value)}
+                          showLegend={false}
+                          showAnimation={false}
+                          customTooltip={(props) => (
+                            <ChartTooltip
+                              {...props}
+                              valueFormatter={(value) => formatNumber(value)}
+                            />
+                          )}
+                        />
+                      </motion.div>
+                    </div>
+                  </Card>
+                </motion.div>
+              )}
+
+              {/* Hourly Performance */}
+              {sampleOrdersHourly && (
+                <motion.div variants={motionItem} whileHover={{ scale: 1.01 }} className="group">
+                  <Card className="p-6 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-50/50 to-pink-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    <div className="relative">
+                      <div className="flex items-center gap-3 mb-4">
+                        <motion.div
+                          animate={{
+                            rotate: [0, 5, -5, 0],
+                          }}
+                          transition={{
+                            duration: 4,
+                            repeat: Infinity,
+                            repeatDelay: 2,
+                          }}
+                          className="rounded-lg bg-gradient-to-br from-purple-400 to-pink-500 p-2 shadow-md"
+                        >
+                          <Clock className="h-5 w-5 text-white" />
+                        </motion.div>
+                        <h3 className="text-lg font-semibold text-gray-900">Hourly Performance</h3>
+                      </div>
+                      {sampleOrdersHourly.peaks && (
+                        <p className="text-sm text-gray-600 mb-2">
+                          Peak orders: {sampleOrdersHourly.peaks.orders.hour}:00 ({formatNumber(sampleOrdersHourly.peaks.orders.total_orders)} orders) •
+                          Peak revenue: {sampleOrdersHourly.peaks.revenue.hour}:00 ({formatCurrency(sampleOrdersHourly.peaks.revenue.total_revenue)})
+                        </p>
+                      )}
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.25, duration: 0.4 }}
+                        className="mt-4"
+                      >
+                        <LineChart
+                          className="h-64"
+                          data={sampleOrdersHourly.hourly.map(h => ({
+                            hour: `${h.hour}:00`,
+                            Orders: h.total_orders,
+                            Revenue: h.total_revenue,
+                          }))}
+                          index="hour"
+                          categories={['Orders', 'Revenue']}
+                          colors={['fuchsia', 'violet']}
+                          valueFormatter={(value) => formatNumber(value)}
+                          yAxisWidth={60}
+                          customTooltip={(props) => (
+                            <ChartTooltip
+                              {...props}
+                              valueFormatter={(value) => formatNumber(value)}
+                            />
+                          )}
+                        />
+                      </motion.div>
+                    </div>
+                  </Card>
+                </motion.div>
+              )}
+            </motion.div>
           </div>
         </TabsContent>
       </Tabs>
@@ -2086,43 +2051,7 @@ export default function SalesPerformancePage() {
   );
 }
 
-function KPICard({
-  label,
-  value,
-  change,
-  icon,
-}: {
-  label: string;
-  value: string;
-  change: number | null;
-  icon?: React.ReactNode;
-}) {
-  return (
-    <Card className="p-6 h-full flex flex-col">
-      <div className="flex items-center justify-between mb-2">
-        <div className="text-sm font-medium text-gray-600">{label}</div>
-        {icon && <div className="text-gray-400">{icon}</div>}
-      </div>
-      <div className="flex items-baseline gap-2 flex-1">
-        <div className="text-2xl font-bold text-gray-900">{value}</div>
-        {change !== null && (
-          <div
-            className={`flex items-center text-sm font-medium ${
-              change >= 0 ? 'text-green-600' : 'text-red-600'
-            }`}
-          >
-            {change >= 0 ? (
-              <TrendingUp className="mr-1 h-4 w-4" />
-            ) : (
-              <TrendingDown className="mr-1 h-4 w-4" />
-            )}
-            {formatPercentage(Math.abs(change))}
-          </div>
-        )}
-      </div>
-    </Card>
-  );
-}
+
 
 function RevenueVsTargetChart({
   data,
@@ -2135,15 +2064,47 @@ function RevenueVsTargetChart({
   selectedWebsiteId: string | null;
   dateRange: { startDate: string; endDate: string };
 }) {
-  // Find relevant revenue target
-  const revenueTarget = targets.find(
-    (t) =>
-      t.metric === 'revenue' &&
-      (t.websiteId === selectedWebsiteId || t.websiteId === 'all_combined') &&
-      new Date(t.startDate) <= new Date(dateRange.endDate)
-  );
+  // Calculate target for the selected period
+  const calculateTargetValue = () => {
+    const start = new Date(dateRange.startDate);
+    const end = new Date(dateRange.endDate);
+    let totalTarget = 0;
 
-  if (!revenueTarget) {
+    // Filter relevant targets
+    const relevantTargets = targets.filter(
+      (t) =>
+        t.metric === 'revenue' &&
+        (t.websiteId === selectedWebsiteId || t.websiteId === 'all_combined')
+    );
+
+    // Iterate through each day in the range
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const currentDay = d.getTime();
+
+      // Find a target that covers this day
+      const dailyTarget = relevantTargets.find(t => {
+        const tStart = new Date(t.startDate).getTime();
+        const tEnd = new Date(t.endDate).getTime();
+        return currentDay >= tStart && currentDay <= tEnd;
+      });
+
+      if (dailyTarget) {
+        // Calculate daily value for this target
+        const tStart = new Date(dailyTarget.startDate);
+        const tEnd = new Date(dailyTarget.endDate);
+        const dayDiff = Math.round((tEnd.getTime() - tStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        if (dayDiff > 0) {
+          totalTarget += dailyTarget.value / dayDiff;
+        }
+      }
+    }
+
+    return totalTarget;
+  };
+
+  const targetRevenue = calculateTargetValue();
+
+  if (targetRevenue === 0) {
     return (
       <div className="flex h-64 items-center justify-center text-gray-500">
         No revenue target set for this period
@@ -2153,7 +2114,7 @@ function RevenueVsTargetChart({
 
   // Calculate actual vs target
   const actualRevenue = data.summary.total_revenue;
-  const targetRevenue = revenueTarget.value;
+  // targetRevenue is already calculated
   const percentageOfTarget = (actualRevenue / targetRevenue) * 100;
 
   const chartData = [
@@ -2181,9 +2142,8 @@ function RevenueVsTargetChart({
         <div>
           <p className="text-sm text-gray-600">Achievement</p>
           <p
-            className={`text-2xl font-bold ${
-              percentageOfTarget >= 100 ? 'text-green-600' : 'text-orange-600'
-            }`}
+            className={`text-2xl font-bold ${percentageOfTarget >= 100 ? 'text-green-600' : 'text-orange-600'
+              }`}
           >
             {formatPercentage(percentageOfTarget)}
           </p>
@@ -2194,7 +2154,7 @@ function RevenueVsTargetChart({
         data={chartData}
         index="name"
         categories={['value']}
-        colors={['#06b6d4']}
+        colors={['cyan']}
         valueFormatter={(value) => formatCurrency(value)}
         showLegend={false}
         showAnimation={false}

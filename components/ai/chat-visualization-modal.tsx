@@ -5,6 +5,7 @@ import { ChartVisualization } from '@/types/ai-chat';
 import { AreaChart, BarChart, DonutChart, LineChart } from '@tremor/react';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { CHART_COLORS, CHART_COLORS_EXTENDED } from '@/lib/constants/colors';
 
 interface ChatVisualizationModalProps {
   visualization: ChartVisualization | null;
@@ -30,7 +31,7 @@ export function ChatVisualizationModal({
             data={data}
             index={config?.xKey || 'date'}
             categories={config?.categories || []}
-            colors={config?.colors || ['#6366f1', '#8b5cf6', '#d946ef']}
+            colors={config?.colors || CHART_COLORS}
             yAxisWidth={60}
             showAnimation
           />
@@ -43,7 +44,7 @@ export function ChatVisualizationModal({
             data={data}
             index={config?.xKey || 'date'}
             categories={config?.categories || []}
-            colors={config?.colors || ['#6366f1', '#8b5cf6', '#d946ef']}
+            colors={config?.colors || CHART_COLORS}
             yAxisWidth={60}
             showAnimation
           />
@@ -56,7 +57,7 @@ export function ChatVisualizationModal({
             data={data}
             index={config?.xKey || 'name'}
             categories={config?.categories || []}
-            colors={config?.colors || ['#6366f1', '#8b5cf6', '#d946ef']}
+            colors={config?.colors || CHART_COLORS}
             yAxisWidth={60}
             showAnimation
           />
@@ -70,7 +71,7 @@ export function ChatVisualizationModal({
             data={data}
             category={config?.yKey || 'value'}
             index={config?.xKey || 'name'}
-            colors={config?.colors || ['#6366f1', '#8b5cf6', '#d946ef', '#f59e0b', '#06b6d4', '#10b981', '#a855f7', '#ec4899', '#f43f5e', '#14b8a6']}
+            colors={config?.colors || CHART_COLORS}
             showAnimation
           />
         );

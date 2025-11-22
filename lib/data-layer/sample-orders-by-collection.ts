@@ -22,7 +22,7 @@ export async function getSampleOrdersByCollection(
 
   const query = `
     SELECT 
-      COALESCE(p.attr_sdb_collection_name, 'Unknown') as collection,
+      COALESCE(JSON_VALUE(p.attributes, '$.sdb_collection_name'), 'Unknown') as collection,
       SUM(CAST(item.qty_ordered AS FLOAT64)) as total_items,
       COUNT(DISTINCT item.order_entity_id) as total_orders
     FROM \`${bigquery.projectId}.${datasetId}.mv_adobe_commerce_sales_items\` item

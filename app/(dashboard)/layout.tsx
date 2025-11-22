@@ -9,6 +9,7 @@ import { ChatPanel } from '@/components/ai/chat-panel';
 import { ChatToggleButton } from '@/components/ai/chat-toggle-button';
 import { AnimatePresence, motion } from 'framer-motion';
 import { usePathname } from 'next/navigation';
+import { FeatureGuard } from '@/components/auth/feature-guard';
 
 
 export default function DashboardLayout({
@@ -32,24 +33,26 @@ export default function DashboardLayout({
               <DashboardHeader />
 
               {/* Page content */}
-              <main className="relative flex-1 overflow-y-auto bg-gradient-to-br from-gray-50/50 via-white to-indigo-50/20 p-6">
+              <main className="relative flex-1 overflow-y-auto p-6">
                 {/* Subtle animated background gradient */}
-                <div className="fixed inset-0 -z-10 bg-gradient-to-br from-indigo-50/30 via-transparent to-purple-50/20 animate-gradient opacity-50 pointer-events-none" />
-                
+                <div className="fixed inset-0 -z-10 bg-gradient-to-br from-primary/5 via-transparent to-secondary/20 animate-gradient opacity-30 pointer-events-none" />
+
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={pathname}
                     initial={{ opacity: 0, y: 10, scale: 0.98 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -10, scale: 0.98 }}
-                    transition={{ 
-                      duration: 0.3, 
+                    transition={{
+                      duration: 0.3,
                       ease: [0.4, 0, 0.2, 1],
                       scale: { duration: 0.2 }
                     }}
                     className="relative z-0"
                   >
-                    {children}
+                    <FeatureGuard>
+                      {children}
+                    </FeatureGuard>
                   </motion.div>
                 </AnimatePresence>
               </main>

@@ -3,7 +3,7 @@ import { buildWebsiteFilter, executeQuery } from './base';
 import { QueryOptions } from './base';
 
 export interface CategoryBreakdownRow {
-  category_group: string;
+  product_group: string;
   total_revenue: number;
   total_qty: number;
   order_count: number;
@@ -31,7 +31,7 @@ export async function getCategoryBreakdown(
     SELECT 
       item.order_date,
       item.website_id as store_id,
-      COALESCE(p.attr_sdb_collection_name, 'Unknown') as category_group,
+      COALESCE(JSON_VALUE(p.attributes, '$.sdb_product_group_code_data'), 'Unknown') as product_group,
       SUM(CAST(item.row_total AS FLOAT64)) as total_revenue,
       SUM(CAST(item.qty_ordered AS FLOAT64)) as total_qty,
       COUNT(DISTINCT item.order_entity_id) as order_count
@@ -43,7 +43,7 @@ export async function getCategoryBreakdown(
     WHERE item.order_date BETWEEN @start_date AND @end_date
       ${sampleFilter}
       ${websiteFilter.filterClause ? websiteFilter.filterClause.replace(/(?<!@)website_id/g, 'item.website_id') : ''}
-    GROUP BY order_date, store_id, category_group
+    GROUP BY order_date, store_id, product_group
   `;
 
   const queryParams: Record<string, any> = {
@@ -52,11 +52,11 @@ export async function getCategoryBreakdown(
     ...websiteFilter.params,
   };
 
-  // Execute query and process results (aggregate by date+store_id+category_group first)
+  // Execute query and process results (aggregate by date+store_id+product_group first)
   const rows = await executeQuery<{
     order_date: string;
     store_id?: string;
-    category_group: string;
+    product_group: string;
     total_revenue: number;
     total_qty: number;
     order_count: number;
@@ -64,17 +64,32 @@ export async function getCategoryBreakdown(
     clientId,
     startDate,
     monetaryFields: [{ field: 'total_revenue', websiteField: 'store_id', dateField: 'order_date' }],
-    groupBy: ['order_date', 'category_group'],
+    groupBy: ['order_date', 'product_group'],
     sumFields: ['total_revenue', 'total_qty', 'order_count'],
     maxFields: [],
   });
 
   // Then aggregate by category across all dates
   const aggregatedByCategory = rows.reduce<Record<string, CategoryBreakdownRow>>((acc, row) => {
-    const key = row.category_group || 'Unknown';
+    let key = row.product_group || 'Unknown';
+
+    // Try to parse JSON if it looks like JSON
+    if (key.startsWith('[') || key.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(key);
+        if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].label) {
+          key = parsed[0].label;
+        } else if (parsed.label) {
+          key = parsed.label;
+        }
+      } catch (e) {
+        // Keep original key if parsing fails
+      }
+    }
+
     if (!acc[key]) {
       acc[key] = {
-        category_group: key,
+        product_group: key,
         total_revenue: 0,
         total_qty: 0,
         order_count: 0,

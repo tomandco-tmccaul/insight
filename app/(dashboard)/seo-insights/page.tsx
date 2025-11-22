@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -11,16 +12,20 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { BarChart, DonutChart } from '@tremor/react';
 import { useDashboard } from '@/lib/context/dashboard-context';
 import { useIdToken } from '@/lib/auth/hooks';
+import { useUrlSync } from '@/lib/hooks/use-url-sync';
 import { apiRequest, buildQueryString } from '@/lib/utils/api';
 import { formatCurrency, formatNumber } from '@/lib/utils/date';
 import { ChartTooltip } from '@/components/ui/chart-tooltip';
+import { CustomChartLegend } from '@/components/ui/custom-chart-legend';
 import { Search, TrendingUp, Globe, BarChart3, Target } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ReportAnnotations } from '@/components/dashboard/report-annotations';
 import { PageHeader } from '@/components/dashboard/page-header';
+import { CHART_COLORS } from '@/lib/constants/colors';
 
 interface SEOOverview {
   total_clicks: number;
@@ -64,16 +69,47 @@ interface SEOData {
 
 export default function SEOInsightsPage() {
   const { selectedWebsiteId, selectedClientId, dateRange } = useDashboard();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const getIdToken = useIdToken();
+
+  // Sync URL parameters with dashboard context
+  useUrlSync();
+
   const [data, setData] = useState<SEOData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [datasetId, setDatasetId] = useState<string | null>(null);
 
+  // Get values from URL params, fallback to dashboard context
+  const websiteId = searchParams.get('websiteId') || selectedWebsiteId;
+  const clientId = searchParams.get('clientId') || selectedClientId;
+  const startDate = searchParams.get('startDate') || dateRange.startDate;
+  const endDate = searchParams.get('endDate') || dateRange.endDate;
+  const activeTab = (searchParams.get('tab') || 'clicks') as 'clicks' | 'impressions';
+
+  // Update URL params when filters change (for tab changes)
+  const updateUrlParams = useCallback((updates: Record<string, string | null>) => {
+    const params = new URLSearchParams(searchParams.toString());
+
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === null || value === '') {
+        params.delete(key);
+      } else {
+        params.set(key, value);
+      }
+    });
+
+    const newUrl = `${pathname}?${params.toString()}`;
+    router.push(newUrl, { scroll: false });
+  }, [searchParams, router, pathname]);
+
+
   // Fetch client's dataset ID
   useEffect(() => {
     async function fetchClientData() {
-      if (!selectedClientId) {
+      if (!clientId) {
         setDatasetId(null);
         return;
       }
@@ -83,7 +119,7 @@ export default function SEOInsightsPage() {
 
         // Fetch client data
         const clientResponse = await apiRequest<{ id: string; clientName: string; bigQueryDatasetId: string }>(
-          `/api/admin/clients/${selectedClientId}`,
+          `/api/admin/clients/${clientId}`,
           {},
           idToken || undefined
         );
@@ -99,12 +135,16 @@ export default function SEOInsightsPage() {
     }
 
     fetchClientData();
-  }, [selectedClientId, getIdToken]);
+  }, [clientId, getIdToken]);
 
   useEffect(() => {
     async function fetchData() {
-      if (!selectedWebsiteId || !selectedClientId || !datasetId) {
+      if (!websiteId || !clientId || !startDate || !endDate) {
         setLoading(false);
+        return;
+      }
+
+      if (!datasetId) {
         return;
       }
 
@@ -114,11 +154,11 @@ export default function SEOInsightsPage() {
       try {
         const idToken = await getIdToken();
         const queryString = buildQueryString({
-          websiteId: selectedWebsiteId,
-          clientId: selectedClientId,
+          websiteId,
+          clientId,
           dataset_id: datasetId,
-          startDate: dateRange.startDate,
-          endDate: dateRange.endDate,
+          startDate,
+          endDate,
         });
 
         const response = await apiRequest<SEOData>(
@@ -140,9 +180,9 @@ export default function SEOInsightsPage() {
     }
 
     fetchData();
-  }, [selectedWebsiteId, selectedClientId, datasetId, dateRange, getIdToken]);
+  }, [websiteId, clientId, datasetId, startDate, endDate, getIdToken]);
 
-  if (!selectedWebsiteId) {
+  if (!websiteId) {
     return (
       <div className="flex h-96 items-center justify-center">
         <div className="text-center">
@@ -187,9 +227,13 @@ export default function SEOInsightsPage() {
     impressions: item.total_impressions,
   }));
 
-  const topQueriesChart = data.topQueries.slice(0, 10).map((query) => ({
+  // Get the appropriate queries based on active tab
+  const queriesData = activeTab === 'clicks' ? data.topQueries : data.topImpressions;
+  const topQueriesChart = queriesData.slice(0, 10).map((query) => ({
     query: query.query.length > 30 ? query.query.substring(0, 30) + '...' : query.query,
     clicks: query.total_clicks,
+    impressions: query.total_impressions,
+    value: activeTab === 'clicks' ? query.total_clicks : query.total_impressions,
   }));
 
   return (
@@ -200,6 +244,18 @@ export default function SEOInsightsPage() {
       />
 
       <ReportAnnotations />
+
+      {/* Tabs for switching between Clicks and Impressions */}
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => updateUrlParams({ tab: value })}
+        className="mt-6"
+      >
+        <TabsList>
+          <TabsTrigger value="clicks">Top by Clicks</TabsTrigger>
+          <TabsTrigger value="impressions">Top by Impressions</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {/* Overview Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
@@ -246,21 +302,27 @@ export default function SEOInsightsPage() {
           <Card className="p-6 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 to-indigo-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             <div className="relative">
-              <div className="flex items-center gap-3 mb-4">
-                <motion.div
-                  animate={{
-                    rotate: [0, 360],
-                  }}
-                  transition={{
-                    duration: 20,
-                    repeat: Infinity,
-                    ease: "linear",
-                  }}
-                  className="rounded-lg bg-gradient-to-br from-blue-400 to-indigo-500 p-2 shadow-md"
-                >
-                  <Target className="h-5 w-5 text-white" />
-                </motion.div>
-                <h3 className="text-lg font-semibold text-gray-900">Position Distribution</h3>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <motion.div
+                    animate={{
+                      rotate: [0, 360],
+                    }}
+                    transition={{
+                      duration: 20,
+                      repeat: Infinity,
+                      ease: "linear",
+                    }}
+                    className="rounded-lg bg-gradient-to-br from-blue-400 to-indigo-500 p-2 shadow-md"
+                  >
+                    <Target className="h-5 w-5 text-white" />
+                  </motion.div>
+                  <h3 className="text-lg font-semibold text-gray-900">Position Distribution</h3>
+                </div>
+                <CustomChartLegend
+                  categories={['clicks', 'impressions']}
+                  colors={['blue', 'cyan']}
+                />
               </div>
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -273,9 +335,9 @@ export default function SEOInsightsPage() {
                   data={positionChartData}
                   index="position"
                   categories={['clicks', 'impressions']}
-                  colors={['#3b82f6', '#6366f1']}
+                  colors={['blue', 'cyan']}
                   valueFormatter={(value) => formatNumber(value)}
-                  showLegend={true}
+                  showLegend={false}
                   showAnimation={true}
                   animationDuration={1000}
                   customTooltip={(props) => (
@@ -308,7 +370,9 @@ export default function SEOInsightsPage() {
                 >
                   <BarChart3 className="h-5 w-5 text-white" />
                 </motion.div>
-                <h3 className="text-lg font-semibold text-gray-900">Top Queries by Clicks</h3>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Top Queries by {activeTab === 'clicks' ? 'Clicks' : 'Impressions'}
+                </h3>
               </div>
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -320,8 +384,8 @@ export default function SEOInsightsPage() {
                   className="h-64"
                   data={topQueriesChart}
                   index="query"
-                  categories={['clicks']}
-                  colors={['#10b981']}
+                  categories={[activeTab === 'clicks' ? 'clicks' : 'impressions']}
+                  colors={activeTab === 'clicks' ? ['violet'] : ['blue']}
                   valueFormatter={(value) => formatNumber(value)}
                   showLegend={false}
                   showAnimation={true}
@@ -343,8 +407,12 @@ export default function SEOInsightsPage() {
       <Card>
         <div className="p-6">
           <div className="flex items-center gap-2">
-            <Search className="h-5 w-5 text-gray-600" />
-            <h3 className="text-lg font-semibold text-gray-900">Top Search Queries by Clicks</h3>
+            <div className="p-2 bg-blue-50 rounded-lg">
+              <Search className="h-5 w-5 text-blue-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Top Search Queries by {activeTab === 'clicks' ? 'Clicks' : 'Impressions'}
+            </h3>
           </div>
         </div>
         <Table>
@@ -359,8 +427,8 @@ export default function SEOInsightsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.topQueries.length > 0 ? (
-              data.topQueries.map((query, idx) => (
+            {queriesData.length > 0 ? (
+              queriesData.map((query, idx) => (
                 <TableRow key={idx}>
                   <TableCell className="font-medium">{query.query}</TableCell>
                   <TableCell className="text-right">{formatNumber(query.total_clicks)}</TableCell>

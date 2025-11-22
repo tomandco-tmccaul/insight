@@ -49,13 +49,22 @@ export async function GET(request: NextRequest) {
       const rows = await queryBigQuery<ProductPerformanceDailyRow>(query, params);
 
       // Calculate return rates
-      const productsWithMetrics = rows.map((row) => {
-        const totalOrdered = row.total_qty_ordered ?? 0;
-        const totalRefunded = row.total_qty_refunded ?? 0;
+      const productsWithMetrics = rows.map((row: any) => {
+        // Parse attributes JSON if it exists
+        const attributes = row.attributes ? JSON.parse(row.attributes) : {};
 
         return {
           ...row,
-          return_rate: totalOrdered > 0 ? (totalRefunded / totalOrdered) * 100 : 0,
+          // Map attributes to flat structure for frontend if needed, or keep as object
+          // For backward compatibility with frontend interfaces, we might need to map some
+          image: attributes.image || null,
+          small_image: attributes.small_image || null,
+          thumbnail: attributes.thumbnail || null,
+          cost: attributes.cost ? parseFloat(attributes.cost) : null,
+
+          return_rate: (row.total_qty_ordered || 0) > 0
+            ? ((row.total_qty_refunded || 0) / row.total_qty_ordered) * 100
+            : 0,
         };
       });
 

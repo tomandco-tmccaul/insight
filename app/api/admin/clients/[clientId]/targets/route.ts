@@ -78,11 +78,18 @@ export async function POST(
       }
 
       const body = await request.json();
-      const { metric, granularity, startDate, value, websiteId } = body;
+      const { metric, granularity, startDate, endDate, value, websiteId, periodName } = body;
 
-      if (!metric || !granularity || !startDate || value === undefined || !websiteId) {
+      if (!metric || !granularity || !startDate || !endDate || value === undefined || !websiteId) {
         return NextResponse.json(
           { success: false, error: 'Missing required fields' },
+          { status: 400 }
+        );
+      }
+
+      if (new Date(startDate) > new Date(endDate)) {
+        return NextResponse.json(
+          { success: false, error: 'Start date must be before end date' },
           { status: 400 }
         );
       }
@@ -98,7 +105,9 @@ export async function POST(
       const targetData: Omit<Target, 'id'> = {
         metric,
         granularity,
+        periodName: periodName || '',
         startDate,
+        endDate,
         value,
         websiteId,
         createdAt: now,

@@ -13,14 +13,16 @@ import {
 } from '@/components/ui/table';
 import { BarChart, DonutChart } from '@tremor/react';
 import { useDashboard } from '@/lib/context/dashboard-context';
+import { useUrlSync } from '@/lib/hooks/use-url-sync';
 import { useIdToken } from '@/lib/auth/hooks';
 import { apiRequest, buildQueryString } from '@/lib/utils/api';
 import { formatCurrency, formatNumber } from '@/lib/utils/date';
 import { ChartTooltip } from '@/components/ui/chart-tooltip';
-import { TrendingUp, Search, PieChart, BarChart3 } from 'lucide-react';
+import { Search, TrendingUp, Megaphone, PieChart, BarChart3 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ReportAnnotations } from '@/components/dashboard/report-annotations';
 import { PageHeader } from '@/components/dashboard/page-header';
+import { CHART_COLORS, CHART_COLORS_EXTENDED } from '@/lib/constants/colors';
 
 interface ChannelData {
   channel: string;
@@ -51,6 +53,9 @@ interface MarketingData {
 export default function MarketingPage() {
   const { selectedClientId, selectedWebsiteId, dateRange } = useDashboard();
   const getIdToken = useIdToken();
+
+  // Sync URL parameters with dashboard context
+  useUrlSync();
   const [data, setData] = useState<MarketingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -108,7 +113,7 @@ export default function MarketingPage() {
 
       try {
         const idToken = await getIdToken();
-        
+
         // Always use selectedWebsiteId - the data layer will resolve it to BigQuery website IDs
         const websiteFilter = selectedWebsiteId === 'all_combined' ? 'all_combined' : selectedWebsiteId || 'all_combined';
 
@@ -277,7 +282,7 @@ export default function MarketingPage() {
                   category="value"
                   index="name"
                   valueFormatter={(value) => formatCurrency(value)}
-                  colors={['#6366f1', '#8b5cf6', '#d946ef', '#a855f7', '#ec4899', '#f59e0b', '#10b981', '#06b6d4', '#f43f5e', '#14b8a6']}
+                  colors={CHART_COLORS_EXTENDED}
                   showAnimation={true}
                   animationDuration={1000}
                   customTooltip={(props) => (
@@ -323,7 +328,7 @@ export default function MarketingPage() {
                   data={roasChart}
                   index="channel"
                   categories={['ROAS']}
-                  colors={['#8b5cf6']}
+                  colors={['blue']}
                   valueFormatter={(value) => `${value.toFixed(2)}x`}
                   showLegend={false}
                   showAnimation={false}
@@ -368,8 +373,8 @@ export default function MarketingPage() {
                       channel.roas >= 3
                         ? 'text-green-600 font-semibold'
                         : channel.roas >= 2
-                        ? 'text-yellow-600'
-                        : 'text-red-600'
+                          ? 'text-yellow-600'
+                          : 'text-red-600'
                     }
                   >
                     {channel.roas.toFixed(2)}x
@@ -387,8 +392,8 @@ export default function MarketingPage() {
       {data.seo.length > 0 && (
         <Card>
           <div className="p-6">
-            <div className="flex items-center gap-2">
-              <Search className="h-5 w-5 text-gray-600" />
+            <div className="p-2 bg-blue-50 rounded-lg">
+              <Megaphone className="h-5 w-5 text-blue-600" />
               <h3 className="text-lg font-semibold text-gray-900">Top Search Queries</h3>
             </div>
           </div>

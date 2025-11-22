@@ -5,7 +5,17 @@ import { ApiResponse } from '@/types';
 
 export interface CreateAggregationRequest {
   datasetId: string;
-  aggregationType: 'sales_overview' | 'sales_overview_hourly' | 'sales_overview_monthly' | 'product_performance' | 'seo_performance' | 'sales_items_materialized_view' | 'products_flattened_materialized_view' | 'orders_flattened_materialized_view' | 'all';
+  aggregationType:
+  | 'sales_overview'
+  | 'sales_overview_hourly'
+  | 'sales_overview_monthly'
+  | 'customer_metrics'
+  | 'product_performance'
+  | 'seo_performance'
+  | 'sales_items_materialized_view'
+  | 'products_flattened_materialized_view'
+  | 'orders_flattened_materialized_view'
+  | 'all';
 }
 
 /**
@@ -30,18 +40,29 @@ export async function POST(request: NextRequest) {
 
       // Handle 'all' aggregation type
       if (aggregationType === 'all') {
-        const allTypes: Array<'sales_overview' | 'sales_overview_hourly' | 'sales_overview_monthly' | 'product_performance' | 'seo_performance' | 'sales_items_materialized_view' | 'products_flattened_materialized_view' | 'orders_flattened_materialized_view'> = [
-          'sales_overview',
-          'sales_overview_hourly',
-          'sales_overview_monthly',
-          'product_performance',
-          'seo_performance',
-          'sales_items_materialized_view',
-          'products_flattened_materialized_view',
-          'orders_flattened_materialized_view'
-        ];
+        const allTypes: Array<
+          | 'sales_overview'
+          | 'sales_overview_hourly'
+          | 'sales_overview_monthly'
+          | 'customer_metrics'
+          | 'product_performance'
+          | 'seo_performance'
+          | 'sales_items_materialized_view'
+          | 'products_flattened_materialized_view'
+          | 'orders_flattened_materialized_view'
+        > = [
+            'sales_overview',
+            'sales_overview_hourly',
+            'sales_overview_monthly',
+            'customer_metrics',
+            'product_performance',
+            'seo_performance',
+            'sales_items_materialized_view',
+            'products_flattened_materialized_view',
+            'orders_flattened_materialized_view'
+          ];
 
-        const results: Array<{type: string, success: boolean, error?: string}> = [];
+        const results: Array<{ type: string, success: boolean, error?: string }> = [];
 
         for (const type of allTypes) {
           try {
@@ -50,11 +71,11 @@ export async function POST(request: NextRequest) {
               query,
               location: 'europe-west2',
             });
-            
+
             // Wait for job and check for errors
             await job.getQueryResults();
             const [jobMetadata] = await job.getMetadata();
-            
+
             if (jobMetadata.status?.errorResult) {
               const errorMessage = jobMetadata.status.errorResult.message || 'Unknown error';
               console.error(`BigQuery job failed for ${type}:`, jobMetadata.status.errorResult);
@@ -66,13 +87,8 @@ export async function POST(request: NextRequest) {
               continue;
             }
 
-            // Refresh Materialized Views
-            if (type.includes('materialized_view') || 
-                type === 'sales_overview' || 
-                type === 'sales_overview_hourly' ||
-                type === 'sales_overview_monthly' ||
-                type === 'product_performance' || 
-                type === 'seo_performance') {
+            // Refresh Materialized Views (only for true materialized views)
+            if (type.includes('materialized_view')) {
               await refreshMaterializedView(type, datasetId);
             }
 
@@ -122,7 +138,7 @@ export async function POST(request: NextRequest) {
 
       // Wait for the job to complete and check for errors
       const [jobResult] = await job.getQueryResults();
-      
+
       // Check if the job had any errors
       const [jobMetadata] = await job.getMetadata();
       if (jobMetadata.status?.errorResult) {
@@ -148,13 +164,10 @@ export async function POST(request: NextRequest) {
       });
 
       // If it's a Materialized View, verify it was created and refresh it
-      if (aggregationType.includes('materialized_view') || 
-          aggregationType === 'sales_overview' || 
-          aggregationType === 'product_performance' || 
-          aggregationType === 'seo_performance') {
+      if (aggregationType.includes('materialized_view')) {
         const projectId = process.env.GOOGLE_CLOUD_PROJECT || 'insight-dashboard-1761555293';
         let viewName = '';
-        
+
         switch (aggregationType) {
           case 'sales_items_materialized_view':
             viewName = `mv_adobe_commerce_sales_items`;
@@ -219,7 +232,16 @@ export async function POST(request: NextRequest) {
 
 // Helper function to get query based on type
 async function getQueryForType(
-  aggregationType: 'sales_overview' | 'sales_overview_hourly' | 'sales_overview_monthly' | 'product_performance' | 'seo_performance' | 'sales_items_materialized_view' | 'products_flattened_materialized_view' | 'orders_flattened_materialized_view',
+  aggregationType:
+    | 'sales_overview'
+    | 'sales_overview_hourly'
+    | 'sales_overview_monthly'
+    | 'customer_metrics'
+    | 'product_performance'
+    | 'seo_performance'
+    | 'sales_items_materialized_view'
+    | 'products_flattened_materialized_view'
+    | 'orders_flattened_materialized_view',
   datasetId: string
 ): Promise<string> {
   switch (aggregationType) {
@@ -229,6 +251,8 @@ async function getQueryForType(
       return getSalesOverviewHourlyAggregationQuery(datasetId);
     case 'sales_overview_monthly':
       return getSalesOverviewMonthlyAggregationQuery(datasetId);
+    case 'customer_metrics':
+      return getCustomerMetricsAggregationQuery(datasetId);
     case 'product_performance':
       return getProductPerformanceAggregationQuery(datasetId);
     case 'seo_performance':
@@ -250,7 +274,7 @@ async function refreshMaterializedView(
   datasetId: string
 ): Promise<void> {
   const projectId = process.env.GOOGLE_CLOUD_PROJECT || 'insight-dashboard-1761555293';
-  
+
   let viewId = '';
   switch (aggregationType) {
     case 'sales_items_materialized_view':
@@ -262,21 +286,7 @@ async function refreshMaterializedView(
     case 'orders_flattened_materialized_view':
       viewId = `${projectId}.${datasetId}.mv_adobe_commerce_orders_flattened`;
       break;
-    case 'sales_overview':
-      viewId = `${projectId}.${datasetId}.mv_agg_sales_overview_daily`;
-      break;
-    case 'sales_overview_hourly':
-      viewId = `${projectId}.${datasetId}.mv_agg_sales_overview_hourly`;
-      break;
-    case 'sales_overview_monthly':
-      viewId = `${projectId}.${datasetId}.mv_agg_sales_overview_monthly`;
-      break;
-    case 'product_performance':
-      viewId = `${projectId}.${datasetId}.mv_agg_product_performance_daily`;
-      break;
-    case 'seo_performance':
-      viewId = `${projectId}.${datasetId}.mv_agg_seo_performance_daily`;
-      break;
+    // Aggregated views are now regular tables, so no refresh needed for them
     default:
       return;
   }
@@ -296,12 +306,8 @@ function getSalesOverviewAggregationQuery(datasetId: string): string {
   const projectId = process.env.GOOGLE_CLOUD_PROJECT || 'insight-dashboard-1761555293';
 
   return `
-    CREATE OR REPLACE MATERIALIZED VIEW \`${projectId}.${datasetId}.mv_agg_sales_overview_daily\`
+    CREATE OR REPLACE TABLE \`${projectId}.${datasetId}.mv_agg_sales_overview_daily\`
     CLUSTER BY website_id, date
-    OPTIONS(
-      enable_refresh=true,
-      refresh_interval_minutes=60
-    )
     AS
     SELECT 
       DATE(SAFE_CAST(o.created_at AS TIMESTAMP)) as date,
@@ -349,12 +355,8 @@ function getSalesOverviewHourlyAggregationQuery(datasetId: string): string {
   const projectId = process.env.GOOGLE_CLOUD_PROJECT || 'insight-dashboard-1761555293';
 
   return `
-    CREATE OR REPLACE MATERIALIZED VIEW \`${projectId}.${datasetId}.mv_agg_sales_overview_hourly\`
+    CREATE OR REPLACE TABLE \`${projectId}.${datasetId}.mv_agg_sales_overview_hourly\`
     CLUSTER BY website_id, date, hour
-    OPTIONS(
-      enable_refresh=true,
-      refresh_interval_minutes=60
-    )
     AS
     SELECT 
       DATE(SAFE_CAST(o.created_at AS TIMESTAMP)) as date,
@@ -379,12 +381,8 @@ function getSalesOverviewMonthlyAggregationQuery(datasetId: string): string {
   const projectId = process.env.GOOGLE_CLOUD_PROJECT || 'insight-dashboard-1761555293';
 
   return `
-    CREATE OR REPLACE MATERIALIZED VIEW \`${projectId}.${datasetId}.mv_agg_sales_overview_monthly\`
+    CREATE OR REPLACE TABLE \`${projectId}.${datasetId}.mv_agg_sales_overview_monthly\`
     CLUSTER BY website_id, year, month
-    OPTIONS(
-      enable_refresh=true,
-      refresh_interval_minutes=60
-    )
     AS
     SELECT 
       EXTRACT(YEAR FROM SAFE_CAST(o.created_at AS TIMESTAMP)) as year,
@@ -413,16 +411,43 @@ function getSalesOverviewMonthlyAggregationQuery(datasetId: string): string {
   `;
 }
 
+function getCustomerMetricsAggregationQuery(datasetId: string): string {
+  const projectId = process.env.GOOGLE_CLOUD_PROJECT || 'insight-dashboard-1761555293';
+
+  return `
+    CREATE OR REPLACE TABLE \`${projectId}.${datasetId}.mv_agg_customer_metrics_daily\`
+    CLUSTER BY website_id, date
+    AS
+    SELECT 
+      DATE(SAFE_CAST(o.created_at AS TIMESTAMP)) as date,
+      CAST(o.store_id AS STRING) as website_id,
+      
+      -- Customer metrics
+      APPROX_COUNT_DISTINCT(CAST(o.customer_email AS STRING)) as unique_customers,
+      APPROX_COUNT_DISTINCT(CASE WHEN o.customer_id IS NOT NULL THEN CAST(o.customer_id AS STRING) END) as registered_customers,
+      APPROX_COUNT_DISTINCT(CASE WHEN o.customer_id IS NULL THEN CAST(o.customer_email AS STRING) END) as guest_customers,
+      
+      -- Revenue per customer
+      SAFE_DIVIDE(
+        SUM(CAST(o.grand_total AS FLOAT64)),
+        NULLIF(APPROX_COUNT_DISTINCT(CAST(o.customer_email AS STRING)), 0)
+      ) as revenue_per_customer
+    FROM 
+      \`${projectId}.${datasetId}.adobe_commerce_orders\` o
+    WHERE 
+      o.created_at IS NOT NULL
+      AND o.customer_email IS NOT NULL
+    GROUP BY 
+      date, website_id
+  `;
+}
+
 function getProductPerformanceAggregationQuery(datasetId: string): string {
   const projectId = process.env.GOOGLE_CLOUD_PROJECT || 'insight-dashboard-1761555293';
 
   return `
-    CREATE OR REPLACE MATERIALIZED VIEW \`${projectId}.${datasetId}.mv_agg_product_performance_daily\`
+    CREATE OR REPLACE TABLE \`${projectId}.${datasetId}.mv_agg_product_performance_daily\`
     CLUSTER BY website_id, sku, date
-    OPTIONS(
-      enable_refresh=true,
-      refresh_interval_minutes=60
-    )
     AS
     SELECT 
       DATE(SAFE_CAST(o.created_at AS TIMESTAMP)) as date,
@@ -468,12 +493,8 @@ function getSEOPerformanceAggregationQuery(datasetId: string): string {
   const projectId = process.env.GOOGLE_CLOUD_PROJECT || 'insight-dashboard-1761555293';
 
   return `
-    CREATE OR REPLACE MATERIALIZED VIEW \`${projectId}.${datasetId}.mv_agg_seo_performance_daily\`
+    CREATE OR REPLACE TABLE \`${projectId}.${datasetId}.mv_agg_seo_performance_daily\`
     CLUSTER BY website_id, query_text
-    OPTIONS(
-      enable_refresh=true,
-      refresh_interval_minutes=60
-    )
     AS
     SELECT 
       date,
@@ -597,89 +618,31 @@ function getProductsFlattenedMaterializedViewQuery(datasetId: string): string {
   const projectId = process.env.GOOGLE_CLOUD_PROJECT || 'insight-dashboard-1761555293';
 
   return `
-    CREATE OR REPLACE MATERIALIZED VIEW \`${projectId}.${datasetId}.mv_adobe_commerce_products_flattened\`
-    CLUSTER BY sku
-    OPTIONS(
-      enable_refresh=true,
-      refresh_interval_minutes=60
-    )
+    CREATE OR REPLACE VIEW \`${projectId}.${datasetId}.mv_adobe_commerce_products_flattened\`
     AS
     SELECT 
-      p.sku,
-      p.name as product_name,
+      p.* EXCEPT(custom_attributes),
       
-      -- Flatten ALL custom_attributes into individual columns
-      -- Each attribute_code becomes its own column with the attribute value
-      MAX(IF(JSON_EXTRACT_SCALAR(attr, '$.attribute_code') = 'sdb_collection_name', 
-        JSON_EXTRACT_SCALAR(attr, '$.value'), NULL)) as attr_sdb_collection_name,
-      MAX(IF(JSON_EXTRACT_SCALAR(attr, '$.attribute_code') = 'sdb_design_name', 
-        JSON_EXTRACT_SCALAR(attr, '$.value'), NULL)) as attr_sdb_design_name,
-      MAX(IF(JSON_EXTRACT_SCALAR(attr, '$.attribute_code') = 'sdb_parent_title', 
-        JSON_EXTRACT_SCALAR(attr, '$.value'), NULL)) as attr_sdb_parent_title,
-      ANY_VALUE(IF(JSON_EXTRACT_SCALAR(attr, '$.attribute_code') = 'sdb_product_collection_data', 
-        SAFE.PARSE_JSON(JSON_EXTRACT_SCALAR(attr, '$.value')), NULL)) as attr_sdb_product_collection_data,
-      MAX(IF(JSON_EXTRACT_SCALAR(attr, '$.attribute_code') = 'brand', 
-        JSON_EXTRACT_SCALAR(attr, '$.value'), NULL)) as attr_brand,
-      MAX(IF(JSON_EXTRACT_SCALAR(attr, '$.attribute_code') = 'color', 
-        JSON_EXTRACT_SCALAR(attr, '$.value'), NULL)) as attr_color,
-      MAX(IF(JSON_EXTRACT_SCALAR(attr, '$.attribute_code') = 'size', 
-        JSON_EXTRACT_SCALAR(attr, '$.value'), NULL)) as attr_size,
-      MAX(IF(JSON_EXTRACT_SCALAR(attr, '$.attribute_code') = 'material', 
-        JSON_EXTRACT_SCALAR(attr, '$.value'), NULL)) as attr_material,
-      MAX(IF(JSON_EXTRACT_SCALAR(attr, '$.attribute_code') = 'pattern', 
-        JSON_EXTRACT_SCALAR(attr, '$.value'), NULL)) as attr_pattern,
-      MAX(IF(JSON_EXTRACT_SCALAR(attr, '$.attribute_code') = 'width', 
-        JSON_EXTRACT_SCALAR(attr, '$.value'), NULL)) as attr_width,
-      MAX(IF(JSON_EXTRACT_SCALAR(attr, '$.attribute_code') = 'length', 
-        JSON_EXTRACT_SCALAR(attr, '$.value'), NULL)) as attr_length,
-      MAX(IF(JSON_EXTRACT_SCALAR(attr, '$.attribute_code') = 'height', 
-        JSON_EXTRACT_SCALAR(attr, '$.value'), NULL)) as attr_height,
-      MAX(IF(JSON_EXTRACT_SCALAR(attr, '$.attribute_code') = 'weight', 
-        JSON_EXTRACT_SCALAR(attr, '$.value'), NULL)) as attr_weight,
-      MAX(IF(JSON_EXTRACT_SCALAR(attr, '$.attribute_code') = 'price', 
-        JSON_EXTRACT_SCALAR(attr, '$.value'), NULL)) as attr_price,
-      MAX(IF(JSON_EXTRACT_SCALAR(attr, '$.attribute_code') = 'special_price', 
-        JSON_EXTRACT_SCALAR(attr, '$.value'), NULL)) as attr_special_price,
-      MAX(IF(JSON_EXTRACT_SCALAR(attr, '$.attribute_code') = 'cost', 
-        JSON_EXTRACT_SCALAR(attr, '$.value'), NULL)) as attr_cost,
-      MAX(IF(JSON_EXTRACT_SCALAR(attr, '$.attribute_code') = 'manufacturer', 
-        JSON_EXTRACT_SCALAR(attr, '$.value'), NULL)) as attr_manufacturer,
-      MAX(IF(JSON_EXTRACT_SCALAR(attr, '$.attribute_code') = 'country_of_manufacture', 
-        JSON_EXTRACT_SCALAR(attr, '$.value'), NULL)) as attr_country_of_manufacture,
-      MAX(IF(JSON_EXTRACT_SCALAR(attr, '$.attribute_code') = 'description', 
-        JSON_EXTRACT_SCALAR(attr, '$.value'), NULL)) as attr_description,
-      MAX(IF(JSON_EXTRACT_SCALAR(attr, '$.attribute_code') = 'short_description', 
-        JSON_EXTRACT_SCALAR(attr, '$.value'), NULL)) as attr_short_description,
-      MAX(IF(JSON_EXTRACT_SCALAR(attr, '$.attribute_code') = 'meta_title', 
-        JSON_EXTRACT_SCALAR(attr, '$.value'), NULL)) as attr_meta_title,
-      MAX(IF(JSON_EXTRACT_SCALAR(attr, '$.attribute_code') = 'meta_description', 
-        JSON_EXTRACT_SCALAR(attr, '$.value'), NULL)) as attr_meta_description,
-      MAX(IF(JSON_EXTRACT_SCALAR(attr, '$.attribute_code') = 'meta_keyword', 
-        JSON_EXTRACT_SCALAR(attr, '$.value'), NULL)) as attr_meta_keyword,
-      MAX(IF(JSON_EXTRACT_SCALAR(attr, '$.attribute_code') = 'url_key', 
-        JSON_EXTRACT_SCALAR(attr, '$.value'), NULL)) as attr_url_key,
-      MAX(IF(JSON_EXTRACT_SCALAR(attr, '$.attribute_code') = 'url_path', 
-        JSON_EXTRACT_SCALAR(attr, '$.value'), NULL)) as attr_url_path,
-      MAX(IF(JSON_EXTRACT_SCALAR(attr, '$.attribute_code') = 'image', 
-        JSON_EXTRACT_SCALAR(attr, '$.value'), NULL)) as attr_image,
-      MAX(IF(JSON_EXTRACT_SCALAR(attr, '$.attribute_code') = 'small_image', 
-        JSON_EXTRACT_SCALAR(attr, '$.value'), NULL)) as attr_small_image,
-      MAX(IF(JSON_EXTRACT_SCALAR(attr, '$.attribute_code') = 'thumbnail', 
-        JSON_EXTRACT_SCALAR(attr, '$.value'), NULL)) as attr_thumbnail,
-      MAX(IF(JSON_EXTRACT_SCALAR(attr, '$.attribute_code') = 'status', 
-        JSON_EXTRACT_SCALAR(attr, '$.value'), NULL)) as attr_status,
-      MAX(IF(JSON_EXTRACT_SCALAR(attr, '$.attribute_code') = 'visibility', 
-        JSON_EXTRACT_SCALAR(attr, '$.value'), NULL)) as attr_visibility,
-      MAX(IF(JSON_EXTRACT_SCALAR(attr, '$.attribute_code') = 'tax_class_id', 
-        JSON_EXTRACT_SCALAR(attr, '$.value'), NULL)) as attr_tax_class_id
-      
+      -- Aggregate custom_attributes into a single JSON object
+      -- We use a scalar subquery to transform the array for each row, avoiding the need for GROUP BY
+      -- We wrap the result in PARSE_JSON to ensure the column is of type JSON, not STRING
+      PARSE_JSON(
+        (
+          SELECT 
+            CONCAT('{', STRING_AGG(
+              FORMAT('"%s":%s', 
+                JSON_EXTRACT_SCALAR(attr, '$.attribute_code'), 
+                TO_JSON_STRING(JSON_EXTRACT_SCALAR(attr, '$.value'))
+              ), 
+              ','
+            ), '}')
+          FROM UNNEST(JSON_EXTRACT_ARRAY(p.custom_attributes)) as attr
+        )
+      ) as attributes
     FROM 
-      \`${projectId}.${datasetId}.adobe_commerce_products\` p,
-      UNNEST(JSON_EXTRACT_ARRAY(p.custom_attributes)) as attr
+      \`${projectId}.${datasetId}.adobe_commerce_products\` p
     WHERE 
       p.sku IS NOT NULL
-    GROUP BY
-      p.sku, p.name
   `;
 }
 

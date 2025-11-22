@@ -1,6 +1,7 @@
 import { bigquery } from '@/lib/bigquery/client';
 import { buildWebsiteFilter, executeQuery } from './base';
 import { QueryOptions } from './base';
+import { generateDateRange } from '@/lib/utils/date';
 
 export interface SampleOrdersDailyRow {
   date: string;
@@ -74,6 +75,22 @@ export async function getSampleOrdersDaily(
     maxFields: [],
   });
 
+  // Fill in missing dates with zero values
+  const fullDateRange = generateDateRange(startDate, endDate);
+  const dailyMap = new Map(daily.map(row => [row.date, row]));
+
+  const filledDaily = fullDateRange.map(date => {
+    const existingRow = dailyMap.get(date);
+    if (existingRow) return existingRow;
+
+    return {
+      date,
+      total_orders: 0,
+      total_revenue: 0,
+      total_items: 0,
+    } as SampleOrdersDailyRow;
+  }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
   // Calculate summary
   const summary = daily.reduce(
     (acc, row) => {
@@ -95,7 +112,7 @@ export async function getSampleOrdersDaily(
   };
 
   return {
-    daily,
+    daily: filledDaily,
     summary: finalSummary,
   };
 }

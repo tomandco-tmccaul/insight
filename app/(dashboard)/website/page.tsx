@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/table';
 import { DonutChart } from '@tremor/react';
 import { useDashboard } from '@/lib/context/dashboard-context';
+import { useUrlSync } from '@/lib/hooks/use-url-sync';
 import { useIdToken } from '@/lib/auth/hooks';
 import { apiRequest, buildQueryString } from '@/lib/utils/api';
 import { formatNumber } from '@/lib/utils/date';
@@ -54,6 +55,9 @@ interface WebsiteData {
 export default function WebsitePage() {
   const { selectedWebsiteId, dateRange } = useDashboard();
   const getIdToken = useIdToken();
+
+  // Sync URL parameters with dashboard context
+  useUrlSync();
   const [data, setData] = useState<WebsiteData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -178,8 +182,8 @@ export default function WebsitePage() {
 
         <Card className="p-6 h-full flex flex-col">
           <div className="flex items-center gap-3 flex-1">
-            <div className="rounded-lg bg-emerald-100 p-3">
-              <Globe className="h-6 w-6 text-emerald-600" />
+            <div className="p-2 bg-blue-50 rounded-lg">
+              <Globe className="h-5 w-5 text-blue-600" />
             </div>
             <div>
               <div className="text-sm font-medium text-gray-600">Sessions</div>
@@ -258,7 +262,7 @@ export default function WebsitePage() {
                   category="value"
                   index="name"
                   valueFormatter={(value) => formatNumber(value)}
-                  colors={['#6366f1', '#8b5cf6', '#d946ef', '#a855f7', '#ec4899', '#f59e0b', '#10b981', '#06b6d4', '#f43f5e', '#14b8a6']}
+                  colors={['indigo', 'violet', 'rose', 'fuchsia', 'amber', 'emerald', 'cyan', 'sky', 'teal', 'blue']}
                   showAnimation={true}
                   animationDuration={1000}
                   customTooltip={(props) => (
@@ -336,7 +340,7 @@ export default function WebsitePage() {
                   category="value"
                   index="name"
                   valueFormatter={(value) => formatNumber(value)}
-                  colors={['#6366f1', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#d946ef', '#a855f7']}
+                  colors={['indigo', 'violet', 'cyan', 'emerald', 'amber', 'rose', 'fuchsia']}
                   showAnimation={true}
                   animationDuration={1000}
                   customTooltip={(props) => (
@@ -382,8 +386,8 @@ export default function WebsitePage() {
                       page.bounce_rate > 70
                         ? 'text-red-600'
                         : page.bounce_rate > 50
-                        ? 'text-yellow-600'
-                        : 'text-green-600'
+                          ? 'text-yellow-600'
+                          : 'text-green-600'
                     }
                   >
                     {page.bounce_rate.toFixed(1)}%

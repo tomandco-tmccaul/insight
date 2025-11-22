@@ -161,37 +161,9 @@ export interface AdobeCommerceOrdersflattenedRow {
 export interface AdobeCommerceProductsflattenedRow {
   sku?: string | null;
   product_name?: string | null;
-  attr_sdb_collection_name?: string | null;
-  attr_sdb_design_name?: string | null;
-  attr_sdb_parent_title?: string | null;
-  attr_sdb_product_collection_data?: any | null;
-  attr_brand?: string | null;
-  attr_color?: string | null;
-  attr_size?: string | null;
-  attr_material?: string | null;
-  attr_pattern?: string | null;
-  attr_width?: string | null;
-  attr_length?: string | null;
-  attr_height?: string | null;
-  attr_weight?: string | null;
-  attr_price?: string | null;
-  attr_special_price?: string | null;
-  attr_cost?: string | null;
-  attr_manufacturer?: string | null;
-  attr_country_of_manufacture?: string | null;
-  attr_description?: string | null;
-  attr_short_description?: string | null;
-  attr_meta_title?: string | null;
-  attr_meta_description?: string | null;
-  attr_meta_keyword?: string | null;
-  attr_url_key?: string | null;
-  attr_url_path?: string | null;
-  attr_image?: string | null;
-  attr_small_image?: string | null;
-  attr_thumbnail?: string | null;
-  attr_status?: string | null;
-  attr_visibility?: string | null;
-  attr_tax_class_id?: string | null;
+  attributes?: string | null; // JSON string
+  created_at?: string | null;
+  updated_at?: string | null;
 }
 
 // mv_adobe_commerce_sales_items
@@ -867,4 +839,46 @@ export interface CalculatedMetrics {
   returnRate?: number; // Return Rate = (total_returns / total_orders) * 100 (requires return data)
   blendedROAS?: number; // Return on Ad Spend = total_revenue / total_media_spend (requires ad spend data)
   cpa?: number; // Cost Per Acquisition = total_media_spend / total_orders (requires ad spend data)
+}
+
+// API Response Types
+export interface SalesData {
+  daily: Array<{
+    date: string;
+    website_id: string;
+    total_orders: number;
+    total_revenue: number;
+    unique_customers: number;
+    total_items: number;
+    subtotal: number;
+    total_tax: number;
+    total_shipping: number;
+    total_discounts: number;
+    orders_complete?: number;
+    orders_pending?: number;
+    orders_processing?: number;
+    orders_canceled?: number;
+    revenue_complete?: number;
+    revenue_pending?: number;
+    orders_sample?: number;
+    orders_not_sample?: number;
+  }>;
+  summary: {
+    total_orders: number;
+    total_revenue: number;
+    total_items: number;
+    unique_customers: number;
+    aov: number;
+    items_per_order: number;
+    subtotal?: number;
+    total_tax?: number;
+    total_shipping?: number;
+    total_discounts?: number;
+    orders_complete?: number;
+    orders_pending?: number;
+    orders_processing?: number;
+    orders_canceled?: number;
+    orders_sample?: number;
+    orders_not_sample?: number;
+  };
 }

@@ -35,6 +35,9 @@ export interface Client {
     >;
   };
 
+  // Menu Management
+  disabledMenuItems?: string[]; // Array of hrefs that are disabled for this client
+
   createdAt?: string;
   updatedAt?: string;
 }
@@ -78,8 +81,10 @@ export interface Website {
 export interface Target {
   id: string;
   metric: 'revenue' | 'roas' | 'cpa' | 'sessions';
-  granularity: 'monthly' | 'yearly';
+  granularity: 'monthly' | 'quarterly' | 'yearly' | 'custom';
+  periodName?: string; // e.g. "Q1 2024", "March 2024", "Summer Sale"
   startDate: string; // ISO 8601 Timestamp
+  endDate: string; // ISO 8601 Timestamp
   value: number;
   websiteId: string; // "harlequin" or "all_combined"
   createdAt?: string;

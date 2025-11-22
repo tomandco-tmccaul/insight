@@ -30,11 +30,11 @@ interface InsightsLoadingProps {
   onComplete?: () => void;
 }
 
-export function InsightsLoading({ 
-  dataSources, 
-  currentStage, 
+export function InsightsLoading({
+  dataSources,
+  currentStage,
   aiProgress = 0,
-  onComplete 
+  onComplete
 }: InsightsLoadingProps) {
 
   // Handle completion
@@ -123,16 +123,14 @@ export function InsightsLoading({
                           </motion.div>
                         )}
                       </div>
-                      <Icon className={`h-5 w-5 ${
-                        source.status === 'complete' ? 'text-green-600' :
-                        source.status === 'loading' ? 'text-indigo-600' :
-                        'text-gray-400'
-                      }`} />
-                      <span className={`flex-1 text-sm font-medium ${
-                        source.status === 'complete' ? 'text-gray-900' :
-                        source.status === 'loading' ? 'text-indigo-600' :
-                        'text-gray-500'
-                      }`}>
+                      <Icon className={`h-5 w-5 ${source.status === 'complete' ? 'text-green-600' :
+                          source.status === 'loading' ? 'text-indigo-600' :
+                            'text-gray-400'
+                        }`} />
+                      <span className={`flex-1 text-sm font-medium ${source.status === 'complete' ? 'text-gray-900' :
+                          source.status === 'loading' ? 'text-indigo-600' :
+                            'text-gray-500'
+                        }`}>
                         {source.name}
                       </span>
                       {source.status === 'loading' && (
@@ -143,7 +141,7 @@ export function InsightsLoading({
                           transition={{ duration: 0.6 }}
                         >
                           <motion.div
-                            className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500"
+                            className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-500"
                             initial={{ width: 0 }}
                             animate={{ width: '100%' }}
                             transition={{ duration: 0.6 }}

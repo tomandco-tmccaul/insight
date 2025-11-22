@@ -45,22 +45,22 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <Card className="w-full max-w-md p-8">
+    <div className="flex min-h-screen items-center justify-center px-4">
+      <Card className="w-full max-w-md p-8 animate-fade-in-up glass-card">
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-gray-900">Insight</h1>
-          <p className="mt-2 text-gray-600">eCommerce Analytics Dashboard</p>
+          <h1 className="text-3xl font-bold text-foreground tracking-tight">Insight</h1>
+          <p className="mt-2 text-muted-foreground">eCommerce Analytics Dashboard</p>
         </div>
 
         {error && (
-          <div className="mb-4 rounded-md bg-red-50 p-4 text-sm text-red-800">
+          <div className="mb-4 rounded-md bg-destructive/10 p-4 text-sm text-destructive border border-destructive/20">
             {error}
           </div>
         )}
 
         <form onSubmit={handleEmailLogin} className="space-y-4">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="email" className="block text-sm font-medium text-foreground mb-1">
               Email
             </label>
             <Input
@@ -71,11 +71,12 @@ export default function LoginPage() {
               placeholder="you@example.com"
               required
               disabled={loading}
+              className="bg-background/50"
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="password" className="block text-sm font-medium text-foreground mb-1">
               Password
             </label>
             <Input
@@ -86,29 +87,31 @@ export default function LoginPage() {
               placeholder="••••••••"
               required
               disabled={loading}
+              className="bg-background/50"
             />
           </div>
 
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button type="submit" className="w-full font-semibold text-base" disabled={loading} size="lg">
             {loading ? 'Signing in...' : 'Sign in with Email'}
           </Button>
         </form>
 
-        <div className="relative my-6">
+        <div className="relative my-8">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-300"></div>
+            <div className="w-full border-t border-border"></div>
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="bg-white px-2 text-gray-500">Or continue with</span>
+            <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
           </div>
         </div>
 
         <Button
           type="button"
           variant="outline"
-          className="w-full"
+          className="w-full font-medium"
           onClick={handleGoogleLogin}
           disabled={loading}
+          size="lg"
         >
           <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24">
             <path
@@ -131,7 +134,7 @@ export default function LoginPage() {
           Sign in with Google
         </Button>
 
-        <p className="mt-6 text-center text-sm text-gray-600">
+        <p className="mt-8 text-center text-sm text-muted-foreground">
           By Tom&Co - eCommerce Agency
         </p>
       </Card>

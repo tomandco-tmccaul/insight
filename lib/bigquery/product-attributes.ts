@@ -2,13 +2,13 @@
  * Product Attributes Utility
  * 
  * Provides utilities for extracting custom_attributes from adobe_commerce_products
- * custom_attributes is stored as a JSON string array: [{"attribute_code":"...","value":"..."}, ...]
+ * custom_attributes is now stored as a JSON Map in the 'attributes' column: {"attribute_code":"value", ...}
  * 
  * This utility helps extract specific attributes in a queryable way.
  */
 
 /**
- * Generates SQL to extract a custom attribute value from adobe_commerce_products.custom_attributes
+ * Generates SQL to extract a custom attribute value from the flattened attributes JSON column
  * 
  * @param tableAlias - The alias of the products table (e.g., 'p')
  * @param attributeCode - The attribute_code to look for (e.g., 'sdb_product_collection_data')
@@ -20,12 +20,7 @@ export function extractCustomAttribute(
   attributeCode: string,
   defaultValue: string = 'Unknown'
 ): string {
-  return `COALESCE((
-    SELECT JSON_EXTRACT_SCALAR(attr, '$.value')
-    FROM UNNEST(JSON_EXTRACT_ARRAY(SAFE.PARSE_JSON(${tableAlias}.custom_attributes))) as attr
-    WHERE JSON_EXTRACT_SCALAR(attr, '$.attribute_code') = '${attributeCode}'
-    LIMIT 1
-  ), '${defaultValue}')`;
+  return `COALESCE(JSON_VALUE(${tableAlias}.attributes, '$.${attributeCode}'), '${defaultValue}')`;
 }
 
 /**
@@ -46,27 +41,15 @@ export function extractNestedCustomAttribute(
   jsonPath: string,
   defaultValue: string = 'Unknown'
 ): string {
-  return `COALESCE((
-    SELECT JSON_EXTRACT_SCALAR(collection_item, '${jsonPath}')
-    FROM UNNEST(
-      COALESCE(
-        JSON_EXTRACT_ARRAY(SAFE.PARSE_JSON(${tableAlias}.custom_attributes)),
-        []
-      )
-    ) as attr
-    CROSS JOIN UNNEST(
-      COALESCE(
-        JSON_EXTRACT_ARRAY(
-          SAFE.PARSE_JSON(JSON_EXTRACT_SCALAR(attr, '$.value'))
-        ),
-        []
-      )
-    ) as collection_item
-    WHERE JSON_EXTRACT_SCALAR(attr, '$.attribute_code') = '${attributeCode}'
-      AND JSON_EXTRACT_SCALAR(attr, '$.value') IS NOT NULL
-      AND JSON_EXTRACT_SCALAR(collection_item, '${jsonPath}') IS NOT NULL
-    LIMIT 1
-  ), '${defaultValue}')`;
+  // First extract the attribute value (which is a JSON string), then parse it and extract the nested value
+  // Note: This assumes the attribute value is a JSON string that needs parsing
+  return `COALESCE(
+    JSON_VALUE(
+      SAFE.PARSE_JSON(JSON_VALUE(${tableAlias}.attributes, '$.${attributeCode}')), 
+      '${jsonPath}'
+    ), 
+    '${defaultValue}'
+  )`;
 }
 
 /**
@@ -77,12 +60,16 @@ export function extractNestedCustomAttribute(
  * @returns SQL expression that extracts the collection label
  */
 export function extractCollection(tableAlias: string): string {
-  return extractNestedCustomAttribute(
-    tableAlias,
-    'sdb_product_collection_data',
-    '$.label',
+  // The sdb_product_collection_data is often an array of objects, we want the first one's label
+  // or if it's just an object, its label.
+  // JSON_VALUE with array index [0] works for arrays.
+  return `COALESCE(
+    JSON_VALUE(
+      SAFE.PARSE_JSON(JSON_VALUE(${tableAlias}.attributes, '$.sdb_product_collection_data')), 
+      '$[0].label'
+    ),
     'Unknown'
-  );
+  )`;
 }
 
 /**
@@ -115,10 +102,9 @@ export function getProductAttributesCTE(
         ${extractCustomAttribute(productTableAlias, 'sdb_design_name', 'Unknown')} as design_name,
         ${extractCustomAttribute(productTableAlias, 'sdb_parent_title', 'Unknown')} as parent_title
       FROM \`${projectId}.${datasetId}.mv_adobe_commerce_sales_items\` ${itemTableAlias}
-      LEFT JOIN \`${projectId}.${datasetId}.adobe_commerce_products\` ${productTableAlias}
+      LEFT JOIN \`${projectId}.${datasetId}.mv_adobe_commerce_products_flattened\` ${productTableAlias}
         ON ${itemTableAlias}.sku = ${productTableAlias}.sku
-      WHERE ${productTableAlias}.custom_attributes IS NOT NULL
+      WHERE ${productTableAlias}.attributes IS NOT NULL
     )
   `;
 }
-

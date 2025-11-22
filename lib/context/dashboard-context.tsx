@@ -20,6 +20,10 @@ interface DashboardContextType {
   // Comparison period
   comparisonPeriod: ComparisonPeriod;
   setComparisonPeriod: (period: ComparisonPeriod) => void;
+
+  // Client Settings
+  disabledMenuItems: string[];
+  isLoadingSettings: boolean;
 }
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
@@ -33,13 +37,13 @@ const STORAGE_KEYS = {
 
 export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const { appUser } = useAuth();
-  
+
   // Initialize state with localStorage values (only on client side)
   const [selectedClientId, setSelectedClientIdState] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem(STORAGE_KEYS.SELECTED_CLIENT_ID) || null;
   });
-  
+
   const [selectedWebsiteId, setSelectedWebsiteIdState] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem(STORAGE_KEYS.SELECTED_WEBSITE_ID) || null;
@@ -79,6 +83,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     }
     return 'previous_period';
   });
+
+  const [disabledMenuItems, setDisabledMenuItems] = useState<string[]>([]);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(false);
 
   // Wrapper to persist clientId to localStorage
   const setSelectedClientId = useCallback((clientId: string | null) => {
@@ -131,6 +138,50 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     }
   }, [appUser, setSelectedClientId]);
 
+  // Fetch client settings when clientId changes
+  useEffect(() => {
+    const fetchSettings = async () => {
+      const activeClientId = appUser?.role === 'client' ? appUser.clientId : selectedClientId;
+
+      if (!activeClientId) {
+        setDisabledMenuItems([]);
+        return;
+      }
+
+      setIsLoadingSettings(true);
+      try {
+        // We need to import auth here to avoid circular dependencies if possible, 
+        // but since this is a client component, we can use the auth instance we have or import it.
+        // Assuming auth is available globally or we can import it.
+        // Since we are in a context provider, we might need to be careful about imports.
+        // Let's use the auth from firebase config which should be initialized.
+        const { auth } = await import('@/lib/firebase/config');
+        const token = await auth.currentUser?.getIdToken();
+
+        if (!token) return;
+
+        const response = await fetch(`/api/clients/${activeClientId}/settings`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            setDisabledMenuItems(data.data.disabledMenuItems || []);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching client settings:', error);
+      } finally {
+        setIsLoadingSettings(false);
+      }
+    };
+
+    fetchSettings();
+  }, [selectedClientId, appUser]);
+
   const value = {
     selectedClientId,
     setSelectedClientId,
@@ -140,6 +191,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     setDateRange,
     comparisonPeriod,
     setComparisonPeriod,
+    disabledMenuItems,
+    isLoadingSettings,
   };
 
   return <DashboardContext.Provider value={value}>{children}</DashboardContext.Provider>;

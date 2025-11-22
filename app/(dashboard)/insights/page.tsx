@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { useDashboard } from '@/lib/context/dashboard-context';
+import { useUrlSync } from '@/lib/hooks/use-url-sync';
 import { useAuth } from '@/lib/auth/context';
 import { useIdToken } from '@/lib/auth/hooks';
 import { apiRequest, buildQueryString } from '@/lib/utils/api';
@@ -24,8 +25,18 @@ interface InsightsData {
   };
   dataSources: {
     sales: boolean;
+    hourlySales?: boolean;
+    customerMetrics?: boolean;
     products: boolean;
+    categoryBreakdown?: boolean;
+    collectionsPerformance?: boolean;
+    sampleOrdersSummary?: boolean;
+    sampleOrdersDaily?: boolean;
+    sampleOrdersHourly?: boolean;
+    topSampleProducts?: boolean;
+    sampleOrdersByCollection?: boolean;
     marketing: boolean;
+    seoInsights?: boolean;
     website: boolean;
     annotations: number;
     targets: number;
@@ -51,6 +62,9 @@ export default function InsightsPage() {
   const { selectedClientId, selectedWebsiteId, dateRange } = useDashboard();
   const { appUser } = useAuth();
   const getIdToken = useIdToken();
+
+  // Sync URL parameters with dashboard context
+  useUrlSync();
   const [insightsData, setInsightsData] = useState<InsightsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -74,6 +88,9 @@ export default function InsightsPage() {
     aiProgress: 0,
   });
 
+  // Keep a ref to the current AI progress interval so we can reliably clear it
+  const aiProgressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
   // Determine the client ID to use
   const clientId = appUser?.role === 'admin' ? selectedClientId : appUser?.clientId;
 
@@ -90,18 +107,18 @@ export default function InsightsPage() {
       return;
     }
 
-    if (!dateRange || 
-        !dateRange.startDate || 
-        !dateRange.endDate || 
-        (typeof dateRange.startDate === 'string' && dateRange.startDate.trim() === '') ||
-        (typeof dateRange.endDate === 'string' && dateRange.endDate.trim() === '')) {
+    if (!dateRange ||
+      !dateRange.startDate ||
+      !dateRange.endDate ||
+      (typeof dateRange.startDate === 'string' && dateRange.startDate.trim() === '') ||
+      (typeof dateRange.endDate === 'string' && dateRange.endDate.trim() === '')) {
       setError('Please select a valid date range');
       setLoading(false);
       return;
     }
 
     const isRefresh = insightsData !== null;
-    
+
     // Always show loading screen when fetching (including refresh)
     setShowLoadingScreen(true);
     setLoading(true);
@@ -111,16 +128,22 @@ export default function InsightsPage() {
     // Reset loading progress
     setLoadingProgress({
       dataSources: [
-        { id: 'sales', name: 'Sales Data', icon: ShoppingCart, status: 'pending' },
-        { id: 'products', name: 'Product Performance', icon: Package, status: 'pending' },
-        { id: 'marketing', name: 'Marketing Metrics', icon: Megaphone, status: 'pending' },
-        { id: 'website', name: 'Website Behavior', icon: Globe, status: 'pending' },
-        { id: 'annotations', name: 'Annotations', icon: MessageSquare, status: 'pending' },
-        { id: 'targets', name: 'Targets & Goals', icon: Target, status: 'pending' },
+        { id: 'sales', name: 'Sales Data', icon: ShoppingCart, status: 'loading' },
+        { id: 'products', name: 'Product Performance', icon: Package, status: 'loading' },
+        { id: 'marketing', name: 'Marketing Metrics', icon: Megaphone, status: 'loading' },
+        { id: 'website', name: 'Website Behavior', icon: Globe, status: 'loading' },
+        { id: 'annotations', name: 'Annotations', icon: MessageSquare, status: 'loading' },
+        { id: 'targets', name: 'Targets & Goals', icon: Target, status: 'loading' },
       ],
       currentStage: 'fetching',
       aiProgress: 0,
     });
+
+    // Clear any existing interval
+    if (aiProgressIntervalRef.current) {
+      clearInterval(aiProgressIntervalRef.current);
+      aiProgressIntervalRef.current = null;
+    }
 
     try {
       const idToken = await getIdToken();
@@ -129,205 +152,133 @@ export default function InsightsPage() {
       }
 
       const websiteFilter = selectedWebsiteId || 'all_combined';
-      const queryParams = buildQueryString({
-        dataset_id: '', // Will be fetched from client
-        website_id: websiteFilter,
-        start_date: dateRange.startDate,
-        end_date: dateRange.endDate,
+
+      const queryString = buildQueryString({
+        clientId,
+        websiteId: websiteFilter,
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate,
       });
 
-      // Get client data to get dataset ID
-      const clientResponse = await apiRequest<{ id: string; clientName: string; bigQueryDatasetId: string }>(
-        `/api/admin/clients/${clientId}`,
-        {},
-        idToken
-      );
+      const response = await fetch(`/api/insights${queryString}`, {
+        headers: {
+          'Authorization': `Bearer ${idToken}`,
+        },
+      });
 
-      if (!clientResponse.success || !clientResponse.data) {
-        throw new Error('Failed to fetch client data');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate insights');
       }
 
-      const datasetId = clientResponse.data.bigQueryDatasetId;
-      const websiteIdForQuery = websiteFilter === 'all_combined' ? 'all_combined' : websiteFilter;
-
-      // Get website storeId if needed
-      let storeId = websiteIdForQuery;
-      if (websiteFilter !== 'all_combined') {
-        const websiteResponse = await apiRequest<{ id: string; websiteName: string; storeId: string }>(
-          `/api/admin/clients/${clientId}/websites/${websiteFilter}`,
-          {},
-          idToken
-        );
-        if (websiteResponse.success && websiteResponse.data) {
-          storeId = websiteResponse.data.storeId;
-        }
+      if (!response.body) {
+        throw new Error('No response body');
       }
 
-      const params = buildQueryString({
-        dataset_id: datasetId,
-        website_id: storeId,
-        start_date: dateRange.startDate,
-        end_date: dateRange.endDate,
-      });
-      // Remove leading ? if present since buildQueryString already adds it
-      const cleanParams = params.startsWith('?') ? params.substring(1) : params;
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let isMetadataParsed = false;
 
-      const headers = {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${idToken}`,
-      };
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-      // Fetch data sources individually and track progress
-      updateDataSourceStatus('sales', 'loading');
-      const salesResponse = await fetch(`/api/reports/sales-overview?${cleanParams}`, { headers });
-      const salesData = salesResponse.ok ? await salesResponse.json() : null;
-      
-      // Fetch hourly sales data for rich temporal analysis
-      const hourlySalesResponse = await fetch(`/api/reports/hourly-sales?${cleanParams}`, { headers }).catch(() => null);
-      const hourlySalesData = hourlySalesResponse?.ok ? await hourlySalesResponse.json() : null;
-      
-      // Fetch customer metrics for customer insights
-      const customerMetricsResponse = await fetch(`/api/reports/customer-metrics?${cleanParams}`, { headers }).catch(() => null);
-      const customerMetricsData = customerMetricsResponse?.ok ? await customerMetricsResponse.json() : null;
-      
-      updateDataSourceStatus('sales', 'complete');
+        const chunk = decoder.decode(value, { stream: true });
 
-      updateDataSourceStatus('products', 'loading');
-      // Fetch more products (top 100) for comprehensive product analysis
-      const productsResponse = await fetch(`/api/reports/top-products?${cleanParams}&limit=100&sort_by=revenue`, { headers });
-      const productsData = productsResponse.ok ? await productsResponse.json() : null;
-      updateDataSourceStatus('products', 'complete');
+        if (!isMetadataParsed) {
+          buffer += chunk;
+          const newlineIndex = buffer.indexOf('\n');
+          if (newlineIndex !== -1) {
+            const metadataLine = buffer.slice(0, newlineIndex);
+            const remainingText = buffer.slice(newlineIndex + 1);
 
-      updateDataSourceStatus('marketing', 'loading');
-      const marketingResponse = await fetch(`/api/marketing/performance?websiteId=${storeId}&startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`, { headers }).catch(() => null);
-      const marketingData = marketingResponse?.ok ? await marketingResponse.json() : null;
-      updateDataSourceStatus('marketing', 'complete');
+            try {
+              const metadata = JSON.parse(metadataLine);
 
-      updateDataSourceStatus('website', 'loading');
-      const websiteResponse = await fetch(`/api/website/behavior?websiteId=${storeId}&startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`, { headers }).catch(() => null);
-      const websiteData = websiteResponse?.ok ? await websiteResponse.json() : null;
-      updateDataSourceStatus('website', 'complete');
+              // Update state with metadata
+              setInsightsData({
+                insights: remainingText,
+                period: metadata.period,
+                dataSources: metadata.dataSources,
+                contextSummary: metadata.contextSummary,
+                systemPrompt: metadata.systemPrompt,
+              });
 
-      updateDataSourceStatus('annotations', 'loading');
-      const annotationsParams = buildQueryString({ clientId });
-      const cleanAnnotationsParams = annotationsParams.startsWith('?') ? annotationsParams.substring(1) : annotationsParams;
-      const annotationsResponse = await apiRequest<any[]>(
-        `/api/annotations?${cleanAnnotationsParams}`,
-        {},
-        idToken
-      );
-      // Filter annotations by date range
-      const allAnnotations = annotationsResponse.success ? annotationsResponse.data || [] : [];
-      const annotationsData = allAnnotations.filter((annotation: any) => {
-        const annotationStart = new Date(annotation.startDate);
-        const annotationEnd = new Date(annotation.endDate || annotation.startDate);
-        const rangeStart = new Date(dateRange.startDate);
-        const rangeEnd = new Date(dateRange.endDate);
-        return annotationStart <= rangeEnd && annotationEnd >= rangeStart;
-      });
-      updateDataSourceStatus('annotations', 'complete');
+              // Update data source statuses and switch to analyzing stage
+              setLoadingProgress((prev) => ({
+                ...prev,
+                currentStage: 'analyzing',
+                dataSources: prev.dataSources.map((ds) => {
+                  if (ds.id === 'sales') return { ...ds, status: metadata.dataSources.sales ? 'complete' : 'pending' };
+                  if (ds.id === 'products') return { ...ds, status: metadata.dataSources.products ? 'complete' : 'pending' };
+                  if (ds.id === 'marketing') return { ...ds, status: metadata.dataSources.marketing ? 'complete' : 'pending' };
+                  if (ds.id === 'website') return { ...ds, status: metadata.dataSources.website ? 'complete' : 'pending' };
+                  if (ds.id === 'annotations') return { ...ds, status: metadata.dataSources.annotations > 0 ? 'complete' : 'pending' };
+                  if (ds.id === 'targets') return { ...ds, status: metadata.dataSources.targets > 0 ? 'complete' : 'pending' };
+                  return ds;
+                }),
+              }));
 
-      updateDataSourceStatus('targets', 'loading');
-      const targetsResponse = await apiRequest<any[]>(
-        `/api/admin/clients/${clientId}/targets`,
-        {},
-        idToken
-      );
-      const targetsData = targetsResponse.success ? targetsResponse.data : [];
-      updateDataSourceStatus('targets', 'complete');
+              // Start AI progress animation
+              if (aiProgressIntervalRef.current) {
+                clearInterval(aiProgressIntervalRef.current);
+              }
+              aiProgressIntervalRef.current = setInterval(() => {
+                setLoadingProgress((prev) => {
+                  if (prev.aiProgress >= 95) return prev;
+                  return { ...prev, aiProgress: prev.aiProgress + 2 };
+                });
+              }, 100);
 
-      // Move to analyzing stage
-      setLoadingProgress((prev) => ({ ...prev, currentStage: 'analyzing' }));
+              isMetadataParsed = true;
+              buffer = ''; // Clear buffer
 
-      // Start AI progress animation - takes 20 seconds total (1% every 200ms)
-      const aiProgressInterval = setInterval(() => {
-        setLoadingProgress((prev) => {
-          if (prev.aiProgress >= 100) {
-            clearInterval(aiProgressInterval);
-            return prev;
+              // If there is remaining text, it means streaming started immediately
+              if (remainingText.trim().length > 0) {
+                setShowLoadingScreen(false);
+                if (aiProgressIntervalRef.current) {
+                  clearInterval(aiProgressIntervalRef.current);
+                  aiProgressIntervalRef.current = null;
+                }
+              }
+            } catch (e) {
+              console.error('Error parsing metadata:', e);
+            }
           }
-          return { ...prev, aiProgress: Math.min(prev.aiProgress + 1, 100) };
-        });
-      }, 200); // 1% every 200ms = 20 seconds total
-
-      // Call POST endpoint with all fetched data
-      const insightsResponse = await fetch('/api/insights', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          clientId,
-          websiteId: websiteFilter,
-          startDate: dateRange.startDate,
-          endDate: dateRange.endDate,
-          salesData,
-          hourlySalesData,
-          customerMetricsData,
-          productsData,
-          marketingData,
-          websiteData,
-          annotationsData: annotationsData || [],
-          targetsData: targetsData || [],
-        }),
-      });
-
-      // Wait for progress animation to complete (20 seconds) or API to finish, whichever is longer
-      const apiStartTime = Date.now();
-      const minAnimationTime = 20000; // 20 seconds
-      
-      // Check if response is OK before parsing
-      if (!insightsResponse.ok) {
-        clearInterval(aiProgressInterval);
-        const errorData = await insightsResponse.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || `HTTP ${insightsResponse.status}: Failed to generate insights`);
-      }
-      
-      const insightsResult = await insightsResponse.json();
-      const apiElapsedTime = Date.now() - apiStartTime;
-      const remainingTime = Math.max(0, minAnimationTime - apiElapsedTime);
-      
-      // If API finished before 20 seconds, wait for the rest to complete the animation
-      if (remainingTime > 0) {
-        await new Promise(resolve => setTimeout(resolve, remainingTime));
-      }
-      
-      // Ensure progress is at 100% and clear interval
-      clearInterval(aiProgressInterval);
-      setLoadingProgress((prev) => ({ ...prev, aiProgress: 100, currentStage: 'complete' }));
-
-      console.log('Insights API response:', insightsResult);
-      console.log('Response success:', insightsResult.success);
-      console.log('Response data:', insightsResult.data);
-      console.log('Response data.insights:', insightsResult.data?.insights);
-      console.log('Response data.insights type:', typeof insightsResult.data?.insights);
-      console.log('Response data.insights length:', insightsResult.data?.insights?.length);
-
-      if (insightsResult.success && insightsResult.data) {
-        const insightsToSet = insightsResult.data;
-        console.log('Setting insights data:', insightsToSet);
-        console.log('Insights content length:', insightsToSet.insights?.length || 0);
-        console.log('Insights content preview:', insightsToSet.insights?.substring(0, 200));
-        
-        // Verify insights field exists and is not empty
-        if (!insightsToSet.insights || (typeof insightsToSet.insights === 'string' && insightsToSet.insights.trim() === '')) {
-          console.error('Insights field is empty or missing:', insightsToSet);
-          setError('Generated insights are empty. Please try again.');
-          setShowLoadingScreen(false);
-          return;
+        } else {
+          // Text chunk received
+          if (showLoadingScreen) {
+            setShowLoadingScreen(false);
+            if (aiProgressIntervalRef.current) {
+              clearInterval(aiProgressIntervalRef.current);
+              aiProgressIntervalRef.current = null;
+            }
+          }
+          setInsightsData((prev) => prev ? { ...prev, insights: prev.insights + chunk } : null);
         }
-        
-        setInsightsData(insightsToSet);
-        // Small delay to show completion state
-        setTimeout(() => {
-          setShowLoadingScreen(false);
-        }, 800);
-      } else {
-        console.error('Insights API error:', insightsResult);
-        setError(insightsResult.error || 'Failed to generate insights');
-        setShowLoadingScreen(false);
       }
+
+      // Mark as complete
+      setLoadingProgress((prev) => ({
+        ...prev,
+        currentStage: 'complete',
+        aiProgress: 100,
+      }));
+
+      if (aiProgressIntervalRef.current) {
+        clearInterval(aiProgressIntervalRef.current);
+        aiProgressIntervalRef.current = null;
+      }
+
     } catch (err: any) {
+      console.error('Error fetching insights:', err);
       setError(err.message || 'An error occurred');
       setShowLoadingScreen(false);
+      if (aiProgressIntervalRef.current) {
+        clearInterval(aiProgressIntervalRef.current);
+        aiProgressIntervalRef.current = null;
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -374,23 +325,24 @@ export default function InsightsPage() {
     );
   }
 
-  if (error) {
-    return (
-      <div className="flex h-96 items-center justify-center">
-        <div className="text-center">
-          <AlertCircle className="mx-auto h-12 w-12 text-red-400" />
-          <h3 className="mt-4 text-lg font-semibold text-red-600">Error Loading Insights</h3>
-          <p className="mt-2 text-gray-600">{error}</p>
-          <Button onClick={fetchInsights} className="mt-4">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Try Again
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
+  // If we have no insights data yet, show either a focused error or a simple loading state
   if (!insightsData) {
+    if (error) {
+      return (
+        <div className="flex h-96 items-center justify-center">
+          <div className="text-center">
+            <AlertCircle className="mx-auto h-12 w-12 text-red-400" />
+            <h3 className="mt-4 text-lg font-semibold text-red-600">Error Loading Insights</h3>
+            <p className="mt-2 text-gray-600">{error}</p>
+            <Button onClick={fetchInsights} className="mt-4">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Try Again
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex h-96 items-center justify-center">
         <div className="text-center">
@@ -421,309 +373,339 @@ export default function InsightsPage() {
         variants={container}
         className="space-y-6"
       >
-      {/* Header */}
-      <motion.div variants={item}>
-        <PageHeader
-          title="AI Insights"
-          description={`Analysis for ${formatDate(insightsData.period.startDate)} - ${formatDate(insightsData.period.endDate)}`}
-          badge={
-            <motion.div
-              animate={{
-                rotate: [0, 10, -10, 0],
-              }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-                repeatDelay: 3,
-                ease: "easeInOut",
-              }}
-            >
-              <Brain className="h-8 w-8 text-indigo-600" />
-            </motion.div>
-          }
-          actions={
-            <Button
-              onClick={fetchInsights}
-              disabled={loading || refreshing}
-              variant="outline"
-              className="gap-2"
-            >
-              <RefreshCw className={`h-4 w-4 ${(loading || refreshing) ? 'animate-spin' : ''}`} />
-              Refresh Insights
-            </Button>
-          }
-        />
-      </motion.div>
+        {/* Header */}
+        <motion.div variants={item}>
+          <PageHeader
+            title="AI Insights"
+            description={`Analysis for ${formatDate(insightsData.period.startDate)} - ${formatDate(insightsData.period.endDate)}`}
+            badge={
+              <motion.div
+                animate={{
+                  rotate: [0, 10, -10, 0],
+                }}
+                transition={{
+                  duration: 2,
+                  repeat: Infinity,
+                  repeatDelay: 3,
+                  ease: "easeInOut",
+                }}
+              >
+                <Brain className="h-8 w-8 text-indigo-600" />
+              </motion.div>
+            }
+            actions={
+              <Button
+                onClick={fetchInsights}
+                disabled={loading || refreshing}
+                variant="outline"
+                className="gap-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${(loading || refreshing) ? 'animate-spin' : ''}`} />
+                Refresh Insights
+              </Button>
+            }
+          />
+        </motion.div>
 
-      <ReportAnnotations />
+        {/* Inline error banner when refresh fails but we still have previous insights */}
+        {error && (
+          <motion.div variants={item}>
+            <Card className="border-red-200 bg-red-50 px-4 py-3 flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-red-500 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-red-700">
+                  We had trouble refreshing your insights.
+                </p>
+                <p className="mt-1 text-sm text-red-700">
+                  {error}
+                </p>
+                <p className="mt-1 text-xs text-red-600">
+                  Showing the last successfully generated insights. You can try again or adjust the date range.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="ml-2"
+                onClick={fetchInsights}
+                disabled={loading}
+              >
+                <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
+                Retry
+              </Button>
+            </Card>
+          </motion.div>
+        )}
 
-      {/* Data Sources Status */}
-      <motion.div variants={item}>
-        <Card className="p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Database className="h-5 w-5 text-gray-500" />
-            <h3 className="text-sm font-semibold text-gray-700">Data Sources</h3>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-            {insightsData.dataSources.sales && (
-              <div className="flex items-center gap-2 text-sm">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <div className="flex items-center gap-1">
-                  <ShoppingCart className="h-3 w-3 text-gray-400" />
-                  <span className="text-gray-600">Sales</span>
+        <ReportAnnotations />
+
+        {/* Data Sources Status */}
+        <motion.div variants={item}>
+          <Card className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Database className="h-5 w-5 text-gray-500" />
+              <h3 className="text-sm font-semibold text-gray-700">Data Sources</h3>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              {insightsData.dataSources.sales && (
+                <div className="flex items-center gap-2 text-sm">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <div className="flex items-center gap-1">
+                    <ShoppingCart className="h-3 w-3 text-gray-400" />
+                    <span className="text-gray-600">Sales</span>
+                  </div>
                 </div>
-              </div>
-            )}
-            {insightsData.dataSources.products && (
-              <div className="flex items-center gap-2 text-sm">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <div className="flex items-center gap-1">
-                  <Package className="h-3 w-3 text-gray-400" />
-                  <span className="text-gray-600">Products</span>
+              )}
+              {insightsData.dataSources.products && (
+                <div className="flex items-center gap-2 text-sm">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <div className="flex items-center gap-1">
+                    <Package className="h-3 w-3 text-gray-400" />
+                    <span className="text-gray-600">Products</span>
+                  </div>
                 </div>
-              </div>
-            )}
-            {insightsData.dataSources.marketing && (
-              <div className="flex items-center gap-2 text-sm">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <div className="flex items-center gap-1">
-                  <Megaphone className="h-3 w-3 text-gray-400" />
-                  <span className="text-gray-600">Marketing</span>
+              )}
+              {insightsData.dataSources.marketing && (
+                <div className="flex items-center gap-2 text-sm">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <div className="flex items-center gap-1">
+                    <Megaphone className="h-3 w-3 text-gray-400" />
+                    <span className="text-gray-600">Marketing</span>
+                  </div>
                 </div>
-              </div>
-            )}
-            {insightsData.dataSources.website && (
-              <div className="flex items-center gap-2 text-sm">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <div className="flex items-center gap-1">
-                  <Globe className="h-3 w-3 text-gray-400" />
-                  <span className="text-gray-600">Website</span>
+              )}
+              {insightsData.dataSources.website && (
+                <div className="flex items-center gap-2 text-sm">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <div className="flex items-center gap-1">
+                    <Globe className="h-3 w-3 text-gray-400" />
+                    <span className="text-gray-600">Website</span>
+                  </div>
                 </div>
-              </div>
-            )}
-            {insightsData.dataSources.annotations > 0 && (
-              <div className="flex items-center gap-2 text-sm">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span className="text-gray-600">
-                  {insightsData.dataSources.annotations} Annotation{insightsData.dataSources.annotations !== 1 ? 's' : ''}
-                </span>
-              </div>
-            )}
-            {insightsData.dataSources.targets > 0 && (
-              <div className="flex items-center gap-2 text-sm">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <div className="flex items-center gap-1">
-                  <TrendingUp className="h-3 w-3 text-gray-400" />
+              )}
+              {insightsData.dataSources.annotations > 0 && (
+                <div className="flex items-center gap-2 text-sm">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
                   <span className="text-gray-600">
-                    {insightsData.dataSources.targets} Target{insightsData.dataSources.targets !== 1 ? 's' : ''}
+                    {insightsData.dataSources.annotations} Annotation{insightsData.dataSources.annotations !== 1 ? 's' : ''}
                   </span>
                 </div>
-              </div>
-            )}
-          </div>
-        </Card>
-      </motion.div>
-
-      {/* Insights Content */}
-      <motion.div variants={item}>
-        <Card className="p-8">
-          {(() => {
-            const hasInsights = insightsData.insights && 
-                                typeof insightsData.insights === 'string' && 
-                                insightsData.insights.trim() !== '';
-            
-            console.log('Rendering insights:', {
-              hasInsights,
-              insightsType: typeof insightsData.insights,
-              insightsLength: insightsData.insights?.length || 0,
-              insightsPreview: insightsData.insights?.substring(0, 100),
-            });
-            
-            if (!hasInsights) {
-              return (
-                <div className="text-center py-12">
-                  <AlertCircle className="mx-auto h-12 w-12 text-yellow-400 mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Insights Generated</h3>
-                  <p className="text-gray-600 mb-4">
-                    The AI was unable to generate insights from the available data.
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Debug info: insights length = {insightsData.insights?.length || 0}, type = {typeof insightsData.insights}
-                  </p>
-                </div>
-              );
-            }
-            
-            return (
-            <div className="prose prose-lg max-w-none">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                // Custom styling for markdown elements
-                h1: ({ children }) => (
-                  <h1 className="text-3xl font-bold text-gray-900 mt-8 mb-4 first:mt-0">
-                    {children}
-                  </h1>
-                ),
-                h2: ({ children }) => (
-                  <h2 className="text-2xl font-bold text-gray-900 mt-6 mb-3 border-b border-gray-200 pb-2">
-                    {children}
-                  </h2>
-                ),
-                h3: ({ children }) => (
-                  <h3 className="text-xl font-semibold text-gray-800 mt-5 mb-2">
-                    {children}
-                  </h3>
-                ),
-                p: ({ children }) => (
-                  <p className="mb-4 text-gray-700 leading-relaxed last:mb-0">
-                    {children}
-                  </p>
-                ),
-                ul: ({ children }) => (
-                  <ul className="mb-4 ml-6 list-disc space-y-2 text-gray-700">
-                    {children}
-                  </ul>
-                ),
-                ol: ({ children }) => (
-                  <ol className="mb-4 ml-6 list-decimal space-y-2 text-gray-700">
-                    {children}
-                  </ol>
-                ),
-                li: ({ children }) => (
-                  <li className="leading-relaxed">{children}</li>
-                ),
-                strong: ({ children }) => (
-                  <strong className="font-semibold text-gray-900">{children}</strong>
-                ),
-                em: ({ children }) => (
-                  <em className="italic text-gray-700">{children}</em>
-                ),
-                code: ({ children }) => (
-                  <code className="px-1.5 py-0.5 rounded bg-gray-100 text-sm font-mono text-indigo-700">
-                    {children}
-                  </code>
-                ),
-                pre: ({ children }) => (
-                  <pre className="p-4 rounded-lg bg-gray-100 text-sm font-mono overflow-x-auto mb-4">
-                    {children}
-                  </pre>
-                ),
-                blockquote: ({ children }) => (
-                  <blockquote className="border-l-4 border-indigo-500 pl-4 my-4 italic text-gray-600">
-                    {children}
-                  </blockquote>
-                ),
-                table: ({ children }) => (
-                  <div className="overflow-x-auto my-4">
-                    <table className="min-w-full divide-y divide-gray-200 border border-gray-300 rounded-lg">
-                      {children}
-                    </table>
+              )}
+              {insightsData.dataSources.targets > 0 && (
+                <div className="flex items-center gap-2 text-sm">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <div className="flex items-center gap-1">
+                    <TrendingUp className="h-3 w-3 text-gray-400" />
+                    <span className="text-gray-600">
+                      {insightsData.dataSources.targets} Target{insightsData.dataSources.targets !== 1 ? 's' : ''}
+                    </span>
                   </div>
-                ),
-                thead: ({ children }) => (
-                  <thead className="bg-gray-50">{children}</thead>
-                ),
-                tbody: ({ children }) => (
-                  <tbody className="bg-white divide-y divide-gray-200">{children}</tbody>
-                ),
-                tr: ({ children }) => (
-                  <tr className="hover:bg-gray-50">{children}</tr>
-                ),
-                th: ({ children }) => (
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    {children}
-                  </th>
-                ),
-                td: ({ children }) => (
-                  <td className="px-4 py-3 text-sm text-gray-600">
-                    {children}
-                  </td>
-                ),
-                hr: () => <hr className="my-6 border-gray-200" />,
-                a: ({ children, href }) => (
-                  <a
-                    href={href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-indigo-600 hover:text-indigo-800 underline"
-                  >
-                    {children}
-                  </a>
-                ),
-              }}
-              >
-                {insightsData.insights}
-              </ReactMarkdown>
+                </div>
+              )}
             </div>
-            );
-          })()}
-        </Card>
-      </motion.div>
-
-      {/* Admin Only: AI Input Data */}
-      {appUser?.role === 'admin' && insightsData.contextSummary && (
-        <motion.div variants={item}>
-          <Card className="p-6 border-amber-200 bg-amber-50/30">
-            <button
-              onClick={() => setShowAiInput(!showAiInput)}
-              className="w-full flex items-center justify-between text-left cursor-pointer hover:opacity-80 transition-opacity"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-amber-500 rounded-lg">
-                  <Eye className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">AI Input Data</h3>
-                  <p className="text-sm text-gray-600">View what was passed to the AI (Admin Only)</p>
-                </div>
-              </div>
-              {showAiInput ? (
-                <ChevronUp className="h-5 w-5 text-gray-600" />
-              ) : (
-                <ChevronDown className="h-5 w-5 text-gray-600" />
-              )}
-            </button>
-            
-            <AnimatePresence>
-              {showAiInput && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="mt-4 space-y-4"
-                >
-                  {/* System Prompt */}
-                  {insightsData.systemPrompt && (
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <Code2 className="h-4 w-4 text-gray-500" />
-                        <h4 className="text-sm font-semibold text-gray-700">System Prompt</h4>
-                      </div>
-                      <pre className="p-4 bg-gray-900 text-gray-100 rounded-lg text-xs overflow-x-auto max-h-96 overflow-y-auto font-mono">
-                        {insightsData.systemPrompt}
-                      </pre>
-                    </div>
-                  )}
-                  
-                  {/* Context Summary */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Database className="h-4 w-4 text-gray-500" />
-                      <h4 className="text-sm font-semibold text-gray-700">Context Summary (Data Passed to AI)</h4>
-                    </div>
-                    <pre className="p-4 bg-gray-900 text-gray-100 rounded-lg text-xs overflow-x-auto max-h-96 overflow-y-auto font-mono whitespace-pre-wrap">
-                      {insightsData.contextSummary}
-                    </pre>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
           </Card>
         </motion.div>
-      )}
-    </motion.div>
+
+        {/* Insights Content */}
+        <motion.div variants={item}>
+          <Card className="p-8">
+            {(() => {
+              const hasInsights = insightsData.insights &&
+                typeof insightsData.insights === 'string' &&
+                insightsData.insights.trim() !== '';
+
+              console.log('Rendering insights:', {
+                hasInsights,
+                insightsType: typeof insightsData.insights,
+                insightsLength: insightsData.insights?.length || 0,
+                insightsPreview: insightsData.insights?.substring(0, 100),
+              });
+
+              if (!hasInsights) {
+                return (
+                  <div className="text-center py-12">
+                    <AlertCircle className="mx-auto h-12 w-12 text-yellow-400 mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No Insights Generated</h3>
+                    <p className="text-gray-600 mb-4">
+                      The AI was unable to generate insights from the available data.
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      Debug info: insights length = {insightsData.insights?.length || 0}, type = {typeof insightsData.insights}
+                    </p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="prose prose-lg max-w-none">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      // Custom styling for markdown elements
+                      h1: ({ children }) => (
+                        <h1 className="text-3xl font-bold text-gray-900 mt-8 mb-4 first:mt-0">
+                          {children}
+                        </h1>
+                      ),
+                      h2: ({ children }) => (
+                        <h2 className="text-2xl font-bold text-gray-900 mt-6 mb-3 border-b border-gray-200 pb-2">
+                          {children}
+                        </h2>
+                      ),
+                      h3: ({ children }) => (
+                        <h3 className="text-xl font-semibold text-gray-800 mt-5 mb-2">
+                          {children}
+                        </h3>
+                      ),
+                      p: ({ children }) => (
+                        <p className="mb-4 text-gray-700 leading-relaxed last:mb-0">
+                          {children}
+                        </p>
+                      ),
+                      ul: ({ children }) => (
+                        <ul className="mb-4 ml-6 list-disc space-y-2 text-gray-700">
+                          {children}
+                        </ul>
+                      ),
+                      ol: ({ children }) => (
+                        <ol className="mb-4 ml-6 list-decimal space-y-2 text-gray-700">
+                          {children}
+                        </ol>
+                      ),
+                      li: ({ children }) => (
+                        <li className="leading-relaxed">{children}</li>
+                      ),
+                      strong: ({ children }) => (
+                        <strong className="font-semibold text-gray-900">{children}</strong>
+                      ),
+                      em: ({ children }) => (
+                        <em className="italic text-gray-700">{children}</em>
+                      ),
+                      code: ({ children }) => (
+                        <code className="px-1.5 py-0.5 rounded bg-gray-100 text-sm font-mono text-indigo-700">
+                          {children}
+                        </code>
+                      ),
+                      pre: ({ children }) => (
+                        <pre className="p-4 rounded-lg bg-gray-100 text-sm font-mono overflow-x-auto mb-4">
+                          {children}
+                        </pre>
+                      ),
+                      blockquote: ({ children }) => (
+                        <blockquote className="border-l-4 border-indigo-500 pl-4 my-4 italic text-gray-600">
+                          {children}
+                        </blockquote>
+                      ),
+                      table: ({ children }) => (
+                        <div className="overflow-x-auto my-4">
+                          <table className="min-w-full divide-y divide-gray-200 border border-gray-300 rounded-lg">
+                            {children}
+                          </table>
+                        </div>
+                      ),
+                      thead: ({ children }) => (
+                        <thead className="bg-gray-50">{children}</thead>
+                      ),
+                      tbody: ({ children }) => (
+                        <tbody className="bg-white divide-y divide-gray-200">{children}</tbody>
+                      ),
+                      tr: ({ children }) => (
+                        <tr className="hover:bg-gray-50">{children}</tr>
+                      ),
+                      th: ({ children }) => (
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                          {children}
+                        </th>
+                      ),
+                      td: ({ children }) => (
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {children}
+                        </td>
+                      ),
+                      hr: () => <hr className="my-6 border-gray-200" />,
+                      a: ({ children, href }) => (
+                        <a
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-indigo-600 hover:text-indigo-800 underline"
+                        >
+                          {children}
+                        </a>
+                      ),
+                    }}
+                  >
+                    {insightsData.insights}
+                  </ReactMarkdown>
+                </div>
+              );
+            })()}
+          </Card>
+        </motion.div>
+
+        {/* Admin Only: AI Input Data */}
+        {appUser?.role === 'admin' && insightsData.contextSummary && (
+          <motion.div variants={item}>
+            <Card className="p-6 border-amber-200 bg-amber-50/30">
+              <button
+                onClick={() => setShowAiInput(!showAiInput)}
+                className="w-full flex items-center justify-between text-left cursor-pointer hover:opacity-80 transition-opacity"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-50 rounded-lg">
+                    <Brain className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">AI Input Data</h3>
+                    <p className="text-sm text-gray-600">View what was passed to the AI (Admin Only)</p>
+                  </div>
+                </div>
+                {showAiInput ? (
+                  <ChevronUp className="h-5 w-5 text-gray-600" />
+                ) : (
+                  <ChevronDown className="h-5 w-5 text-gray-600" />
+                )}
+              </button>
+
+              <AnimatePresence>
+                {showAiInput && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="mt-4 space-y-4"
+                  >
+                    {/* System Prompt */}
+                    {insightsData.systemPrompt && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Code2 className="h-4 w-4 text-gray-500" />
+                          <h4 className="text-sm font-semibold text-gray-700">System Prompt</h4>
+                        </div>
+                        <pre className="p-4 bg-gray-900 text-gray-100 rounded-lg text-xs overflow-x-auto max-h-96 overflow-y-auto font-mono">
+                          {insightsData.systemPrompt}
+                        </pre>
+                      </div>
+                    )}
+
+                    {/* Context Summary */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Database className="h-4 w-4 text-gray-500" />
+                        <h4 className="text-sm font-semibold text-gray-700">Context Summary (Data Passed to AI)</h4>
+                      </div>
+                      <pre className="p-4 bg-gray-900 text-gray-100 rounded-lg text-xs overflow-x-auto max-h-96 overflow-y-auto font-mono whitespace-pre-wrap">
+                        {insightsData.contextSummary}
+                      </pre>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </Card>
+          </motion.div>
+        )}
+      </motion.div>
     </AnimatePresence>
   );
 }

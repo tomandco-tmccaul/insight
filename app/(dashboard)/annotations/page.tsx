@@ -196,18 +196,18 @@ export default function AnnotationsPage() {
       />
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>
-                {editingAnnotation ? 'Edit Annotation' : 'Create New Annotation'}
-              </DialogTitle>
-            </DialogHeader>
-            <AnnotationForm
-              annotation={editingAnnotation}
-              onSubmit={handleCreateOrUpdate}
-              onCancel={handleCloseDialog}
-            />
-          </DialogContent>
-        </Dialog>
+          <DialogHeader>
+            <DialogTitle>
+              {editingAnnotation ? 'Edit Annotation' : 'Create New Annotation'}
+            </DialogTitle>
+          </DialogHeader>
+          <AnnotationForm
+            annotation={editingAnnotation}
+            onSubmit={handleCreateOrUpdate}
+            onCancel={handleCloseDialog}
+          />
+        </DialogContent>
+      </Dialog>
 
       {annotations.length === 0 ? (
         <Card className="p-12">
@@ -246,7 +246,7 @@ function AnnotationCard({
 }) {
   const typeColors: Record<AnnotationType, string> = {
     event: 'bg-blue-100 text-blue-700',
-    insight: 'bg-purple-100 text-purple-700',
+    insight: 'bg-cyan-100 text-cyan-700',
     note: 'bg-gray-100 text-gray-700',
     alert: 'bg-red-100 text-red-700',
   };

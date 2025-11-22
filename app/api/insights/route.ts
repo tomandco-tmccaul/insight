@@ -3,6 +3,17 @@ import { requireAuth } from '@/lib/auth/middleware';
 import { genkit, z } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
 import { adminDb } from '@/lib/firebase/admin';
+import { getSalesOverview } from '@/lib/data-layer/sales-overview';
+import { getHourlySales } from '@/lib/data-layer/hourly-sales';
+import { getCustomerMetrics } from '@/lib/data-layer/customer-metrics';
+import { getTopProducts } from '@/lib/data-layer/top-products';
+import { getCategoryBreakdown } from '@/lib/data-layer/category-breakdown';
+import { getCollectionsPerformance } from '@/lib/data-layer/collections-performance';
+import { getSampleOrdersSummary } from '@/lib/data-layer/sample-orders-summary';
+import { getSampleOrdersDaily } from '@/lib/data-layer/sample-orders-daily';
+import { getSampleOrdersHourly } from '@/lib/data-layer/sample-orders-hourly';
+import { getTopSampleProducts } from '@/lib/data-layer/top-sample-products';
+import { getSampleOrdersByCollection } from '@/lib/data-layer/sample-orders-by-collection';
 
 // Enhanced insights API with comprehensive data passing
 
@@ -10,6 +21,7 @@ import { adminDb } from '@/lib/firebase/admin';
 const ai = genkit({
   plugins: [googleAI({ apiKey: process.env.GOOGLE_GENAI_API_KEY })],
 });
+
 
 export async function GET(request: NextRequest) {
   return requireAuth(request, async (req, user) => {
@@ -65,43 +77,94 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // Pass the website ID (Firestore ID) to sales-overview, which will resolve it to BigQuery IDs
-      // This allows sales-overview to handle grouped websites properly
-      const params = new URLSearchParams({
-        dataset_id: datasetId,
-        website_id: websiteId || 'all_combined',
-        client_id: clientId,
-        start_date: startDate,
-        end_date: endDate,
-      });
-
-      // Get the authorization header from the original request
+      // Get the authorization header from the original request for marketing/website APIs
       const authHeader = req.headers.get('authorization');
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
-      
+
       if (authHeader) {
         headers['Authorization'] = authHeader;
       }
 
-      // Fetch data from all sources in parallel
+      // Use data layer functions for BigQuery data
+      const queryOptions = {
+        datasetId,
+        clientId,
+        websiteId: websiteId || 'all_combined',
+        startDate,
+        endDate,
+      };
+
+      // Fetch data from all sources in parallel - comprehensive data collection
       const [
-        salesResponse,
-        hourlySalesResponse,
-        customerMetricsResponse,
-        productsResponse,
+        salesData,
+        hourlySalesData,
+        customerMetricsData,
+        productsData,
+        categoryBreakdownData,
+        collectionsPerformanceData,
+        sampleOrdersSummaryData,
+        sampleOrdersDailyData,
+        sampleOrdersHourlyData,
+        topSampleProductsData,
+        sampleOrdersByCollectionData,
         marketingResponse,
+        seoInsightsResponse,
         websiteResponse,
         annotationsResponse,
         targetsResponse,
       ] = await Promise.all([
-        fetch(`${req.nextUrl.origin}/api/reports/sales-overview?${params}`, { headers }),
-        fetch(`${req.nextUrl.origin}/api/reports/hourly-sales?${params}`, { headers }).catch(() => null),
-        fetch(`${req.nextUrl.origin}/api/reports/customer-metrics?${params}`, { headers }).catch(() => null),
-        fetch(`${req.nextUrl.origin}/api/reports/top-products?${params}&limit=100&sort_by=revenue`, { headers }),
-        fetch(`${req.nextUrl.origin}/api/reports/product-type-breakdown?${params}`, { headers }).catch(() => null),
+        // Core sales data
+        getSalesOverview(queryOptions).catch((err) => {
+          console.error('Error fetching sales overview:', err);
+          return null;
+        }),
+        getHourlySales(queryOptions).catch((err) => {
+          console.error('Error fetching hourly sales:', err);
+          return null;
+        }),
+        getCustomerMetrics(queryOptions).catch((err) => {
+          console.error('Error fetching customer metrics:', err);
+          return null;
+        }),
+        getTopProducts({ ...queryOptions, limit: 200, sortBy: 'revenue' }).catch((err) => {
+          console.error('Error fetching top products:', err);
+          return null;
+        }),
+        // Category and collection breakdowns
+        getCategoryBreakdown({ ...queryOptions, orderType: 'main' }).catch((err) => {
+          console.error('Error fetching category breakdown:', err);
+          return null;
+        }),
+        getCollectionsPerformance({ ...queryOptions, orderType: 'main', limit: 50, sortBy: 'revenue' }).catch((err) => {
+          console.error('Error fetching collections performance:', err);
+          return null;
+        }),
+        // Sample orders data
+        getSampleOrdersSummary(queryOptions).catch((err) => {
+          console.error('Error fetching sample orders summary:', err);
+          return null;
+        }),
+        getSampleOrdersDaily(queryOptions).catch((err) => {
+          console.error('Error fetching sample orders daily:', err);
+          return null;
+        }),
+        getSampleOrdersHourly(queryOptions).catch((err) => {
+          console.error('Error fetching sample orders hourly:', err);
+          return null;
+        }),
+        getTopSampleProducts({ ...queryOptions, limit: 50 }).catch((err) => {
+          console.error('Error fetching top sample products:', err);
+          return null;
+        }),
+        getSampleOrdersByCollection(queryOptions).catch((err) => {
+          console.error('Error fetching sample orders by collection:', err);
+          return null;
+        }),
+        // Marketing and website data still use API endpoints (no data layer functions yet)
         fetch(`${req.nextUrl.origin}/api/marketing/performance?websiteId=${websiteId}&startDate=${startDate}&endDate=${endDate}`, { headers }).catch(() => null),
+        fetch(`${req.nextUrl.origin}/api/seo-insights?websiteId=${websiteId}&startDate=${startDate}&endDate=${endDate}&clientId=${clientId}`, { headers }).catch(() => null),
         fetch(`${req.nextUrl.origin}/api/website/behavior?websiteId=${websiteId}&startDate=${startDate}&endDate=${endDate}`, { headers }).catch(() => null),
         adminDb
           .collection('clients')
@@ -132,12 +195,9 @@ export async function GET(request: NextRequest) {
           }),
       ]);
 
-      // Parse responses
-      const salesData = salesResponse.ok ? await salesResponse.json() : null;
-      const hourlySalesData = hourlySalesResponse?.ok ? await hourlySalesResponse.json() : null;
-      const customerMetricsData = customerMetricsResponse?.ok ? await customerMetricsResponse.json() : null;
-      const productsData = productsResponse.ok ? await productsResponse.json() : null;
+      // Parse API responses (marketing, SEO, and website)
       const marketingData = marketingResponse?.ok ? await marketingResponse.json() : null;
+      const seoInsightsData = seoInsightsResponse?.ok ? await seoInsightsResponse.json() : null;
       const websiteData = websiteResponse?.ok ? await websiteResponse.json() : null;
       const annotationsData = (annotationsResponse as any)?.success ? (annotationsResponse as any).data : [];
       const targetsData = (targetsResponse as any)?.success ? (targetsResponse as any).data : [];
@@ -145,7 +205,7 @@ export async function GET(request: NextRequest) {
       // Get currency from client data or default to GBP
       const currency = (clientData?.currency as string) || 'GBP';
       const currencySymbol = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : currency;
-      
+
       // Helper function to format currency values
       const formatCurrency = (value: number): string => {
         return `${currencySymbol}${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -159,9 +219,9 @@ export async function GET(request: NextRequest) {
       contextParts.push(`Website: ${websiteId === 'all_combined' ? 'All Websites Combined' : websiteId}`);
       contextParts.push(`Currency: ${currency} (${currencySymbol})\n`);
 
-      if (salesData?.data) {
+      if (salesData) {
         contextParts.push('## Sales Performance Overview');
-        const summary = salesData.data.summary;
+        const summary = salesData.summary;
         contextParts.push(`### Summary Metrics:`);
         contextParts.push(`- Total Revenue: ${formatCurrency(summary.total_revenue || 0)}`);
         contextParts.push(`- Total Orders: ${summary.total_orders?.toLocaleString() || 0}`);
@@ -174,9 +234,9 @@ export async function GET(request: NextRequest) {
         contextParts.push(`- Subtotal: ${formatCurrency(summary.subtotal || 0)}`);
         contextParts.push(`- Total Tax: ${formatCurrency(summary.total_tax || 0)}`);
         contextParts.push(`- Total Shipping: ${formatCurrency(summary.total_shipping || 0)}`);
-        
+
         // Include daily breakdown
-        const daily = salesData.data.daily || [];
+        const daily = salesData.daily || [];
         if (daily && daily.length > 0) {
           contextParts.push(`\n### Daily Breakdown (${daily.length} days):`);
           contextParts.push('Date | Orders | Revenue | Customers | AOV | Items | Discounts');
@@ -190,28 +250,28 @@ export async function GET(request: NextRequest) {
       }
 
       // Add hourly sales data
-      if (hourlySalesData?.data) {
+      if (hourlySalesData) {
         contextParts.push('## Hourly Sales Patterns');
-        if (hourlySalesData.data.hourly && Array.isArray(hourlySalesData.data.hourly)) {
+        if (hourlySalesData.hourly && Array.isArray(hourlySalesData.hourly)) {
           contextParts.push('### Sales by Hour of Day:');
           contextParts.push('Hour | Total Orders | Total Revenue | Avg Orders/Day | Avg Revenue/Day');
           contextParts.push('--- | --- | --- | --- | ---');
-          hourlySalesData.data.hourly.forEach((hour: any) => {
+          hourlySalesData.hourly.forEach((hour: any) => {
             contextParts.push(`${hour.hour}:00 | ${hour.total_orders || 0} | ${formatCurrency(hour.total_revenue || 0)} | ${hour.avg_orders_per_day?.toFixed(2) || 0} | ${formatCurrency(hour.avg_revenue_per_day || 0)}`);
           });
-          if (hourlySalesData.data.peaks) {
+          if (hourlySalesData.peaks) {
             contextParts.push(`\n### Peak Hours:`);
-            contextParts.push(`- Peak Orders Hour: ${hourlySalesData.data.peaks.orders?.hour || 0}:00 (${hourlySalesData.data.peaks.orders?.total_orders || 0} orders)`);
-            contextParts.push(`- Peak Revenue Hour: ${hourlySalesData.data.peaks.revenue?.hour || 0}:00 (${formatCurrency(hourlySalesData.data.peaks.revenue?.total_revenue || 0)})`);
+            contextParts.push(`- Peak Orders Hour: ${hourlySalesData.peaks.orders?.hour || 0}:00 (${hourlySalesData.peaks.orders?.total_orders || 0} orders)`);
+            contextParts.push(`- Peak Revenue Hour: ${hourlySalesData.peaks.revenue?.hour || 0}:00 (${formatCurrency(hourlySalesData.peaks.revenue?.total_revenue || 0)})`);
           }
         }
         contextParts.push('');
       }
 
       // Add customer metrics
-      if (customerMetricsData?.data) {
+      if (customerMetricsData) {
         contextParts.push('## Customer Metrics');
-        const customerSummary = customerMetricsData.data.summary;
+        const customerSummary = customerMetricsData.summary;
         if (customerSummary) {
           contextParts.push(`### Summary:`);
           contextParts.push(`- Total Unique Customers: ${(customerSummary.total_unique_customers || 0).toLocaleString()}`);
@@ -219,8 +279,8 @@ export async function GET(request: NextRequest) {
           contextParts.push(`- Total Guest Customers: ${(customerSummary.total_guest_customers || 0).toLocaleString()}`);
           contextParts.push(`- Average Revenue per Customer: ${formatCurrency(customerSummary.avg_revenue_per_customer || 0)}`);
         }
-        
-        const customerDaily = customerMetricsData.data.daily || [];
+
+        const customerDaily = customerMetricsData.daily || [];
         if (customerDaily && customerDaily.length > 0) {
           contextParts.push(`\n### Daily Customer Breakdown (${customerDaily.length} days):`);
           contextParts.push('Date | Unique Customers | Registered | Guest | Revenue/Customer');
@@ -232,18 +292,16 @@ export async function GET(request: NextRequest) {
         contextParts.push('');
       }
 
-      // Handle products data - API returns { success: true, data: array }
+      // Handle products data - data layer returns array directly
       let products: any[] = [];
-      if (Array.isArray(productsData?.data)) {
-        products = productsData.data;
-      } else if (productsData?.data?.products) {
-        products = productsData.data.products;
+      if (Array.isArray(productsData)) {
+        products = productsData;
       }
-      
+
       if (products && products.length > 0) {
         contextParts.push('## Product Performance Analysis');
         contextParts.push(`### Product Overview (${products.length} products):`);
-        
+
         // Top products by revenue
         contextParts.push(`\n#### Top 20 Products by Revenue:`);
         products.slice(0, 20).forEach((product: any, index: number) => {
@@ -261,24 +319,192 @@ export async function GET(request: NextRequest) {
             contextParts.push(`   - Discounts: ${formatCurrency(product.total_discount)}`);
           }
         });
-        
+
         // Summary statistics
         const totalRevenue = products.reduce((sum: number, p: any) => sum + (p.total_revenue || p.revenue || 0), 0);
         const totalQuantity = products.reduce((sum: number, p: any) => sum + (p.total_qty_ordered || p.quantity_sold || 0), 0);
         const totalOrders = products.reduce((sum: number, p: any) => sum + (p.order_count || 0), 0);
         const avgPrice = totalQuantity > 0 ? totalRevenue / totalQuantity : 0;
-        
+
         contextParts.push(`\n### Product Summary:`);
         contextParts.push(`- Total Products Analyzed: ${products.length}`);
         contextParts.push(`- Combined Revenue: ${formatCurrency(totalRevenue)}`);
         contextParts.push(`- Combined Quantity Sold: ${totalQuantity.toLocaleString()}`);
         contextParts.push(`- Combined Orders: ${totalOrders.toLocaleString()}`);
         contextParts.push(`- Average Product Price: ${formatCurrency(avgPrice)}`);
-        
+
         // Product performance distribution
         const top10Revenue = products.slice(0, 10).reduce((sum: number, p: any) => sum + (p.total_revenue || p.revenue || 0), 0);
         const top10Percentage = totalRevenue > 0 ? (top10Revenue / totalRevenue * 100).toFixed(1) : 0;
         contextParts.push(`- Top 10 Products Revenue: ${formatCurrency(top10Revenue)} (${top10Percentage}% of total)`);
+
+        // Enhanced product details (invoiced, shipped, canceled, refunded)
+        if (products.some((p: any) => p.total_qty_invoiced || p.total_qty_shipped || p.total_qty_canceled || p.total_qty_refunded)) {
+          contextParts.push(`\n### Product Fulfillment Details (Top 20):`);
+          products.slice(0, 20).forEach((product: any, index: number) => {
+            if (product.total_qty_invoiced || product.total_qty_shipped || product.total_qty_canceled || product.total_qty_refunded) {
+              const productName = product.product_name || product.title || 'Unknown';
+              contextParts.push(`${index + 1}. ${productName} (SKU: ${product.sku || 'N/A'})`);
+              if (product.total_qty_invoiced) contextParts.push(`   - Invoiced: ${product.total_qty_invoiced.toLocaleString()}`);
+              if (product.total_qty_shipped) contextParts.push(`   - Shipped: ${product.total_qty_shipped.toLocaleString()}`);
+              if (product.total_qty_canceled) contextParts.push(`   - Canceled: ${product.total_qty_canceled.toLocaleString()}`);
+              if (product.total_qty_refunded) contextParts.push(`   - Refunded: ${product.total_qty_refunded.toLocaleString()}`);
+            }
+          });
+        }
+
+        // Price analysis
+        const pricesWithMinMax = products.filter((p: any) => p.min_price || p.max_price);
+        if (pricesWithMinMax.length > 0) {
+          contextParts.push(`\n### Price Range Analysis (Products with price variations):`);
+          pricesWithMinMax.slice(0, 10).forEach((product: any) => {
+            const productName = product.product_name || product.title || 'Unknown';
+            contextParts.push(`- ${productName}: Min ${formatCurrency(product.min_price || 0)}, Max ${formatCurrency(product.max_price || 0)}, Avg ${formatCurrency(product.avg_price || 0)}`);
+          });
+        }
+        contextParts.push('');
+      }
+
+      // Category Breakdown
+      if (categoryBreakdownData && categoryBreakdownData.length > 0) {
+        contextParts.push('## Category Breakdown (Main Orders)');
+        contextParts.push('Category | Revenue | Quantity | Orders | % of Revenue');
+        contextParts.push('--- | --- | --- | --- | ---');
+        categoryBreakdownData.forEach((category: any) => {
+          contextParts.push(`${category.category_group} | ${formatCurrency(category.total_revenue || 0)} | ${category.total_qty?.toLocaleString() || 0} | ${category.order_count?.toLocaleString() || 0} | ${category.percentage?.toFixed(1) || 0}%`);
+        });
+        contextParts.push('');
+      }
+
+      // Collections Performance
+      if (collectionsPerformanceData && collectionsPerformanceData.length > 0) {
+        contextParts.push('## Collections Performance (Main Orders)');
+        contextParts.push('Collection | Revenue | Quantity | Orders');
+        contextParts.push('--- | --- | --- | ---');
+        collectionsPerformanceData.forEach((collection: any) => {
+          contextParts.push(`${collection.collection} | ${formatCurrency(collection.total_revenue || 0)} | ${collection.total_qty?.toLocaleString() || 0} | ${collection.order_count?.toLocaleString() || 0}`);
+        });
+        contextParts.push('');
+      }
+
+      // Order Status Breakdowns (from sales overview)
+      if (salesData && salesData.summary) {
+        const summary = salesData.summary;
+        contextParts.push('## Order Status Breakdown');
+        contextParts.push(`- Complete Orders: ${(summary.orders_complete || 0).toLocaleString()} (${summary.total_orders > 0 ? ((summary.orders_complete / summary.total_orders) * 100).toFixed(1) : 0}%) - Revenue: ${formatCurrency((summary as any).revenue_complete || 0)}`);
+        contextParts.push(`- Pending Orders: ${(summary.orders_pending || 0).toLocaleString()} (${summary.total_orders > 0 ? ((summary.orders_pending / summary.total_orders) * 100).toFixed(1) : 0}%) - Revenue: ${formatCurrency((summary as any).revenue_pending || 0)}`);
+        contextParts.push(`- Processing Orders: ${(summary.orders_processing || 0).toLocaleString()} (${summary.total_orders > 0 ? ((summary.orders_processing / summary.total_orders) * 100).toFixed(1) : 0}%)`);
+        contextParts.push(`- Canceled Orders: ${(summary.orders_canceled || 0).toLocaleString()} (${summary.total_orders > 0 ? ((summary.orders_canceled / summary.total_orders) * 100).toFixed(1) : 0}%)`);
+        if (summary.orders_sample !== undefined) {
+          contextParts.push(`- Sample Orders: ${(summary.orders_sample || 0).toLocaleString()} (${summary.total_orders > 0 ? ((summary.orders_sample / summary.total_orders) * 100).toFixed(1) : 0}%)`);
+          contextParts.push(`- Non-Sample Orders: ${((summary.orders_not_sample ?? summary.total_orders) || 0).toLocaleString()} (${summary.total_orders > 0 ? (((summary.orders_not_sample ?? summary.total_orders) / summary.total_orders) * 100).toFixed(1) : 0}%)`);
+        }
+        contextParts.push('');
+      }
+
+      // Sample Orders Summary
+      if (sampleOrdersSummaryData) {
+        contextParts.push('## Sample Orders Summary');
+        contextParts.push(`- Total Sample Orders: ${(sampleOrdersSummaryData.total_sample_orders || 0).toLocaleString()}`);
+        contextParts.push(`- Total Sample Quantity: ${(sampleOrdersSummaryData.total_sample_qty || 0).toLocaleString()}`);
+        contextParts.push(`- Total Sample Revenue: ${formatCurrency(sampleOrdersSummaryData.total_sample_revenue || 0)}`);
+        contextParts.push('');
+      }
+
+      // Sample Orders Daily
+      if (sampleOrdersDailyData && sampleOrdersDailyData.daily && sampleOrdersDailyData.daily.length > 0) {
+        contextParts.push('## Sample Orders Daily Breakdown');
+        contextParts.push('Date | Orders | Revenue | Items | Items/Order');
+        contextParts.push('--- | --- | --- | --- | ---');
+        sampleOrdersDailyData.daily.forEach((day: any) => {
+          const itemsPerOrder = day.total_orders > 0 ? (day.total_items / day.total_orders).toFixed(2) : '0';
+          contextParts.push(`${day.date} | ${day.total_orders || 0} | ${formatCurrency(day.total_revenue || 0)} | ${day.total_items || 0} | ${itemsPerOrder}`);
+        });
+        if (sampleOrdersDailyData.summary) {
+          contextParts.push(`\n### Summary:`);
+          contextParts.push(`- Total Orders: ${(sampleOrdersDailyData.summary.total_orders || 0).toLocaleString()}`);
+          contextParts.push(`- Total Revenue: ${formatCurrency(sampleOrdersDailyData.summary.total_revenue || 0)}`);
+          contextParts.push(`- Total Items: ${(sampleOrdersDailyData.summary.total_items || 0).toLocaleString()}`);
+          contextParts.push(`- Items per Order: ${(sampleOrdersDailyData.summary.items_per_order || 0).toFixed(2)}`);
+        }
+        contextParts.push('');
+      }
+
+      // Sample Orders Hourly
+      if (sampleOrdersHourlyData && sampleOrdersHourlyData.hourly) {
+        contextParts.push('## Sample Orders Hourly Patterns');
+        contextParts.push('Hour | Total Orders | Total Revenue | Avg Orders/Day | Avg Revenue/Day');
+        contextParts.push('--- | --- | --- | --- | ---');
+        sampleOrdersHourlyData.hourly.forEach((hour: any) => {
+          contextParts.push(`${hour.hour}:00 | ${hour.total_orders || 0} | ${formatCurrency(hour.total_revenue || 0)} | ${hour.avg_orders_per_day?.toFixed(2) || 0} | ${formatCurrency(hour.avg_revenue_per_day || 0)}`);
+        });
+        if (sampleOrdersHourlyData.peaks) {
+          contextParts.push(`\n### Peak Hours for Sample Orders:`);
+          contextParts.push(`- Peak Orders Hour: ${sampleOrdersHourlyData.peaks.orders?.hour || 0}:00 (${sampleOrdersHourlyData.peaks.orders?.total_orders || 0} orders)`);
+          contextParts.push(`- Peak Revenue Hour: ${sampleOrdersHourlyData.peaks.revenue?.hour || 0}:00 (${formatCurrency(sampleOrdersHourlyData.peaks.revenue?.total_revenue || 0)})`);
+        }
+        contextParts.push('');
+      }
+
+      // Top Sample Products
+      if (topSampleProductsData && topSampleProductsData.length > 0) {
+        contextParts.push('## Top Sample Products');
+        contextParts.push('Product | SKU | Quantity | Revenue | Avg Price | Orders');
+        contextParts.push('--- | --- | --- | --- | --- | ---');
+        topSampleProductsData.slice(0, 20).forEach((product: any) => {
+          const productName = product.product_name || 'Unknown';
+          contextParts.push(`${productName} | ${product.sku || 'N/A'} | ${product.total_qty_ordered?.toLocaleString() || 0} | ${formatCurrency(product.total_revenue || 0)} | ${formatCurrency(product.avg_price || 0)} | ${product.order_count?.toLocaleString() || 0}`);
+        });
+        contextParts.push('');
+      }
+
+      // Sample Orders by Collection
+      if (sampleOrdersByCollectionData && sampleOrdersByCollectionData.length > 0) {
+        contextParts.push('## Sample Orders by Collection');
+        contextParts.push('Collection | Total Items | Total Orders');
+        contextParts.push('--- | --- | ---');
+        sampleOrdersByCollectionData.forEach((collection: any) => {
+          contextParts.push(`${collection.collection} | ${collection.total_items?.toLocaleString() || 0} | ${collection.total_orders?.toLocaleString() || 0}`);
+        });
+        contextParts.push('');
+      }
+
+      // SEO Insights
+      if (seoInsightsData?.data) {
+        contextParts.push('## SEO Performance');
+        const seoData = seoInsightsData.data;
+        if (seoData.overview) {
+          contextParts.push('### Overview:');
+          contextParts.push(`- Total Clicks: ${(seoData.overview.total_clicks || 0).toLocaleString()}`);
+          contextParts.push(`- Total Impressions: ${(seoData.overview.total_impressions || 0).toLocaleString()}`);
+          contextParts.push(`- Average Position: ${(seoData.overview.avg_position || 0).toFixed(1)}`);
+          contextParts.push(`- Average CTR: ${((seoData.overview.avg_ctr || 0) * 100).toFixed(2)}%`);
+          contextParts.push(`- Attributed Revenue: ${formatCurrency(seoData.overview.total_attributed_revenue || 0)}`);
+        }
+        if (seoData.topQueries && seoData.topQueries.length > 0) {
+          contextParts.push(`\n### Top Queries by Clicks (${seoData.topQueries.length} queries):`);
+          seoData.topQueries.slice(0, 20).forEach((query: any) => {
+            contextParts.push(`- "${query.query}": ${query.total_clicks || 0} clicks, ${query.total_impressions || 0} impressions, Position ${query.avg_position?.toFixed(1) || 0}, CTR ${((query.avg_ctr || 0) * 100).toFixed(2)}%, Revenue ${formatCurrency(query.attributed_revenue || 0)}`);
+          });
+        }
+        if (seoData.topImpressions && seoData.topImpressions.length > 0) {
+          contextParts.push(`\n### Top Queries by Impressions (${seoData.topImpressions.length} queries):`);
+          seoData.topImpressions.slice(0, 10).forEach((query: any) => {
+            contextParts.push(`- "${query.query}": ${query.total_impressions || 0} impressions, ${query.total_clicks || 0} clicks, Position ${query.avg_position?.toFixed(1) || 0}`);
+          });
+        }
+        if (seoData.topPages && seoData.topPages.length > 0) {
+          contextParts.push(`\n### Top Pages by Clicks (${seoData.topPages.length} pages):`);
+          seoData.topPages.slice(0, 10).forEach((page: any) => {
+            contextParts.push(`- ${page.page}: ${page.total_clicks || 0} clicks, ${page.total_impressions || 0} impressions, Position ${page.avg_position?.toFixed(1) || 0}`);
+          });
+        }
+        if (seoData.positionDistribution && seoData.positionDistribution.length > 0) {
+          contextParts.push(`\n### Position Distribution:`);
+          seoData.positionDistribution.forEach((dist: any) => {
+            contextParts.push(`- Position ${dist.position}: ${dist.count || 0} queries`);
+          });
+        }
         contextParts.push('');
       }
 
@@ -322,7 +548,7 @@ export async function GET(request: NextRequest) {
           const startDate = new Date(annotation.startDate).toISOString().split('T')[0];
           const endDate = new Date(annotation.endDate || annotation.startDate).toISOString().split('T')[0];
           const isSingleDay = startDate === endDate;
-          
+
           if (isSingleDay) {
             contextParts.push(`- [${annotation.type.toUpperCase()}] Date: ${startDate} - ${annotation.title}`);
           } else {
@@ -350,15 +576,46 @@ export async function GET(request: NextRequest) {
 
 Your task is to analyze all available data and provide comprehensive insights about what happened during the selected period.
 
-You have access to comprehensive, detailed data:
+You have access to EXTENSIVE, comprehensive, detailed data:
+
+**CORE SALES DATA:**
 - **Sales Performance Data**: Complete overview metrics (revenue, orders, AOV, customers, taxes, shipping, discounts) PLUS full daily breakdown showing day-by-day trends
-- **Hourly Sales Patterns**: Sales broken down by hour of day, showing peak shopping times and temporal patterns
-- **Customer Metrics**: Customer segmentation (registered vs guest), daily customer trends, and revenue per customer analysis
-- **Product Performance**: Rich product data including top 100 products with detailed metrics (revenue, quantity, average price, discounts, order counts) and product performance distribution
+- **Order Status Breakdowns**: Complete vs pending vs processing vs canceled orders with revenue breakdowns, plus sample vs non-sample order breakdowns
+- **Hourly Sales Patterns**: Sales broken down by hour of day (0-23), showing peak shopping times, average orders/revenue per day by hour, and peak hours analysis
+
+**CUSTOMER DATA:**
+- **Customer Metrics**: Customer segmentation (registered vs guest), daily customer trends, and revenue per customer analysis with full daily breakdowns
+
+**PRODUCT DATA:**
+- **Product Performance**: Rich product data including top 200+ products with detailed metrics:
+  - Revenue, quantity sold, average price, discounts, order counts
+  - Fulfillment details: invoiced, shipped, canceled, refunded quantities
+  - Price analysis: min/max/average prices for products with price variations
+  - Product performance distribution (top 10 products revenue percentage)
+- **Category Breakdown**: Revenue and quantity breakdown by category/collection group for main orders with percentages
+- **Collections Performance**: Top collections by revenue and quantity with order counts
+
+**SAMPLE ORDERS DATA:**
+- **Sample Orders Summary**: Total sample orders, quantity, and revenue metrics
+- **Sample Orders Daily**: Daily breakdown of sample orders with trends and items per order
+- **Sample Orders Hourly**: Hourly patterns for sample orders with peak hours analysis
+- **Top Sample Products**: Top performing sample products with metrics (quantity, revenue, price, orders)
+- **Sample Orders by Collection**: Sample order breakdown by collection/category
+
+**MARKETING & SEO DATA:**
 - **Marketing Performance**: Channel-level performance (Google Ads, Facebook, Pinterest, SEO), spend, ROAS, and keyword analysis
+- **SEO Performance**: Comprehensive SEO data including:
+  - Overview metrics (clicks, impressions, average position, CTR, attributed revenue)
+  - Top queries by clicks and impressions (with position, CTR, revenue)
+  - Top pages by clicks
+  - Position distribution analysis
+
+**WEBSITE DATA:**
 - **Website Behavior**: Sessions, pageviews, bounce rate, traffic sources, user engagement metrics
-- **Annotations**: User-created notes about important events during this period
-- **Targets**: Revenue and performance goals to compare against
+
+**CONTEXTUAL DATA:**
+- **Annotations**: User-created notes about important events during this period with dates, types, titles, and descriptions
+- **Targets**: Revenue and performance goals to compare against with granularity
 
 Your analysis should:
 1. **Identify key trends and patterns** across all data sources - use the daily breakdowns to spot day-to-day trends, use hourly data to identify shopping patterns
@@ -398,77 +655,92 @@ Structure your insights as:
 ## Recommendations
 (Actionable next steps based on the analysis)`;
 
-      // Define the output schema
-      const outputSchema = z.object({
-        insights: z.string().describe('Comprehensive AI-generated insights in markdown format'),
-      });
+      // Prepare metadata for the frontend
+      const metadata = {
+        period: { startDate, endDate },
+        dataSources: {
+          sales: !!salesData,
+          hourlySales: !!hourlySalesData,
+          customerMetrics: !!customerMetricsData,
+          products: products && products.length > 0,
+          categoryBreakdown: !!categoryBreakdownData,
+          collectionsPerformance: !!collectionsPerformanceData,
+          sampleOrdersSummary: !!sampleOrdersSummaryData,
+          sampleOrdersDaily: !!sampleOrdersDailyData,
+          sampleOrdersHourly: !!sampleOrdersHourlyData,
+          topSampleProducts: !!topSampleProductsData,
+          sampleOrdersByCollection: !!sampleOrdersByCollectionData,
+          marketing: !!marketingData,
+          seoInsights: !!seoInsightsData,
+          website: !!websiteData,
+          annotations: annotationsData.length,
+          targets: targetsData.length,
+        },
+        contextSummary,
+        systemPrompt: SYSTEM_PROMPT,
+      };
 
-      // Generate insights
-      const { output } = await ai.generate({
+      // Start streaming response
+      const { stream } = await ai.generateStream({
         model: googleAI.model('gemini-2.5-flash'),
         system: SYSTEM_PROMPT,
         prompt: `Analyze the following data and provide comprehensive insights for the period ${startDate} to ${endDate}:\n\n${contextSummary}`,
-        output: {
-          schema: outputSchema,
-        },
         config: {
           temperature: 0.7,
           maxOutputTokens: 4096,
         },
       });
 
-      if (!output) {
-        return NextResponse.json(
-          { success: false, error: 'Failed to generate insights' },
-          { status: 500 }
-        );
-      }
+      // Create a ReadableStream to stream metadata + content
+      const responseStream = new ReadableStream({
+        async start(controller) {
+          // 1. Send metadata as a JSON line
+          controller.enqueue(new TextEncoder().encode(JSON.stringify(metadata) + '\n'));
 
-      const responseData: any = {
-        success: true,
-        data: {
-          insights: output.insights,
-          period: {
-            startDate,
-            endDate,
-          },
-          dataSources: {
-            sales: !!salesData,
-            products: !!productsData,
-            marketing: !!marketingData,
-            website: !!websiteData,
-            annotations: annotationsData.length,
-            targets: targetsData.length,
-          },
+          // 2. Stream the AI response chunks
+          try {
+            for await (const chunk of stream) {
+              const text = chunk.text;
+              if (text) {
+                controller.enqueue(new TextEncoder().encode(text));
+              }
+            }
+          } catch (error) {
+            console.error('Error streaming from AI:', error);
+            controller.enqueue(new TextEncoder().encode('\n\n**Error generating insights.**'));
+          } finally {
+            controller.close();
+          }
         },
-      };
+      });
 
-      // Include contextSummary for admins (what was passed to the AI)
-      if (user.role === 'admin') {
-        responseData.data.contextSummary = contextSummary;
-        responseData.data.systemPrompt = SYSTEM_PROMPT;
-      }
+      return new NextResponse(responseStream, {
+        headers: {
+          'Content-Type': 'text/plain; charset=utf-8',
+        },
+      });
 
-      return NextResponse.json(responseData);
     } catch (error: any) {
-      console.error('Insights API error:', error);
+      console.error('[Insights GET] Error:', error);
       return NextResponse.json(
-        { success: false, error: error.message || 'Internal server error' },
+        {
+          success: false,
+          error: `Internal server error: ${error.message || 'Unknown error'}`,
+        },
         { status: 500 }
       );
     }
   });
 }
-
 // POST - Generate insights from pre-fetched data
 export async function POST(request: NextRequest) {
   return requireAuth(request, async (req, user) => {
     try {
       const body = await req.json();
-      const { 
-        clientId, 
-        websiteId, 
-        startDate, 
+      const {
+        clientId,
+        websiteId,
+        startDate,
         endDate,
         salesData,
         hourlySalesData,
@@ -516,11 +788,121 @@ export async function POST(request: NextRequest) {
       }
 
       const clientData = clientDoc.data();
+      const datasetId = clientData?.bigQueryDatasetId;
+
+      // Fetch data using data layer if not provided
+      let salesDataActual = salesData?.data || salesData;
+      let hourlySalesDataActual = hourlySalesData?.data || hourlySalesData;
+      let customerMetricsDataActual = customerMetricsData?.data || customerMetricsData;
+      let productsDataActual = productsData?.data || productsData;
+      const marketingDataActual = marketingData?.data || marketingData;
+      const websiteDataActual = websiteData?.data || websiteData;
+
+      // Initialize breakdown data variables
+      let categoryBreakdownDataActual: any = null;
+      let collectionsPerformanceDataActual: any = null;
+      let sampleOrdersSummaryDataActual: any = null;
+      let sampleOrdersDailyDataActual: any = null;
+      let sampleOrdersHourlyDataActual: any = null;
+      let topSampleProductsDataActual: any = null;
+      let sampleOrdersByCollectionDataActual: any = null;
+
+      // If data not provided, fetch using data layer
+      if (datasetId) {
+        const queryOptions = {
+          datasetId,
+          clientId,
+          websiteId: websiteId || 'all_combined',
+          startDate,
+          endDate,
+        };
+
+        const [
+          fetchedSalesData,
+          fetchedHourlySalesData,
+          fetchedCustomerMetricsData,
+          fetchedProductsData,
+          fetchedCategoryBreakdownData,
+          fetchedCollectionsPerformanceData,
+          fetchedSampleOrdersSummaryData,
+          fetchedSampleOrdersDailyData,
+          fetchedSampleOrdersHourlyData,
+          fetchedTopSampleProductsData,
+          fetchedSampleOrdersByCollectionData,
+        ] = await Promise.all([
+          !salesDataActual
+            ? getSalesOverview(queryOptions).catch((err) => {
+              console.error('Error fetching sales overview:', err);
+              return null;
+            })
+            : Promise.resolve(null),
+          !hourlySalesDataActual
+            ? getHourlySales(queryOptions).catch((err) => {
+              console.error('Error fetching hourly sales:', err);
+              return null;
+            })
+            : Promise.resolve(null),
+          !customerMetricsDataActual
+            ? getCustomerMetrics(queryOptions).catch((err) => {
+              console.error('Error fetching customer metrics:', err);
+              return null;
+            })
+            : Promise.resolve(null),
+          !productsDataActual
+            ? getTopProducts({ ...queryOptions, limit: 200, sortBy: 'revenue' }).catch((err) => {
+              console.error('Error fetching top products:', err);
+              return null;
+            })
+            : Promise.resolve(null),
+          getCategoryBreakdown({ ...queryOptions, orderType: 'main' }).catch((err) => {
+            console.error('Error fetching category breakdown:', err);
+            return null;
+          }),
+          getCollectionsPerformance({ ...queryOptions, orderType: 'main', limit: 50, sortBy: 'revenue' }).catch((err) => {
+            console.error('Error fetching collections performance:', err);
+            return null;
+          }),
+          getSampleOrdersSummary(queryOptions).catch((err) => {
+            console.error('Error fetching sample orders summary:', err);
+            return null;
+          }),
+          getSampleOrdersDaily(queryOptions).catch((err) => {
+            console.error('Error fetching sample orders daily:', err);
+            return null;
+          }),
+          getSampleOrdersHourly(queryOptions).catch((err) => {
+            console.error('Error fetching sample orders hourly:', err);
+            return null;
+          }),
+          getTopSampleProducts({ ...queryOptions, limit: 50 }).catch((err) => {
+            console.error('Error fetching top sample products:', err);
+            return null;
+          }),
+          getSampleOrdersByCollection(queryOptions).catch((err) => {
+            console.error('Error fetching sample orders by collection:', err);
+            return null;
+          }),
+        ]);
+
+        if (fetchedSalesData) salesDataActual = fetchedSalesData;
+        if (fetchedHourlySalesData) hourlySalesDataActual = fetchedHourlySalesData;
+        if (fetchedCustomerMetricsData) customerMetricsDataActual = fetchedCustomerMetricsData;
+        if (fetchedProductsData) productsDataActual = fetchedProductsData;
+
+        // Always use fetched breakdown data
+        categoryBreakdownDataActual = fetchedCategoryBreakdownData;
+        collectionsPerformanceDataActual = fetchedCollectionsPerformanceData;
+        sampleOrdersSummaryDataActual = fetchedSampleOrdersSummaryData;
+        sampleOrdersDailyDataActual = fetchedSampleOrdersDailyData;
+        sampleOrdersHourlyDataActual = fetchedSampleOrdersHourlyData;
+        topSampleProductsDataActual = fetchedTopSampleProductsData;
+        sampleOrdersByCollectionDataActual = fetchedSampleOrdersByCollectionData;
+      }
 
       // Get currency from client data or default to GBP
       const currency = (clientData?.currency as string) || 'GBP';
       const currencySymbol = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : currency;
-      
+
       // Helper function to format currency values
       const formatCurrency = (value: number): string => {
         return `${currencySymbol}${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -533,15 +915,6 @@ export async function POST(request: NextRequest) {
       contextParts.push(`Client: ${clientData?.clientName || clientId}`);
       contextParts.push(`Website: ${websiteId === 'all_combined' ? 'All Websites Combined' : websiteId}`);
       contextParts.push(`Currency: ${currency} (${currencySymbol})\n`);
-
-      // Handle data structure - API responses are { success: true, data: {...} }
-      // But we might receive either the full response or just the data
-      const salesDataActual = salesData?.data || salesData;
-      const hourlySalesDataActual = hourlySalesData?.data || hourlySalesData;
-      const customerMetricsDataActual = customerMetricsData?.data || customerMetricsData;
-      const productsDataActual = productsData?.data || productsData;
-      const marketingDataActual = marketingData?.data || marketingData;
-      const websiteDataActual = websiteData?.data || websiteData;
 
       if (salesDataActual) {
         contextParts.push('## Sales Performance Overview');
@@ -564,7 +937,7 @@ export async function POST(request: NextRequest) {
           contextParts.push(`- Orders Processing: ${(summary.orders_processing || 0).toLocaleString()}`);
           contextParts.push(`- Orders Canceled: ${(summary.orders_canceled || 0).toLocaleString()}`);
         }
-        
+
         // Include daily breakdown for temporal analysis
         const daily = salesDataActual.daily || salesDataActual.data?.daily || [];
         if (daily && daily.length > 0) {
@@ -613,7 +986,7 @@ export async function POST(request: NextRequest) {
           contextParts.push(`- Total Guest Customers: ${(customerSummary.total_guest_customers || 0).toLocaleString()}`);
           contextParts.push(`- Average Revenue per Customer: ${formatCurrency(customerSummary.avg_revenue_per_customer || 0)}`);
         }
-        
+
         const customerDaily = customerMetricsDataActual.daily || customerMetricsDataActual.data?.daily || [];
         if (customerDaily && customerDaily.length > 0) {
           contextParts.push(`\n### Daily Customer Breakdown (${customerDaily.length} days):`);
@@ -635,11 +1008,11 @@ export async function POST(request: NextRequest) {
       } else if (productsDataActual?.data?.products) {
         products = productsDataActual.data.products;
       }
-      
+
       if (products && products.length > 0) {
         contextParts.push('## Product Performance Analysis');
         contextParts.push(`### Product Overview (${products.length} products):`);
-        
+
         // Top products by revenue
         contextParts.push(`\n#### Top 20 Products by Revenue:`);
         products.slice(0, 20).forEach((product: any, index: number) => {
@@ -657,20 +1030,20 @@ export async function POST(request: NextRequest) {
             contextParts.push(`   - Discounts: ${formatCurrency(product.total_discount)}`);
           }
         });
-        
+
         // Summary statistics
         const totalRevenue = products.reduce((sum: number, p: any) => sum + (p.total_revenue || p.revenue || 0), 0);
         const totalQuantity = products.reduce((sum: number, p: any) => sum + (p.total_qty_ordered || p.quantity_sold || 0), 0);
         const totalOrders = products.reduce((sum: number, p: any) => sum + (p.order_count || 0), 0);
         const avgPrice = totalQuantity > 0 ? totalRevenue / totalQuantity : 0;
-        
+
         contextParts.push(`\n### Product Summary:`);
         contextParts.push(`- Total Products Analyzed: ${products.length}`);
         contextParts.push(`- Combined Revenue: ${formatCurrency(totalRevenue)}`);
         contextParts.push(`- Combined Quantity Sold: ${totalQuantity.toLocaleString()}`);
         contextParts.push(`- Combined Orders: ${totalOrders.toLocaleString()}`);
         contextParts.push(`- Average Product Price: ${formatCurrency(avgPrice)}`);
-        
+
         // Product performance distribution
         const top10Revenue = products.slice(0, 10).reduce((sum: number, p: any) => sum + (p.total_revenue || p.revenue || 0), 0);
         const top10Percentage = totalRevenue > 0 ? (top10Revenue / totalRevenue * 100).toFixed(1) : 0;
@@ -723,7 +1096,7 @@ export async function POST(request: NextRequest) {
           const startDate = new Date(annotation.startDate).toISOString().split('T')[0];
           const endDate = new Date(annotation.endDate || annotation.startDate).toISOString().split('T')[0];
           const isSingleDay = startDate === endDate;
-          
+
           if (isSingleDay) {
             contextParts.push(`- [${annotation.type.toUpperCase()}] Date: ${startDate} - ${annotation.title}`);
           } else {
@@ -846,9 +1219,9 @@ Structure your insights as:
         console.error('Gemini API error:', error);
         console.error('Error stack:', error.stack);
         return NextResponse.json(
-          { 
-            success: false, 
-            error: `AI generation failed: ${error.message || 'Unknown error'}` 
+          {
+            success: false,
+            error: `AI generation failed: ${error.message || 'Unknown error'}`
           },
           { status: 500 }
         );
@@ -858,10 +1231,10 @@ Structure your insights as:
       // Check both fields since Gemini doesn't always follow the schema strictly
       // Also check for nested structures or text fields
       let insightsText: any = null;
-      
+
       // Cast output to any to access runtime properties that may not be in schema
       const outputAny = output as any;
-      
+
       // Try multiple possible field names and structures
       if (output?.insights) {
         insightsText = output.insights;
@@ -879,7 +1252,7 @@ Structure your insights as:
         // Check if output is an object with multiple string fields (like section headers)
         // This happens when Gemini returns { "Executive Summary": "...", "Sales Performance": "...", etc. }
         const stringFields = Object.entries(outputAny).filter(([_, value]) => typeof value === 'string' && value.length > 50);
-        
+
         if (stringFields.length > 1) {
           // Multiple string fields - likely section headers, join them all
           console.warn(`Found ${stringFields.length} string fields (likely sections). Joining all fields.`);
@@ -908,7 +1281,7 @@ Structure your insights as:
           }
         }
       }
-      
+
       // Handle array format (some Gemini responses return arrays)
       let finalInsights = '';
       if (insightsText) {
@@ -923,7 +1296,7 @@ Structure your insights as:
       } else {
         console.error('No insightsText found. Output:', JSON.stringify(output, null, 2).substring(0, 2000));
       }
-      
+
       console.log('Final insights length:', finalInsights.length);
       if (finalInsights.length > 0) {
         console.log('Final insights preview (first 300 chars):', finalInsights.substring(0, 300));

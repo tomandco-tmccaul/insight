@@ -9,7 +9,7 @@ import { useIdToken } from '@/lib/auth/hooks';
 import { apiRequest, buildQueryString } from '@/lib/utils/api';
 import { formatDate } from '@/lib/utils/date';
 import { Annotation, AnnotationType } from '@/types/firestore';
-import { Info } from 'lucide-react';
+import { Info, MessageSquare } from 'lucide-react';
 
 /**
  * Helper function to check if two date ranges overlap
@@ -121,7 +121,9 @@ export function ReportAnnotations() {
   return (
     <Card className="p-4 border-l-4 border-l-blue-500">
       <div className="flex items-start gap-3">
-        <Info className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+        <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+          <MessageSquare className="h-4 w-4 text-blue-600" />
+        </div>
         <div className="flex-1 min-w-0">
           <h3 className="text-sm font-semibold text-gray-900 mb-2">Period Annotations</h3>
           <div className="space-y-2">

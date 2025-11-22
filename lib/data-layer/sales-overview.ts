@@ -1,6 +1,7 @@
 import { bigquery } from '@/lib/bigquery/client';
 import { buildWebsiteFilter, executeQuery } from './base';
 import { QueryOptions } from './base';
+import { generateDateRange } from '@/lib/utils/date';
 
 export interface SalesOverviewDailyRow {
   date: string;
@@ -179,6 +180,35 @@ export async function getSalesOverview(
     maxFields: [],
   });
 
+  // Fill in missing dates with zero values
+  const fullDateRange = generateDateRange(startDate, endDate);
+  const dailyMap = new Map(daily.map(row => [row.date, row]));
+
+  const filledDaily = fullDateRange.map(date => {
+    const existingRow = dailyMap.get(date);
+    if (existingRow) return existingRow;
+
+    return {
+      date,
+      total_orders: 0,
+      unique_customers: 0,
+      total_revenue: 0,
+      subtotal: 0,
+      total_tax: 0,
+      total_shipping: 0,
+      total_discounts: 0,
+      total_items: 0,
+      orders_complete: 0,
+      orders_pending: 0,
+      orders_processing: 0,
+      orders_canceled: 0,
+      revenue_complete: 0,
+      revenue_pending: 0,
+      orders_sample: 0,
+      orders_not_sample: 0,
+    } as SalesOverviewDailyRow;
+  }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
   // Calculate summary
   const summary = daily.reduce(
     (acc, row) => {
@@ -229,7 +259,7 @@ export async function getSalesOverview(
   };
 
   return {
-    daily,
+    daily: filledDaily,
     summary: finalSummary,
   };
 }

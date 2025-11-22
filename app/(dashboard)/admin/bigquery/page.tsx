@@ -106,7 +106,17 @@ export default function AdminBigQueryPage() {
     }
   };
 
-  const createAggregation = async (aggregationType: 'sales_overview' | 'sales_overview_hourly' | 'sales_overview_monthly' | 'product_performance' | 'seo_performance' | 'sales_items_materialized_view' | 'products_flattened_materialized_view' | 'orders_flattened_materialized_view' | 'all') => {
+  const createAggregation = async (aggregationType:
+    | 'sales_overview'
+    | 'sales_overview_hourly'
+    | 'sales_overview_monthly'
+    | 'customer_metrics'
+    | 'product_performance'
+    | 'seo_performance'
+    | 'sales_items_materialized_view'
+    | 'products_flattened_materialized_view'
+    | 'orders_flattened_materialized_view'
+    | 'all') => {
     const client = clients.find((c) => c.id === selectedClientId);
     if (!client?.bigQueryDatasetId) return;
 
@@ -134,7 +144,7 @@ export default function AdminBigQueryPage() {
           const results = data.data?.results || [];
           const successCount = results.filter((r: any) => r.success).length;
           const failedCount = results.filter((r: any) => !r.success).length;
-          
+
           if (failedCount === 0) {
             setSuccess(`Successfully created all ${successCount} views/tables!`);
           } else {
@@ -143,7 +153,7 @@ export default function AdminBigQueryPage() {
           }
         } else {
           const itemType = aggregationType.includes('materialized_view')
-            ? 'materialized view' 
+            ? 'materialized view'
             : 'table';
           setSuccess(`Successfully created ${aggregationType} ${itemType}!`);
         }
@@ -311,7 +321,39 @@ export default function AdminBigQueryPage() {
                             </Button>
                           </TableCell>
                         </TableRow>
-                        
+
+                        <TableRow>
+                          <TableCell className="font-medium">Customer Metrics</TableCell>
+                          <TableCell>
+                            <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-purple-100 text-purple-700">
+                              MATERIALIZED VIEW
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-sm text-gray-600">
+                            Daily aggregation of unique, registered, and guest customers with revenue per customer
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm text-green-600">Hourly</span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => createAggregation('customer_metrics')}
+                              disabled={creatingAggregation === 'customer_metrics' || creatingAggregation === 'all'}
+                            >
+                              {creatingAggregation === 'customer_metrics' ? (
+                                <>
+                                  <RefreshCw className="mr-2 h-3 w-3 animate-spin" />
+                                  Creating...
+                                </>
+                              ) : (
+                                'Create'
+                              )}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+
                         <TableRow>
                           <TableCell className="font-medium">Sales Overview (Hourly)</TableCell>
                           <TableCell>
@@ -343,7 +385,7 @@ export default function AdminBigQueryPage() {
                             </Button>
                           </TableCell>
                         </TableRow>
-                        
+
                         <TableRow>
                           <TableCell className="font-medium">Sales Overview (Monthly)</TableCell>
                           <TableCell>
@@ -375,7 +417,7 @@ export default function AdminBigQueryPage() {
                             </Button>
                           </TableCell>
                         </TableRow>
-                        
+
                         <TableRow>
                           <TableCell className="font-medium">Product Performance</TableCell>
                           <TableCell>
@@ -407,7 +449,7 @@ export default function AdminBigQueryPage() {
                             </Button>
                           </TableCell>
                         </TableRow>
-                        
+
                         <TableRow>
                           <TableCell className="font-medium">SEO Performance</TableCell>
                           <TableCell>
@@ -439,7 +481,7 @@ export default function AdminBigQueryPage() {
                             </Button>
                           </TableCell>
                         </TableRow>
-                        
+
                         <TableRow>
                           <TableCell className="font-medium">Sales Items</TableCell>
                           <TableCell>
@@ -471,12 +513,12 @@ export default function AdminBigQueryPage() {
                             </Button>
                           </TableCell>
                         </TableRow>
-                        
+
                         <TableRow>
                           <TableCell className="font-medium">Products Flattened</TableCell>
                           <TableCell>
-                            <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-purple-100 text-purple-700">
-                              MATERIALIZED VIEW
+                            <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700">
+                              VIEW
                             </span>
                           </TableCell>
                           <TableCell className="text-sm text-gray-600">
@@ -503,7 +545,7 @@ export default function AdminBigQueryPage() {
                             </Button>
                           </TableCell>
                         </TableRow>
-                        
+
                         <TableRow>
                           <TableCell className="font-medium">Orders Flattened</TableCell>
                           <TableCell>
@@ -563,8 +605,8 @@ export default function AdminBigQueryPage() {
                   </div>
 
                   {tablesLoading ? (
-                    <div className="space-y-2">
-                      <Skeleton className="h-10 w-full" />
+                    <div className="p-2 bg-blue-50 rounded-lg">
+                      <Database className="h-5 w-5 text-blue-600" />
                       <Skeleton className="h-10 w-full" />
                       <Skeleton className="h-10 w-full" />
                     </div>
@@ -591,9 +633,8 @@ export default function AdminBigQueryPage() {
                                 {table.tableId}
                               </TableCell>
                               <TableCell>
-                                <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                                  table.type === 'TABLE' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
-                                }`}>
+                                <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${table.type === 'TABLE' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
+                                  }`}>
                                   {table.type}
                                 </span>
                               </TableCell>

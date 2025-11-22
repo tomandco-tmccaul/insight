@@ -8,11 +8,11 @@ import { ChatMessage, ChatContext, ChartVisualization } from '@/types/ai-chat';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
-import { 
-  X, 
-  Send, 
-  Sparkles, 
-  Trash2, 
+import {
+  X,
+  Send,
+  Sparkles,
+  Trash2,
   Maximize2,
   User,
   Bot,
@@ -27,7 +27,7 @@ export function ChatPanel() {
   const { isOpen, setIsOpen, messages, addMessage, clearMessages, isLoading, setIsLoading } = useAIChat();
   const { selectedClientId, selectedWebsiteId, dateRange, comparisonPeriod } = useDashboard();
   const { user } = useAuth();
-  
+
   const [input, setInput] = useState('');
   const [selectedVisualization, setSelectedVisualization] = useState<ChartVisualization | null>(null);
   const [isVisualizationModalOpen, setIsVisualizationModalOpen] = useState(false);
@@ -61,8 +61,9 @@ export function ChatPanel() {
       dateRange,
     });
 
-    // Fetch actual data from APIs if we have a client and website selected
-    if (selectedClientId && selectedWebsiteId) {
+    // Fetch annotations and targets from Firestore (not available via data layer)
+    // Sales and product data will be fetched by the API route using the data layer
+    if (selectedClientId) {
       try {
         const token = await user?.getIdToken();
         const headers = {
@@ -70,66 +71,26 @@ export function ChatPanel() {
           Authorization: `Bearer ${token}`,
         };
 
-        // Get client info to get dataset ID
-        const clientResponse = await fetch(`/api/admin/clients/${selectedClientId}`, { headers });
-        const clientData = await clientResponse.json();
-        const datasetId = clientData.data?.bigQueryDatasetId;
+        // Fetch annotations
+        const annotationsResponse = await fetch(`/api/admin/clients/${selectedClientId}/annotations`, { headers });
+        if (annotationsResponse.ok) {
+          const annotationsData = await annotationsResponse.json();
+          context.annotations = annotationsData.data;
+        }
 
-        console.log('Dataset ID:', datasetId);
-
-        if (datasetId) {
-          // Get the storeId from the website document if a specific website is selected
-          let websiteFilter = 'all_combined';
-          if (selectedWebsiteId && selectedWebsiteId !== 'all_combined') {
-            const websiteResponse = await fetch(
-              `/api/admin/clients/${selectedClientId}/websites/${selectedWebsiteId}`,
-              { headers }
-            );
-            if (websiteResponse.ok) {
-              const websiteData = await websiteResponse.json();
-              websiteFilter = websiteData.data?.storeId || selectedWebsiteId;
-            }
-          }
-
-          const params = new URLSearchParams({
-            dataset_id: datasetId,
-            website_id: websiteFilter,
-            start_date: dateRange.startDate,
-            end_date: dateRange.endDate,
-          });
-
-          // Fetch sales data
-          const salesResponse = await fetch(`/api/reports/sales-overview?${params}`, { headers });
-          if (salesResponse.ok) {
-            const salesData = await salesResponse.json();
-            context.salesData = salesData.data;
-          }
-
-          // Fetch top products
-          const productsResponse = await fetch(`/api/reports/top-products?${params}&limit=10&sort_by=revenue`, { headers });
-          if (productsResponse.ok) {
-            const productsData = await productsResponse.json();
-            context.productData = productsData.data;
-          }
-
-          // Fetch annotations
-          const annotationsResponse = await fetch(`/api/admin/clients/${selectedClientId}/annotations`, { headers });
-          if (annotationsResponse.ok) {
-            const annotationsData = await annotationsResponse.json();
-            context.annotations = annotationsData.data;
-          }
-
-          // Fetch targets
-          const targetsResponse = await fetch(`/api/admin/clients/${selectedClientId}/targets`, { headers });
-          if (targetsResponse.ok) {
-            const targetsData = await targetsResponse.json();
-            context.targets = targetsData.data;
-          }
+        // Fetch targets
+        const targetsResponse = await fetch(`/api/admin/clients/${selectedClientId}/targets`, { headers });
+        if (targetsResponse.ok) {
+          const targetsData = await targetsResponse.json();
+          context.targets = targetsData.data;
         }
       } catch (error) {
         console.error('Error fetching context data:', error);
       }
     }
+
+    // Note: Sales and product data will be fetched by the API route using the data layer
+    // if not provided here. This reduces client-side API calls and ensures consistent data access.
 
     return context;
   };
@@ -180,7 +141,7 @@ export function ChatPanel() {
         };
 
         addMessage(assistantMessage);
-        
+
         // Remove loading immediately when response arrives - no hanging
         setIsLoading(false);
       } else {
@@ -305,17 +266,16 @@ export function ChatPanel() {
                 className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 {message.role === 'assistant' && (
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-md">
                     <Bot className="h-5 w-5 text-white" />
                   </div>
                 )}
-                
+
                 <div className={`flex-1 max-w-[85%] ${message.role === 'user' ? 'order-first' : ''}`}>
-                  <Card className={`p-3 ${
-                    message.role === 'user' 
-                      ? 'bg-blue-600 text-white' 
+                  <Card className={`p-3 ${message.role === 'user'
+                      ? 'bg-blue-600 text-white'
                       : 'bg-gray-50 text-gray-900'
-                  }`}>
+                    }`}>
                     <div className="prose prose-sm max-w-none">
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
@@ -327,16 +287,14 @@ export function ChatPanel() {
                           li: ({ children }) => <li className="mb-1">{children}</li>,
                           strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
                           code: ({ children }) => (
-                            <code className={`px-1 py-0.5 rounded text-xs ${
-                              message.role === 'user' ? 'bg-blue-700' : 'bg-gray-200'
-                            }`}>
+                            <code className={`px-1 py-0.5 rounded text-xs ${message.role === 'user' ? 'bg-blue-700' : 'bg-gray-200'
+                              }`}>
                               {children}
                             </code>
                           ),
                           pre: ({ children }) => (
-                            <pre className={`p-2 rounded text-xs overflow-x-auto ${
-                              message.role === 'user' ? 'bg-blue-700' : 'bg-gray-200'
-                            }`}>
+                            <pre className={`p-2 rounded text-xs overflow-x-auto ${message.role === 'user' ? 'bg-blue-700' : 'bg-gray-200'
+                              }`}>
                               {children}
                             </pre>
                           ),
@@ -345,7 +303,7 @@ export function ChatPanel() {
                         {message.content}
                       </ReactMarkdown>
                     </div>
-                    
+
                     {message.visualization && (
                       <Button
                         variant="outline"

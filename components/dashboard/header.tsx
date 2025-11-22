@@ -26,6 +26,7 @@ import { apiRequest } from '@/lib/utils/api';
 import { Client, Website } from '@/types/firestore';
 import { DateRangePicker } from '@/components/dashboard/date-range-picker';
 import { motion, AnimatePresence } from 'framer-motion';
+import { usePathname } from 'next/navigation';
 
 export function DashboardHeader() {
   const { appUser, signOut } = useAuth();
@@ -40,6 +41,8 @@ export function DashboardHeader() {
     comparisonPeriod,
     setComparisonPeriod,
   } = useDashboard();
+
+  const pathname = usePathname();
 
   const [clients, setClients] = useState<Client[]>([]);
   const [loadingClients, setLoadingClients] = useState(false);
@@ -105,10 +108,10 @@ export function DashboardHeader() {
           // Validate and restore website selection
           if (selectedWebsiteId) {
             // Check if the stored websiteId is still valid for this client
-            const isValidWebsite = 
-              selectedWebsiteId === 'all_combined' || 
+            const isValidWebsite =
+              selectedWebsiteId === 'all_combined' ||
               response.data.some((w) => w.id === selectedWebsiteId);
-            
+
             if (!isValidWebsite) {
               // Stored websiteId is no longer valid, auto-select "all_combined" or first website
               if (response.data.length > 0) {
@@ -141,7 +144,7 @@ export function DashboardHeader() {
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-      className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-gray-200/60 bg-gradient-to-r from-white/98 via-white/95 to-white/98 supports-[backdrop-filter]:bg-white/85 backdrop-blur-xl shadow-[0_1px_4px_rgba(0,0,0,0.06)]"
+      className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border/60 bg-background/80 backdrop-blur-xl shadow-[0_1px_4px_rgba(0,0,0,0.06)]"
     >
       {/* Left side - Report selector and filters */}
       <motion.div
@@ -153,14 +156,14 @@ export function DashboardHeader() {
         {/* Client Selector (Admin only) */}
         {appUser?.role === 'admin' && (
           <Select value={selectedClientId || ''} onValueChange={setSelectedClientId}>
-            <SelectTrigger className="w-[220px] h-9 text-sm font-medium transition-all duration-200 hover:border-indigo-300 focus:border-indigo-400 focus:ring-indigo-200">
+            <SelectTrigger className="w-[220px] h-9 text-sm font-medium transition-all duration-200 hover:border-primary/50 focus:border-primary focus:ring-primary/20">
               <SelectValue placeholder="Select client" />
             </SelectTrigger>
             <SelectContent>
               {loadingClients ? (
-                <div className="px-2 py-1.5 text-sm text-gray-500">Loading clients...</div>
+                <div className="px-2 py-1.5 text-sm text-muted-foreground">Loading clients...</div>
               ) : clients.length === 0 ? (
-                <div className="px-2 py-1.5 text-sm text-gray-500">No clients found</div>
+                <div className="px-2 py-1.5 text-sm text-muted-foreground">No clients found</div>
               ) : (
                 clients.map((client) => (
                   <SelectItem key={client.id} value={client.id} className="text-sm">
@@ -173,15 +176,19 @@ export function DashboardHeader() {
         )}
 
         {/* Report/Website Selector */}
-        <Select value={selectedWebsiteId || ''} onValueChange={setSelectedWebsiteId}>
-          <SelectTrigger className="w-[200px] h-9 text-sm font-medium transition-all duration-200 hover:border-indigo-300 focus:border-indigo-400 focus:ring-indigo-200">
+        <Select
+          value={pathname === '/' ? 'all_combined' : (selectedWebsiteId || '')}
+          onValueChange={setSelectedWebsiteId}
+          disabled={pathname === '/'}
+        >
+          <SelectTrigger className="w-[200px] h-9 text-sm font-medium transition-all duration-200 hover:border-primary/50 focus:border-primary focus:ring-primary/20 disabled:opacity-100 disabled:bg-muted/50">
             <SelectValue placeholder="Select website" />
           </SelectTrigger>
           <SelectContent>
             {loadingWebsites ? (
-              <div className="px-2 py-1.5 text-sm text-gray-500">Loading websites...</div>
+              <div className="px-2 py-1.5 text-sm text-muted-foreground">Loading websites...</div>
             ) : websites.length === 0 ? (
-              <div className="px-2 py-1.5 text-sm text-gray-500">No websites found</div>
+              <div className="px-2 py-1.5 text-sm text-muted-foreground">No websites found</div>
             ) : (
               <>
                 <SelectItem value="all_combined" className="text-sm font-medium">All Websites</SelectItem>
@@ -190,7 +197,7 @@ export function DashboardHeader() {
                     <div className="flex items-center gap-2">
                       <span>{website.websiteName}</span>
                       {website.isGrouped && (
-                        <span className="text-xs font-medium bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">
+                        <span className="text-xs font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded">
                           Grouped
                         </span>
                       )}
@@ -210,7 +217,7 @@ export function DashboardHeader() {
 
         {/* Comparison Period */}
         <Select value={comparisonPeriod} onValueChange={(value) => setComparisonPeriod(value as any)}>
-          <SelectTrigger className="w-[180px] h-9 text-sm font-medium transition-all duration-200 hover:border-indigo-300 focus:border-indigo-400 focus:ring-indigo-200">
+          <SelectTrigger className="w-[180px] h-9 text-sm font-medium transition-all duration-200 hover:border-primary/50 focus:border-primary focus:ring-primary/20">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -236,13 +243,13 @@ export function DashboardHeader() {
               transition={{ duration: 0.2 }}
             >
               <Button variant="ghost" className="relative h-10 w-10 rounded-full overflow-hidden">
-                <Avatar className="ring-2 ring-indigo-100 transition-all hover:ring-indigo-300">
-                  <AvatarFallback className="bg-gradient-to-br from-indigo-400 to-purple-500 text-white font-semibold shadow-md">
+                <Avatar className="ring-2 ring-primary/20 transition-all hover:ring-primary/50">
+                  <AvatarFallback className="bg-gradient-to-br from-primary to-primary/70 text-primary-foreground font-semibold shadow-md">
                     {appUser?.email?.[0].toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <motion.div
-                  className="absolute inset-0 rounded-full bg-gradient-to-r from-indigo-400/0 via-indigo-400/20 to-indigo-400/0"
+                  className="absolute inset-0 rounded-full bg-gradient-to-r from-primary/0 via-primary/20 to-primary/0"
                   animate={{
                     x: ['-100%', '100%'],
                   }}
@@ -258,18 +265,18 @@ export function DashboardHeader() {
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"
-            className="w-56 border-gray-200/50 shadow-lg backdrop-blur-xl bg-white/95"
+            className="w-56 border-border/50 shadow-lg backdrop-blur-xl bg-popover/95"
           >
             <DropdownMenuLabel>
               <div className="flex flex-col space-y-1.5">
-                <p className="text-sm font-semibold text-gray-900">{appUser?.email}</p>
+                <p className="text-sm font-semibold text-foreground">{appUser?.email}</p>
                 <div className="flex items-center gap-1.5">
-                  <p className="text-xs font-medium text-gray-500 capitalize">{appUser?.role}</p>
+                  <p className="text-xs font-medium text-muted-foreground capitalize">{appUser?.role}</p>
                   {appUser?.role === 'admin' && (
                     <motion.div
                       animate={{ scale: [1, 1.2, 1] }}
                       transition={{ duration: 1.5, repeat: Infinity }}
-                      className="h-1.5 w-1.5 rounded-full bg-indigo-500"
+                      className="h-1.5 w-1.5 rounded-full bg-primary"
                     />
                   )}
                 </div>
@@ -278,7 +285,7 @@ export function DashboardHeader() {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={handleSignOut}
-              className="text-sm font-medium transition-colors cursor-pointer focus:bg-red-50 focus:text-red-600"
+              className="text-sm font-medium transition-colors cursor-pointer focus:bg-destructive/10 focus:text-destructive"
             >
               Log out
             </DropdownMenuItem>

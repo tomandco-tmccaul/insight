@@ -1,6 +1,22 @@
 // Date utility functions
-import { format, subDays, subMonths, subYears, startOfDay, endOfDay } from 'date-fns';
+import { format, subDays, subMonths, subYears, startOfDay, endOfDay, eachDayOfInterval } from 'date-fns';
 import { DateRange, ComparisonPeriod } from '@/types';
+
+/**
+ * Generate an array of dates (YYYY-MM-DD) between start and end date inclusive
+ */
+export function generateDateRange(startDate: string, endDate: string): string[] {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  
+  try {
+    const interval = eachDayOfInterval({ start, end });
+    return interval.map(date => format(date, 'yyyy-MM-dd'));
+  } catch (e) {
+    console.warn('Error generating date range:', e);
+    return [];
+  }
+}
 
 /**
  * Format a date string for display
@@ -34,9 +50,14 @@ export function getComparisonDateRange(
   const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
 
   if (comparisonPeriod === 'previous_period') {
+    // Calculate duration in days
+    // Add 1 day because the difference between start and end is inclusive
+    // e.g. Jan 1 to Jan 7 is 7 days, but difference is 6 days
+    const durationInDays = daysDiff + 1;
+    
     return {
-      startDate: format(subDays(start, daysDiff), 'yyyy-MM-dd'),
-      endDate: format(subDays(end, daysDiff), 'yyyy-MM-dd'),
+      startDate: format(subDays(start, durationInDays), 'yyyy-MM-dd'),
+      endDate: format(subDays(end, durationInDays), 'yyyy-MM-dd'),
     };
   }
 
@@ -98,11 +119,18 @@ export function calculatePercentageChange(current: number, previous: number): nu
 }
 
 /**
- * Format percentage for display
+ * Format percentage for display with sign
  */
 export function formatPercentage(value: number, decimals: number = 1): string {
   const sign = value > 0 ? '+' : '';
   return `${sign}${value.toFixed(decimals)}%`;
+}
+
+/**
+ * Format percentage value without sign (for use with arrows)
+ */
+export function formatPercentageValue(value: number, decimals: number = 1): string {
+  return `${Math.abs(value).toFixed(decimals)}%`;
 }
 
 /**

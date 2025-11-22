@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDashboard } from '@/lib/context/dashboard-context';
+import { useUrlSync } from '@/lib/hooks/use-url-sync';
 import { useIdToken } from '@/lib/auth/hooks';
 import { apiRequest, buildQueryString } from '@/lib/utils/api';
 import { formatCurrency, formatNumber } from '@/lib/utils/date';
@@ -36,6 +37,9 @@ interface ProductData {
 export default function ProductPage() {
   const { selectedClientId, selectedWebsiteId, dateRange } = useDashboard();
   const getIdToken = useIdToken();
+  
+  // Sync URL parameters with dashboard context
+  useUrlSync();
   const [products, setProducts] = useState<ProductData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
