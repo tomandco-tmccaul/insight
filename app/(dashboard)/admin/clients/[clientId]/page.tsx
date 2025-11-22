@@ -263,38 +263,38 @@ export default function ClientEditPage() {
         }
     };
 
-    useEffect(() => {
-        const fetchClientData = async () => {
-            try {
-                const token = await auth.currentUser?.getIdToken();
-                const response = await fetch(`/api/admin/clients`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
-                const data = await response.json();
-                if (data.success) {
-                    const client = data.data.find((c: Client) => c.id === clientId);
-                    if (client) {
-                        setFormData({
-                            id: client.id || '',
-                            clientName: client.clientName || '',
-                            bigQueryDatasetId: client.bigQueryDatasetId || '',
-                            adobeCommerceEndpoint: client.adobeCommerceEndpoint || '',
-                            adobeCommerceAccessToken: client.adobeCommerceAccessToken || '',
-                            currencySettings: client.currencySettings || defaultCurrencySettings,
-                            disabledMenuItems: client.disabledMenuItems || [],
-                        });
-                    } else {
-                        setError('Client not found');
-                    }
+    const fetchClientData = React.useCallback(async () => {
+        try {
+            const token = await auth.currentUser?.getIdToken();
+            const response = await fetch(`/api/admin/clients`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const data = await response.json();
+            if (data.success) {
+                const client = data.data.find((c: Client) => c.id === clientId);
+                if (client) {
+                    setFormData({
+                        id: client.id || '',
+                        clientName: client.clientName || '',
+                        bigQueryDatasetId: client.bigQueryDatasetId || '',
+                        adobeCommerceEndpoint: client.adobeCommerceEndpoint || '',
+                        adobeCommerceAccessToken: client.adobeCommerceAccessToken || '',
+                        currencySettings: client.currencySettings || defaultCurrencySettings,
+                        disabledMenuItems: client.disabledMenuItems || [],
+                    });
+                } else {
+                    setError('Client not found');
                 }
-            } catch (err) {
-                console.error('Error fetching client:', err);
-                setError('Failed to load client data');
-            } finally {
-                setInitialLoading(false);
             }
-        };
+        } catch (err) {
+            console.error('Error fetching client:', err);
+            setError('Failed to load client data');
+        } finally {
+            setInitialLoading(false);
+        }
+    }, [clientId]);
 
+    useEffect(() => {
         const fetchCustomLinks = async () => {
             try {
                 const token = await auth.currentUser?.getIdToken();
@@ -315,7 +315,7 @@ export default function ClientEditPage() {
             fetchCustomLinks();
             fetchWebsites();
         }
-    }, [clientId, isNew]);
+    }, [clientId, isNew, fetchClientData]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
